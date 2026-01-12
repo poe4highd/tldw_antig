@@ -19,12 +19,14 @@ export default function Home() {
   const [mode, setMode] = useState("cloud");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const startProcess = async () => {
     setStatus("Starting...");
+    setProgress(0);
     setResult(null);
     try {
       const resp = await fetch("http://localhost:8000/process", {
@@ -46,15 +48,16 @@ export default function Home() {
       try {
         const resp = await fetch(`http://localhost:8000/result/${taskId}`);
         const data = await resp.json();
-        if (data.status === "processing") {
-          setStatus("Processing...");
+        setProgress(data.progress || 0);
+        if (data.status === "completed") {
+          setResult(data);
+          setStatus("Done!");
+          clearInterval(interval);
         } else if (data.status === "failed") {
           setStatus("Failed: " + JSON.stringify(data.detail));
           clearInterval(interval);
         } else {
-          setResult(data);
-          setStatus("Done!");
-          clearInterval(interval);
+          setStatus(data.status || "Processing...");
         }
       } catch (e) {
         console.error(e);
@@ -102,7 +105,20 @@ export default function Home() {
               Start
             </button>
           </div>
-          {status && <p className="mt-4 text-slate-400">Status: {status}</p>}
+          {status && (
+            <div className="mt-6 space-y-2">
+              <div className="flex justify-between text-sm text-slate-400">
+                <span>{status}</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div
+                  className="bg-blue-600 h-full transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {result && (
@@ -130,8 +146,8 @@ export default function Home() {
                       key={i}
                       onClick={() => seek(sub.start)}
                       className={`p-3 rounded-lg cursor-pointer transition ${isActive
-                          ? "bg-blue-600/20 border border-blue-500/50 text-blue-100"
-                          : "hover:bg-slate-800 text-slate-400"
+                        ? "bg-blue-600/20 border border-blue-500/50 text-blue-100"
+                        : "hover:bg-slate-800 text-slate-400"
                         }`}
                     >
                       <span className="text-xs font-mono opacity-50 block mb-1">

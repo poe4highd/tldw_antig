@@ -10,9 +10,9 @@ def download_audio(url: str, output_path: str = "downloads"):
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '192',
+            'preferredquality': '128', # 降低到 128k 以减小体积，适配 OpenAI 25MB 限制
         }],
-        'outtmpl': f'{output_path}/%(id)s.%(ext)s',
+        'outtmpl': f'{output_path}/%(id)s.%(ext)s', # 使用 ID 作为文件名方便缓存
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

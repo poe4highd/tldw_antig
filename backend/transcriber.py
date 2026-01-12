@@ -22,6 +22,11 @@ def transcribe_local(file_path: str):
     return results
 
 def transcribe_cloud(file_path: str):
+    # OpenAI Whisper API 限制为 25MB
+    file_size = os.path.getsize(file_path)
+    if file_size > 25 * 1024 * 1024:
+        raise Exception(f"音频文件过大 ({file_size / 1024 / 1024:.2f}MB)，超过了云端 API 的 25MB 限制。请尝试使用 'Local' 模式或缩短视频长度。")
+
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
     with open(file_path, "rb") as audio_file:
