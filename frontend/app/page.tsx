@@ -15,6 +15,7 @@ export default function Home() {
   const [mode, setMode] = useState("cloud");
   const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
+  const [eta, setEta] = useState<number | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [apiBase, setApiBase] = useState("");
   const router = useRouter();
@@ -24,6 +25,13 @@ export default function Home() {
     setApiBase(base);
     fetchHistory(base);
   }, []);
+
+  useEffect(() => {
+    if (eta !== null && eta > 0) {
+      const timer = setTimeout(() => setEta(eta - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [eta]);
 
   const fetchHistory = async (base: string) => {
     try {
@@ -36,8 +44,9 @@ export default function Home() {
   };
 
   const startProcess = async () => {
-    setStatus("Generating task...");
+    setStatus("正在初始化任务...");
     setProgress(0);
+    setEta(null);
     try {
       const resp = await fetch(`${apiBase}/process`, {
         method: "POST",
@@ -60,6 +69,7 @@ export default function Home() {
         const resp = await fetch(`${apiBase}/result/${taskId}`);
         const data = await resp.json();
         setProgress(data.progress || 0);
+        if (data.eta !== undefined) setEta(data.eta);
 
         if (data.status === "completed") {
           clearInterval(interval);
@@ -117,15 +127,29 @@ export default function Home() {
           {status && (
             <div className="mt-8 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-blue-400 font-medium">{status}</span>
-                <span className="text-slate-500 font-mono">{progress}%</span>
+                <span className="text-blue-400 font-medium animate-pulse">{status}</span>
+                <div className="flex items-center gap-3">
+                  {eta !== null && eta > 0 && (
+                    <span className="text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded-lg border border-slate-700/50">
+                      估计剩余: <span className="text-indigo-400 font-mono">{eta}s</span>
+                    </span>
+                  )}
+                  <span className="text-slate-500 font-mono bg-slate-800/50 px-2 py-0.5 rounded-lg border border-slate-700/50">
+                    {progress}%
+                  </span>
+                </div>
               </div>
-              <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
+              <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800 p-0.5">
                 <div
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 h-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(37,99,235,0.5)]"
+                  className="bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500 h-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(37,99,235,0.4)] rounded-full"
                   style={{ width: `${progress}%` }}
                 />
               </div>
+              {eta !== null && eta > 0 && (
+                <p className="text-xs text-slate-500 text-center animate-in fade-in duration-1000">
+                  AI 正在努力处理中，请稍候... ☕️
+                </p>
+              )}
             </div>
           )}
         </div>

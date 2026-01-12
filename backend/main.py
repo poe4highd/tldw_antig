@@ -29,9 +29,9 @@ for d in [DOWNLOADS_DIR, RESULTS_DIR]:
 app.mount("/media", StaticFiles(directory=DOWNLOADS_DIR), name="media")
 app.mount("/results", StaticFiles(directory=RESULTS_DIR), name="results")
 
-def save_status(task_id, status, progress):
+def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
-        json.dump({"status": status, "progress": progress}, f)
+        json.dump({"status": status, "progress": progress, "eta": eta}, f)
 
 def extract_youtube_id(url: str) -> str:
     """提取 YouTube 视频 ID"""
@@ -60,7 +60,7 @@ class DownloadRequest(BaseModel):
 def background_process(url: str, mode: str, task_id: str):
     print(f"--- [Task {task_id}] Starting background process (Mode: {mode}) ---")
     try:
-        save_status(task_id, "Downloading...", 20)
+        save_status(task_id, "正在获取视频信息并下载音频...", 20, eta=45)
         print(f"--- [Task {task_id}] Stage 1: Downloading media... ---")
         
         # 1. Download (Check cache)
@@ -73,16 +73,17 @@ def background_process(url: str, mode: str, task_id: str):
         
         file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
         if os.path.exists(file_path):
-            save_status(task_id, "Using cached audio", 40)
+            save_status(task_id, "检测到缓存音频，跳过下载...", 40, eta=30 if mode == "cloud" else 150)
         else:
+            save_status(task_id, "音频下载完成，准备转录...", 40, eta=35 if mode == "cloud" else 160)
             file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR)
         
         # 2. Transcribe
-        save_status(task_id, "Transcribing...", 60)
+        save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == "cloud" else 120)
         raw_subtitles = transcribe_audio(file_path, mode=mode)
         
         # 3. LLM Processing (Paragraphing)
-        save_status(task_id, "Natural Segmenting...", 80)
+        save_status(task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
         paragraphs = split_into_paragraphs(raw_subtitles)
         
         # 4. Save result
