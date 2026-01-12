@@ -1,0 +1,73 @@
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from downloader import download_audio
+from transcriber import transcribe_audio
+
+app = FastAPI()
+
+# Enable CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static dirs
+DOWNLOADS_DIR = "downloads"
+RESULTS_DIR = "results"
+for d in [DOWNLOADS_DIR, RESULTS_DIR]:
+    if not os.path.exists(d):
+        os.makedirs(d)
+
+app.mount("/media", StaticFiles(directory=DOWNLOADS_DIR), name="media")
+app.mount("/results", StaticFiles(directory=RESULTS_DIR), name="results")
+
+class DownloadRequest(BaseModel):
+    url: str
+    mode: str = "cloud"
+
+def background_process(url: str, mode: str, task_id: str):
+    try:
+        # 1. Download
+        file_path, title = download_audio(url)
+        
+        # 2. Transcribe
+        subtitles = transcribe_audio(file_path, mode=mode)
+        
+        # 3. Save result
+        result = {
+            "title": title,
+            "url": url,
+            "media_url": f"http://localhost:8000/media/{os.path.basename(file_path)}",
+            "subtitles": subtitles
+        }
+        with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+            
+    except Exception as e:
+        with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as f:
+            json.dump({"error": str(e)}, f)
+
+@app.post("/process")
+async def process_video(request: DownloadRequest, background_tasks: BackgroundTasks):
+    import uuid
+    task_id = str(uuid.uuid4())
+    background_tasks.add_task(background_process, request.url, request.mode, task_id)
+    return {"task_id": task_id, "status": "started"}
+
+@app.get("/result/{task_id}")
+async def get_result(task_id: str):
+    file_path = f"{RESULTS_DIR}/{task_id}.json"
+    error_path = f"{RESULTS_DIR}/{task_id}_error.json"
+    
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    elif os.path.exists(error_path):
+        with open(error_path, "r") as f:
+            return {"status": "failed", "detail": json.load(f)}
+    
+    return {"status": "processing"}
