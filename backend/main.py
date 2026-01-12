@@ -36,8 +36,10 @@ class DownloadRequest(BaseModel):
     mode: str = "cloud"
 
 def background_process(url: str, mode: str, task_id: str):
+    print(f"--- [Task {task_id}] Starting background process (Mode: {mode}) ---")
     try:
         save_status(task_id, "Downloading...", 20)
+        print(f"--- [Task {task_id}] Stage 1: Downloading media... ---")
         
         # 1. Download (Check cache)
         # Use video ID as filename for caching
@@ -50,15 +52,19 @@ def background_process(url: str, mode: str, task_id: str):
         file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
         if os.path.exists(file_path):
             save_status(task_id, "Using cached audio", 40)
+            print(f"--- [Task {task_id}] Stage 1: Audio found in cache: {file_path} ---")
         else:
             file_path, _ = download_audio(url, output_path=DOWNLOADS_DIR)
+            print(f"--- [Task {task_id}] Stage 1: Download completed: {file_path} ---")
         
         # 2. Transcribe
         save_status(task_id, "Transcribing...", 60)
+        print(f"--- [Task {task_id}] Stage 2: Starting transcription (this may take a while)... ---")
         subtitles = transcribe_audio(file_path, mode=mode)
         
         # 3. Save result
         save_status(task_id, "Finalizing...", 90)
+        print(f"--- [Task {task_id}] Stage 2: Transcription done. Saving results... ---")
         result = {
             "title": title,
             "url": url,
@@ -67,6 +73,7 @@ def background_process(url: str, mode: str, task_id: str):
         }
         with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
+        print(f"--- [Task {task_id}] Task completed successfully! ---")
             
         # 4. Cleanup old media files (older than 48 hours)
         import time
