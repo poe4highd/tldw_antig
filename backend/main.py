@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from downloader import download_audio
 from transcriber import transcribe_audio
+from processor import split_into_paragraphs
 
 app = FastAPI()
 
@@ -42,34 +43,35 @@ def background_process(url: str, mode: str, task_id: str):
         print(f"--- [Task {task_id}] Stage 1: Downloading media... ---")
         
         # 1. Download (Check cache)
-        # Use video ID as filename for caching
         import yt_dlp
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             video_id = info['id']
             title = info['title']
+            thumbnail = info.get('thumbnail')
         
         file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
         if os.path.exists(file_path):
             save_status(task_id, "Using cached audio", 40)
-            print(f"--- [Task {task_id}] Stage 1: Audio found in cache: {file_path} ---")
         else:
-            file_path, _ = download_audio(url, output_path=DOWNLOADS_DIR)
-            print(f"--- [Task {task_id}] Stage 1: Download completed: {file_path} ---")
+            file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR)
         
         # 2. Transcribe
         save_status(task_id, "Transcribing...", 60)
-        print(f"--- [Task {task_id}] Stage 2: Starting transcription (this may take a while)... ---")
-        subtitles = transcribe_audio(file_path, mode=mode)
+        raw_subtitles = transcribe_audio(file_path, mode=mode)
         
-        # 3. Save result
-        save_status(task_id, "Finalizing...", 90)
-        print(f"--- [Task {task_id}] Stage 2: Transcription done. Saving results... ---")
+        # 3. LLM Processing (Paragraphing)
+        save_status(task_id, "Natural Segmenting...", 80)
+        paragraphs = split_into_paragraphs(raw_subtitles)
+        
+        # 4. Save result
         result = {
             "title": title,
             "url": url,
+            "thumbnail": thumbnail,
             "media_path": os.path.basename(file_path),
-            "subtitles": subtitles
+            "paragraphs": paragraphs,
+            "raw_subtitles": raw_subtitles
         }
         with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
@@ -114,4 +116,18 @@ async def get_result(task_id: str):
         with open(status_path, "r") as f:
             return json.load(f)
     
-    return {"status": "queued", "progress": 0}
+@app.get("/history")
+async def get_history():
+    history = []
+    for f in os.listdir(RESULTS_DIR):
+        if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json"):
+            task_id = f.replace(".json", "")
+            with open(os.path.join(RESULTS_DIR, f), "r") as r:
+                data = json.load(r)
+                history.append({
+                    "id": task_id,
+                    "title": data.get("title"),
+                    "thumbnail": data.get("thumbnail"),
+                    "url": data.get("url")
+                })
+    return sorted(history, key=lambda x: x.get("title", ""), reverse=False)
