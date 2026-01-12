@@ -27,8 +27,9 @@ for d in [DOWNLOADS_DIR, RESULTS_DIR]:
 app.mount("/media", StaticFiles(directory=DOWNLOADS_DIR), name="media")
 app.mount("/results", StaticFiles(directory=RESULTS_DIR), name="results")
 
-# Progress tracking
-task_status = {}
+def save_status(task_id, status, progress):
+    with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
+        json.dump({"status": status, "progress": progress}, f)
 
 class DownloadRequest(BaseModel):
     url: str
@@ -36,7 +37,7 @@ class DownloadRequest(BaseModel):
 
 def background_process(url: str, mode: str, task_id: str):
     try:
-        task_status[task_id] = {"status": "Downloading...", "progress": 20}
+        save_status(task_id, "Downloading...", 20)
         
         # 1. Download (Check cache)
         # Use video ID as filename for caching
@@ -48,16 +49,16 @@ def background_process(url: str, mode: str, task_id: str):
         
         file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
         if os.path.exists(file_path):
-            task_status[task_id] = {"status": "Using cached audio", "progress": 40}
+            save_status(task_id, "Using cached audio", 40)
         else:
             file_path, _ = download_audio(url, output_path=DOWNLOADS_DIR)
         
         # 2. Transcribe
-        task_status[task_id] = {"status": "Transcribing...", "progress": 60}
+        save_status(task_id, "Transcribing...", 60)
         subtitles = transcribe_audio(file_path, mode=mode)
         
         # 3. Save result
-        task_status[task_id] = {"status": "Finalizing...", "progress": 90}
+        save_status(task_id, "Finalizing...", 90)
         result = {
             "title": title,
             "url": url,
@@ -93,12 +94,17 @@ async def process_video(request: DownloadRequest, background_tasks: BackgroundTa
 async def get_result(task_id: str):
     file_path = f"{RESULTS_DIR}/{task_id}.json"
     error_path = f"{RESULTS_DIR}/{task_id}_error.json"
+    status_path = f"{RESULTS_DIR}/{task_id}_status.json"
     
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             return {**json.load(f), "status": "completed", "progress": 100}
     elif os.path.exists(error_path):
         with open(error_path, "r") as f:
-            return {"status": "failed", "detail": json.load(f), "progress": 100}
+            err_data = json.load(f)
+            return {"status": "failed", "detail": err_data.get("error"), "progress": 100}
+    elif os.path.exists(status_path):
+        with open(status_path, "r") as f:
+            return json.load(f)
     
-    return task_status.get(task_id, {"status": "processing", "progress": 0})
+    return {"status": "queued", "progress": 0}
