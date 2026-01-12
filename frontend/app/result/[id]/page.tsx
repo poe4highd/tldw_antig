@@ -10,8 +10,10 @@ interface Paragraph {
 
 interface Result {
     title: string;
-    media_path: string;
-    paragraphs: Paragraph[];
+    media_path?: string;
+    media_url?: string;
+    paragraphs?: Paragraph[];
+    subtitles?: Paragraph[];
 }
 
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
@@ -71,7 +73,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                         <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800 sticky top-8">
                             <video
                                 ref={videoRef}
-                                src={`${apiBase}/media/${result.media_path}`}
+                                src={`${apiBase}/media/${result.media_path || result.media_url}`}
                                 controls
                                 className="w-full h-full"
                                 onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
@@ -83,32 +85,40 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                     <div className="lg:col-span-5 h-[calc(100vh-8rem)] flex flex-col pt-12 lg:pt-0">
                         <div className="bg-slate-900/50 rounded-3xl border border-slate-800 p-8 flex-1 overflow-y-auto custom-scrollbar backdrop-blur-sm">
                             <div className="prose prose-invert max-w-none space-y-8">
-                                {result.paragraphs.map((p, i) => {
-                                    const nextStart = result.paragraphs[i + 1]?.start || 999999;
-                                    const isActive = currentTime >= p.start && currentTime < nextStart;
+                                {(() => {
+                                    const paragraphs = Array.isArray(result.paragraphs)
+                                        ? result.paragraphs
+                                        : Array.isArray(result.subtitles)
+                                            ? result.subtitles
+                                            : [];
 
-                                    return (
-                                        <div
-                                            key={i}
-                                            onClick={() => seek(p.start)}
-                                            className={`group cursor-pointer transition-all duration-300 p-4 rounded-xl -mx-4 ${isActive
+                                    return paragraphs.map((p, i) => {
+                                        const nextStart = paragraphs[i + 1]?.start || 999999;
+                                        const isActive = currentTime >= p.start && currentTime < nextStart;
+
+                                        return (
+                                            <div
+                                                key={i}
+                                                onClick={() => seek(p.start)}
+                                                className={`group cursor-pointer transition-all duration-300 p-4 rounded-xl -mx-4 ${isActive
                                                     ? "bg-blue-600/10 border-l-4 border-blue-500 shadow-lg shadow-blue-500/5"
                                                     : "hover:bg-slate-800/50 border-l-4 border-transparent"
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3 mb-2 opacity-40 group-hover:opacity-100 transition">
-                                                <span className="text-xs font-mono bg-slate-800 px-2 py-1 rounded">
-                                                    {new Date(p.start * 1000).toISOString().substr(14, 5)}
-                                                </span>
-                                                <div className="h-px flex-1 bg-slate-700"></div>
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3 mb-2 opacity-40 group-hover:opacity-100 transition">
+                                                    <span className="text-xs font-mono bg-slate-800 px-2 py-1 rounded">
+                                                        {new Date(p.start * 1000).toISOString().substr(14, 5)}
+                                                    </span>
+                                                    <div className="h-px flex-1 bg-slate-700"></div>
+                                                </div>
+                                                <p className={`text-lg leading-relaxed transition-colors ${isActive ? "text-blue-50" : "text-slate-300 group-hover:text-slate-100"
+                                                    }`}>
+                                                    {p.text}
+                                                </p>
                                             </div>
-                                            <p className={`text-lg leading-relaxed transition-colors ${isActive ? "text-blue-50" : "text-slate-300 group-hover:text-slate-100"
-                                                }`}>
-                                                {p.text}
-                                            </p>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    });
+                                })()}
                             </div>
                         </div>
                     </div>

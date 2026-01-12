@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -31,6 +32,26 @@ app.mount("/results", StaticFiles(directory=RESULTS_DIR), name="results")
 def save_status(task_id, status, progress):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress}, f)
+
+def extract_youtube_id(url: str) -> str:
+    """提取 YouTube 视频 ID"""
+    patterns = [
+        r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", # standard and embed
+        r"be\/([0-9A-Za-z_-]{11}).*",      # youtu.be
+        r"shorts\/([0-9A-Za-z_-]{11}).*",  # shorts
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+def get_youtube_thumbnail_url(url: str) -> str:
+    """根据 URL 推导缩略图"""
+    video_id = extract_youtube_id(url)
+    if video_id:
+        return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+    return "https://images.unsplash.com/photo-1611162617474-5b21e879e113"
 
 class DownloadRequest(BaseModel):
     url: str
@@ -68,7 +89,7 @@ def background_process(url: str, mode: str, task_id: str):
         result = {
             "title": title,
             "url": url,
-            "thumbnail": thumbnail,
+            "thumbnail": thumbnail or get_youtube_thumbnail_url(url),
             "media_path": os.path.basename(file_path),
             "paragraphs": paragraphs,
             "raw_subtitles": raw_subtitles
@@ -118,16 +139,32 @@ async def get_result(task_id: str):
     
 @app.get("/history")
 async def get_history():
-    history = []
+    history_dict = {}  # {url: item}
     for f in os.listdir(RESULTS_DIR):
         if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json"):
             task_id = f.replace(".json", "")
-            with open(os.path.join(RESULTS_DIR, f), "r") as r:
-                data = json.load(r)
-                history.append({
-                    "id": task_id,
-                    "title": data.get("title"),
-                    "thumbnail": data.get("thumbnail"),
-                    "url": data.get("url")
-                })
-    return sorted(history, key=lambda x: x.get("title", ""), reverse=False)
+            f_path = os.path.join(RESULTS_DIR, f)
+            mtime = os.path.getmtime(f_path)
+            with open(f_path, "r") as r:
+                try:
+                    data = json.load(r)
+                    url = data.get("url")
+                    if not url: continue
+                    
+                    item = {
+                        "id": task_id,
+                        "title": data.get("title"),
+                        "thumbnail": data.get("thumbnail") or get_youtube_thumbnail_url(url),
+                        "url": url,
+                        "mtime": mtime
+                    }
+                    
+                    # 如果 URL 已存在，只保留更新的一份
+                    if url not in history_dict or mtime > history_dict[url]["mtime"]:
+                        history_dict[url] = item
+                except:
+                    continue
+                    
+    # 按时间降序排序（最新的在前）
+    sorted_history = sorted(history_dict.values(), key=lambda x: x["mtime"], reverse=True)
+    return sorted_history

@@ -42,10 +42,19 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
         )
         
         data = json.loads(response.choices[0].message.content)
-        # 兼容性处理：LLM 可能返回 {"paragraphs": [...] } 或直接是一个列表
-        if "paragraphs" in data:
-            return data["paragraphs"]
-        return data
+        # 兼容性处理：LLM 可能返回 {"paragraphs": [...] } 或 {"items": [...] } 等
+        if isinstance(data, dict):
+            if "paragraphs" in data:
+                return data["paragraphs"]
+            # 尝试找字典中第一个列表
+            for val in data.values():
+                if isinstance(val, list):
+                    return val
+        if isinstance(data, list):
+            return data
+            
+        print(f"Unexpected data format from LLM: {type(data)}")
+        return group_by_time(subtitles)
     except Exception as e:
         print(f"LLM paragraphing failed: {e}")
         return group_by_time(subtitles)
