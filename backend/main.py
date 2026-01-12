@@ -77,6 +77,8 @@ def background_process(url: str, mode: str, task_id: str):
                     os.remove(fpath)
                     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as f:
             json.dump({"error": str(e)}, f)
 
