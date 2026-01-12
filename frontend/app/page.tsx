@@ -10,7 +10,7 @@ interface Subtitle {
 
 interface Result {
   title: string;
-  media_url: string;
+  media_path: string;
   subtitles: Subtitle[];
 }
 
@@ -18,6 +18,9 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState("cloud");
   const [taskId, setTaskId] = useState<string | null>(null);
+
+  // 动态获取 API 基础地址
+  const apiBase = typeof window !== "undefined" ? `http://${window.location.hostname}:8000` : "";
   const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
@@ -29,7 +32,7 @@ export default function Home() {
     setProgress(0);
     setResult(null);
     try {
-      const resp = await fetch("http://localhost:8000/process", {
+      const resp = await fetch(`${apiBase}/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, mode }),
@@ -46,7 +49,7 @@ export default function Home() {
 
     const interval = setInterval(async () => {
       try {
-        const resp = await fetch(`http://localhost:8000/result/${taskId}`);
+        const resp = await fetch(`${apiBase}/result/${taskId}`);
         const data = await resp.json();
         setProgress(data.progress || 0);
         if (data.status === "completed") {
@@ -128,7 +131,7 @@ export default function Home() {
               <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
                 <video
                   ref={videoRef}
-                  src={result.media_url}
+                  src={`${apiBase}/media/${result.media_path}`}
                   controls
                   className="w-full h-full"
                   onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
