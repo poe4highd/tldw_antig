@@ -5,11 +5,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Global model cache to avoid re-loading
+_model_cache = {}
+
+def get_model(model_size="base"):
+    if model_size not in _model_cache:
+        print(f"--- Loading Whisper model ({model_size})... This may take a while if downloading... ---")
+        _model_cache[model_size] = WhisperModel(model_size, device="cpu", compute_type="int8")
+        print(f"--- Model {model_size} loaded successfully! ---")
+    return _model_cache[model_size]
+
 def transcribe_local(file_path: str):
-    # Depending on GPU availability, model_size can be 'tiny', 'base', 'small', 'medium', 'large-v3'
-    model_size = "base" # Using base for faster local testing if no powerful GPU
-    model = WhisperModel(model_size, device="cpu", compute_type="int8") # Default to CPU for safety, change to cuda if available
+    model_size = "base"
+    model = get_model(model_size)
     
+    print(f"--- Starting local transcription for: {file_path} ---")
     segments, info = model.transcribe(file_path, beam_size=5)
     
     results = []
@@ -19,6 +29,7 @@ def transcribe_local(file_path: str):
             "end": segment.end,
             "text": segment.text.strip()
         })
+    print(f"--- Transcription completed: {len(results)} segments found ---")
     return results
 
 def transcribe_cloud(file_path: str):
