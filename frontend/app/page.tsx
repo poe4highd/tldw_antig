@@ -37,10 +37,11 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, mode }),
       });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setTaskId(data.task_id);
-    } catch (e) {
-      setStatus("Error starting process");
+    } catch (e: any) {
+      setStatus("Error starting process: " + e.message);
     }
   };
 
@@ -50,6 +51,10 @@ export default function Home() {
     const interval = setInterval(async () => {
       try {
         const resp = await fetch(`${apiBase}/result/${taskId}`);
+        if (!resp.ok) {
+          setStatus(`Connecting to API... (${resp.status})`);
+          return;
+        }
         const data = await resp.json();
         setProgress(data.progress || 0);
         if (data.status === "completed") {
@@ -57,13 +62,13 @@ export default function Home() {
           setStatus("Done!");
           clearInterval(interval);
         } else if (data.status === "failed") {
-          setStatus("Failed: " + JSON.stringify(data.detail));
+          setStatus("Failed: " + (data.detail || "Unknown error"));
           clearInterval(interval);
         } else {
           setStatus(data.status || "Processing...");
         }
-      } catch (e) {
-        console.error(e);
+      } catch (e: any) {
+        setStatus("Lost connection to backend...");
       }
     }, 2000);
 
