@@ -62,7 +62,7 @@ def background_process(url: str, mode: str, task_id: str):
         result = {
             "title": title,
             "url": url,
-            "media_url": f"http://localhost:8000/media/{os.path.basename(file_path)}",
+            "media_path": os.path.basename(file_path),
             "subtitles": subtitles
         }
         with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
