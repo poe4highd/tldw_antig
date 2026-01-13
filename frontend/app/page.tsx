@@ -26,12 +26,19 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [apiBase, setApiBase] = useState("");
+  const [isDev, setIsDev] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const base = `http://${window.location.hostname}:8000`;
     setApiBase(base);
     fetchHistory(base);
+
+    // 检查是否为开发者模式
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("role") === "dev") {
+      setIsDev(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -80,7 +87,7 @@ export default function Home() {
 
         if (data.status === "completed") {
           clearInterval(interval);
-          router.push(`/result/${taskId}`);
+          router.push(`/${isDev ? 'dev-result' : 'result'}/${taskId}${isDev ? '?role=dev' : ''}`);
         } else if (data.status === "failed") {
           setStatus("Failed: " + (data.detail || "Unknown error"));
           clearInterval(interval);
@@ -104,7 +111,7 @@ export default function Home() {
         </header>
 
         {/* Stats Dashboard */}
-        {summary && (
+        {summary && isDev && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
             <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm">
               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">已处理视频</p>
@@ -173,8 +180,8 @@ export default function Home() {
               </div>
               {eta !== null && eta > 0 && (
                 <div className="flex justify-center items-center gap-4 text-xs font-mono">
-                   <span className="text-slate-500">预计剩余时间:</span>
-                   <span className="text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">{eta}s</span>
+                  <span className="text-slate-500">预计剩余时间:</span>
+                  <span className="text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">{eta}s</span>
                 </div>
               )}
             </div>
@@ -192,7 +199,7 @@ export default function Home() {
             {history.map((item) => (
               <div
                 key={item.id}
-                onClick={() => router.push(`/result/${item.id}`)}
+                onClick={() => router.push(`/${isDev ? 'dev-result' : 'result'}/${item.id}${isDev ? '?role=dev' : ''}`)}
                 className="group bg-slate-900/40 border border-slate-800/50 rounded-[2rem] overflow-hidden cursor-pointer hover:border-blue-500/30 transition-all hover:-translate-y-2 shadow-xl hover:shadow-blue-900/10 ring-1 ring-white/5"
               >
                 <div className="aspect-video relative overflow-hidden">
@@ -201,9 +208,11 @@ export default function Home() {
                     alt={item.title}
                     className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
                   />
-                  <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-black text-emerald-400 font-mono shadow-xl">
-                    ${item.total_cost?.toFixed(3) || "0.000"}
-                  </div>
+                  {isDev && item.total_cost !== undefined && (
+                    <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-black text-emerald-400 font-mono shadow-xl">
+                      ${item.total_cost.toFixed(3)}
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60"></div>
                 </div>
                 <div className="p-7">
@@ -211,11 +220,10 @@ export default function Home() {
                     {item.title}
                   </h3>
                   <div className="mt-4 flex items-center justify-between">
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{new URL(item.url).hostname}</p>
                     <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center group-hover:bg-blue-600 transition-colors">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                        </svg>
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
                   </div>
                 </div>
@@ -224,6 +232,12 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <footer className="max-w-6xl mx-auto px-6 py-12 border-t border-slate-900 mt-20 flex justify-between items-center text-slate-600 text-xs font-mono">
+        <span>© 2026 Youtube Quick Reader</span>
+        <a href={isDev ? "/" : "/?role=dev"} className="hover:text-blue-500 transition-colors">
+          {isDev ? "退出开发者模式" : "开发者模式"}
+        </a>
+      </footer>
     </main>
   );
 }

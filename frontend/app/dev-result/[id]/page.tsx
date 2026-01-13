@@ -85,13 +85,13 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
                 {/* Fixed Side Sidebar (Left) */}
                 <div className="lg:w-[450px] xl:w-[500px] lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 border-r border-slate-800 p-6 flex flex-col z-20">
-                    <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-6 transition group w-fit text-sm">
+                    <Link href="/?role=dev" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-6 transition group w-fit text-sm">
                         <div className="bg-slate-800 p-1.5 rounded-md mr-3 group-hover:bg-blue-600/20 transition-colors">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                         </div>
-                        返回列表
+                        返回列表 (DEV)
                     </Link>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
@@ -109,6 +109,41 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                             />
                         </div>
 
+                        {/* Usage Card */}
+                        {result.usage && (
+                            <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800/80 mb-6 space-y-4">
+                                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
+                                    处理消耗统计
+                                </h2>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-800/30">
+                                        <p className="text-[10px] text-slate-500 mb-1">音频时长</p>
+                                        <p className="text-sm font-mono text-slate-200">
+                                            {Math.floor(result.usage.duration / 60)}:{(result.usage.duration % 60).toFixed(0).padStart(2, '0')}
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-800/30">
+                                        <p className="text-[10px] text-slate-500 mb-1">预估费用 (USD)</p>
+                                        <p className="text-sm font-mono text-emerald-400 font-bold">${result.usage.total_cost.toFixed(4)}</p>
+                                    </div>
+                                </div>
+                                <div className="pt-2">
+                                    <div className="flex justify-between text-[11px] mb-1">
+                                        <span className="text-slate-500">LLM Tokens (In/Out)</span>
+                                        <span className="text-slate-400 font-mono">
+                                            {result.usage.llm_tokens.prompt_tokens} / {result.usage.llm_tokens.completion_tokens}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                                        <div
+                                            className="bg-blue-500 h-full"
+                                            style={{ width: `${Math.min(100, (result.usage.llm_tokens.total_tokens / 5000) * 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="p-4 bg-slate-950/20 rounded-xl border border-slate-800/50">
                             <p className="text-[11px] text-slate-500 leading-relaxed italic">
