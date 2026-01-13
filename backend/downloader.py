@@ -17,6 +17,6 @@ def download_audio(url: str, output_path: str = "downloads"):
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        filename = f"{info['id']}.mp3"
+        filename = os.path.join(output_path, f"{info['id']}.mp3")
         thumbnail = info.get('thumbnail')
         return filename, info['title'], thumbnail
