@@ -42,67 +42,78 @@ def get_youtube_thumbnail_url(url):
 
 def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
     """
-    使用 LLM 将原始碎片段合并为自然段落。
+    使用 LLM 将原始碎片段合并为自然段落。支持超长文本分段处理。
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    if not client.api_key:
-        # 如果没有 API Key，退而求其次：简单合并
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("⚠️ Warning: OPENAI_API_KEY not found. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-    # 准备输入的文本数据
-    raw_input = "\n".join([f"[{s['start']:.1f}] {s['text']}" for s in subtitles])
+    client = OpenAI(api_key=api_key)
     
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "你是一位专业的转录文本处理专家。"},
-                {"role": "user", "content": PROMPT.format(text_with_timestamps=raw_input)}
-            ],
-            response_format={ "type": "json_object" }
-        )
-        
-        content = response.choices[0].message.content
-        data = json.loads(content)
-        usage = {
-            "prompt_tokens": response.usage.prompt_tokens,
-            "completion_tokens": response.usage.completion_tokens,
-            "total_tokens": response.usage.total_tokens
-        }
+    # 如果片段太多（超过 100 个），分块处理以防输出被截断
+    CHUNK_SIZE = 80 
+    chunks = [subtitles[i:i + CHUNK_SIZE] for i in range(0, len(subtitles), CHUNK_SIZE)]
+    
+    all_paragraphs = []
+    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-        # 兼容性处理
-        paragraphs = []
-        if isinstance(data, dict):
-            if "paragraphs" in data:
-                paragraphs = data["paragraphs"]
-            else:
-                # 尝试找字典中第一个列表
-                for val in data.values():
-                    if isinstance(val, list):
-                        paragraphs = val
-                        break
-        elif isinstance(data, list):
-            paragraphs = data
+    print(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks ---")
 
-        if paragraphs and isinstance(paragraphs, list):
-            # 确保每个段落内部是嵌套的句子结构
-            if len(paragraphs) > 0 and "sentences" not in paragraphs[0]:
-                # 如果是扁平结构，自动包装
-                new_paras = []
-                for p in paragraphs:
-                    if isinstance(p, dict) and "text" in p:
-                        new_paras.append({"sentences": [{"start": p.get("start", 0), "text": p["text"]}]})
-                    elif isinstance(p, str):
-                        new_paras.append({"sentences": [{"start": 0, "text": p}]})
-                paragraphs = new_paras
-            return paragraphs, usage
+    for idx, chunk in enumerate(chunks):
+        raw_input = "\n".join([f"[{s['start']:.1f}] {s['text']}" for s in chunk])
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。"},
+                    {"role": "user", "content": PROMPT.format(text_with_timestamps=raw_input)}
+                ],
+                response_format={ "type": "json_object" }
+            )
             
-        print(f"Unexpected data format from LLM: {type(data)}")
-        return group_by_time(subtitles), usage
-    except Exception as e:
-        print(f"LLM paragraphing failed: {e}")
-        # 如果解析失败，尝试直接从 content 中找有没有 json 结构 (简单加固)
-        return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            
+            # 记录 Token
+            total_usage["prompt_tokens"] += response.usage.prompt_tokens
+            total_usage["completion_tokens"] += response.usage.completion_tokens
+            total_usage["total_tokens"] += response.usage.total_tokens
+
+            # 解析段落
+            chunk_paras = []
+            if isinstance(data, dict):
+                if "paragraphs" in data:
+                    chunk_paras = data["paragraphs"]
+                else:
+                    for val in data.values():
+                        if isinstance(val, list):
+                            chunk_paras = val
+                            break
+            elif isinstance(data, list):
+                chunk_paras = data
+
+            # 结构化
+            for p in chunk_paras:
+                if isinstance(p, dict) and "sentences" in p:
+                    all_paragraphs.append(p)
+                elif isinstance(p, dict) and "text" in p:
+                    all_paragraphs.append({"sentences": [{"start": p.get("start", 0), "text": p["text"]}]})
+                elif isinstance(p, str):
+                    all_paragraphs.append({"sentences": [{"start": 0, "text": p}]})
+            
+            print(f"Chunk {idx+1}/{len(chunks)} processed.")
+
+        except Exception as e:
+            print(f"Error processing chunk {idx+1}: {e}")
+            # 失败块使用基础分组
+            fallback_paras = group_by_time(chunk)
+            all_paragraphs.extend(fallback_paras)
+
+    if not all_paragraphs:
+        return group_by_time(subtitles), total_usage
+
+    return all_paragraphs, total_usage
 
 def group_by_time(subtitles, seconds=45):
     """
@@ -113,7 +124,6 @@ def group_by_time(subtitles, seconds=45):
     
     paragraphs = []
     current_sentences = []
-    if not subtitles: return []
     chunk_start = subtitles[0]["start"]
     
     for s in subtitles:
@@ -123,8 +133,8 @@ def group_by_time(subtitles, seconds=45):
             chunk_start = s["start"]
         
         current_sentences.append({
-            "start": s["start"],
-            "text": s["text"].strip()
+            "start": s.get("start", 0),
+            "text": s.get("text", "").strip()
         })
     
     if current_sentences:
