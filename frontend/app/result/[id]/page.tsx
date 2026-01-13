@@ -98,9 +98,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                             {(() => {
                                 const rawPara = result.paragraphs || [];
                                 const rawSub = result.subtitles || [];
-                                
-                                const displayParagraphs: Paragraph[] = rawPara.length > 0 
-                                    ? rawPara 
+
+                                const displayParagraphs: Paragraph[] = rawPara.length > 0
+                                    ? rawPara
                                     : rawSub.map((s: any) => ({
                                         sentences: [{ start: s.start, text: s.text }]
                                     }));
@@ -114,7 +114,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                                 className="cursor-pointer hover:text-blue-400 hover:bg-blue-400/5 rounded transition-all duration-200 text-xl leading-[1.8] text-slate-300 decoration-blue-500/20 hover:underline decoration-2 underline-offset-8 px-0.5"
                                                 title={`跳转到 ${Math.floor(sentence.start / 60)}:${(sentence.start % 60).toFixed(0).padStart(2, '0')}`}
                                             >
-                                                {sentence.text}{\" \"}
+                                                {sentence.text}{" "}
                                             </span>
                                         ))}
                                     </p>
