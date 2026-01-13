@@ -61,7 +61,6 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         fetchResult();
     }, [id, apiBase]);
 
-    // Handle high-frequency time updates from YouTube Player
     useEffect(() => {
         if (!result) return;
 
@@ -123,10 +122,10 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     return (
         <main className="min-h-screen bg-slate-950 text-slate-50 font-sans">
             <div className="flex flex-col lg:flex-row min-h-screen relative">
-                
+
                 {/* Fixed/Sticky Video Panel */}
-                <div className="w-full lg:w-[450px] xl:w-[500px] sticky top-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 lg:border-r border-b lg:border-b-0 border-slate-800 p-4 lg:p-6 flex flex-col z-40 transition-shadow duration-300 shadow-xl lg:shadow-none">
-                    <Link href="/?role=dev" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-4 lg:mb-6 transition group w-fit text-xs lg:text-sm">
+                <div className="w-full lg:w-[450px] xl:w-[500px] sticky top-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 lg:border-r border-b lg:border-b-0 border-slate-800 p-4 lg:p-6 flex flex-col z-40 shadow-xl lg:shadow-none">
+                    <Link href="/?role=dev" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-3 lg:mb-6 transition group w-fit text-xs lg:text-sm">
                         <div className="bg-slate-800 p-1 lg:p-1.5 rounded-md mr-2 lg:mr-3 group-hover:bg-blue-600/20 transition-colors">
                             <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -135,47 +134,62 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                         返回列表 (DEV)
                     </Link>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 lg:block hidden">
-                         {/* Desktop Title & Details */}
-                        <h1 className="text-xl font-bold leading-tight text-slate-100 mb-6">
-                            {result.title}
-                        </h1>
-                        
-                        <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 mb-8">
-                            <iframe
-                                ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id || result.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || ''}?enablejsapi=1&autoplay=1`}
-                                className="w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        </div>
+                    {/* Desktop Only Title */}
+                    <h1 className="hidden lg:block text-xl font-bold leading-tight text-slate-100 mb-6 px-1">
+                        {result.title}
+                    </h1>
 
-                        <div className="p-4 bg-slate-950/20 rounded-xl border border-slate-800/50 mt-auto">
-                            <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                                💡 高亮显示为当前播放内容。点击文字可快速跳转。
-                            </p>
-                        </div>
+                    {/* Shared Single Player Instance (Crucial to avoid double sound) */}
+                    <div className="aspect-video bg-black rounded-lg lg:rounded-xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 mb-2 lg:mb-8">
+                        <iframe
+                            ref={iframeRef}
+                            src={`https://www.youtube.com/embed/${result.youtube_id || result.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || ''}?enablejsapi=1&autoplay=1`}
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                        />
                     </div>
 
-                    {/* Mobile Player Only (Compact) */}
-                    <div className="lg:hidden block">
-                        <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-lg border border-white/5 ring-1 ring-white/5 mb-2">
-                            <iframe
-                                ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id || result.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || ''}?enablejsapi=1&autoplay=1`}
-                                className="w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        </div>
-                        <h1 className="text-sm font-bold leading-tight text-slate-100 truncate">
-                            {result.title}
-                        </h1>
+                    {/* Mobile Only Title */}
+                    <h1 className="lg:hidden block text-sm font-bold leading-tight text-slate-100 truncate mb-1">
+                        {result.title}
+                    </h1>
+
+                    {/* Desktop Only Tip */}
+                    <div className="hidden lg:block p-4 bg-slate-950/20 rounded-xl border border-slate-800/50 mt-4">
+                        <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                            💡 高亮显示为当前播放内容。点击文字可快速跳转。
+                        </p>
                     </div>
+
+                    {/* Usage Card (Dev Only) */}
+                    {result.usage && (
+                        <div className="hidden lg:block mt-6 p-4 bg-blue-500/5 rounded-xl border border-blue-500/10 backdrop-blur-sm">
+                            <h3 className="text-[10px] uppercase tracking-wider text-blue-400 font-bold mb-3 flex items-center">
+                                <span className="w-1 h-1 bg-blue-400 rounded-full mr-2"></span>
+                                处理消耗统计
+                            </h3>
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between text-[11px]">
+                                    <span className="text-slate-500">音频时长</span>
+                                    <span className="text-slate-300 font-mono">{(result.usage.duration / 60).toFixed(1)} min</span>
+                                </div>
+                                <div className="flex justify-between text-[11px]">
+                                    <span className="text-slate-500">LLM Tokens</span>
+                                    <span className="text-slate-300 font-mono">{result.usage.llm_tokens.total_tokens}</span>
+                                </div>
+                                <div className="flex justify-between text-[11px] pt-2 border-t border-blue-500/10">
+                                    <span className="text-blue-400/80 font-medium">预估总成本</span>
+                                    <span className="text-blue-400 font-bold font-mono">
+                                        {result.usage.currency === "USD" ? "$" : ""}{result.usage.total_cost.toFixed(4)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="pt-4 mt-auto border-t border-slate-800/50 lg:flex hidden justify-between items-center text-[10px] text-slate-600 font-mono">
-                        <span>YT QUICK READER v2.1</span>
+                        <span>YT QUICK READER v2.2</span>
                         <span className="text-blue-500/50 px-2 py-0.5 border border-blue-500/20 rounded">DEV</span>
                     </div>
                 </div>
@@ -187,9 +201,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                             {(() => {
                                 const rawPara = result.paragraphs || [];
                                 const rawSub = result.subtitles || [];
-                                
-                                const displayParagraphs: Paragraph[] = rawPara.length > 0 
-                                    ? rawPara 
+
+                                const displayParagraphs: Paragraph[] = rawPara.length > 0
+                                    ? rawPara
                                     : rawSub.map((s: any) => ({
                                         sentences: [{ start: s.start, text: s.text }]
                                     }));
@@ -203,17 +217,15 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                             const flatIdx = allSentences.indexOf(sentence);
                                             const nextS = allSentences[flatIdx + 1];
                                             const active = isSentenceActive(sentence.start, nextS?.start);
-                                            
+
                                             return (
                                                 <span
                                                     key={sIdx}
                                                     onClick={() => seek(sentence.start)}
-                                                    className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 decoration-blue-500/20 hover:underline decoration-1 underline-offset-[6px] ${
-                                                        active 
-                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]" 
-                                                        : "text-slate-400 hover:text-blue-300"
-                                                    }`}
-                                                    title={`跳转到 ${Math.floor(sentence.start / 60)}:${(sentence.start % 60).toFixed(0).padStart(2, '0')}`}
+                                                    className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 decoration-blue-500/20 hover:underline decoration-1 underline-offset-[6px] ${active
+                                                            ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]"
+                                                            : "text-slate-400 hover:text-blue-300"
+                                                        }`}
                                                 >
                                                     {sentence.text}{" "}
                                                 </span>
