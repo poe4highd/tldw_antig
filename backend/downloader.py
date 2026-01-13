@@ -10,13 +10,13 @@ def download_audio(url: str, output_path: str = "downloads"):
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '128', # 降低到 128k 以减小体积，适配 OpenAI 25MB 限制
+            'preferredquality': '128',
         }],
-        'outtmpl': f'{output_path}/%(id)s.%(ext)s', # 使用 ID 作为文件名方便缓存
+        'outtmpl': f'{output_path}/%(id)s.%(ext)s',
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        filename = f"{output_path}/{info['id']}.mp3"
+        filename = f"{info['id']}.mp3"
         thumbnail = info.get('thumbnail')
         return filename, info['title'], thumbnail

@@ -72,10 +72,11 @@ def background_process(url: str, mode: str, task_id: str):
             thumbnail = info.get('thumbnail')
         
         file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
+        
         if os.path.exists(file_path):
-            save_status(task_id, "检测到缓存音频，跳过下载...", 40, eta=30 if mode == "cloud" else 150)
+            save_status(task_id, "检测到缓存数据，正在准备转录...", 40, eta=30 if mode == "cloud" else 150)
         else:
-            save_status(task_id, "音频下载完成，准备转录...", 40, eta=35 if mode == "cloud" else 160)
+            save_status(task_id, "正在下载音频并提取元数据...", 40, eta=35 if mode == "cloud" else 160)
             file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR)
         
         # 2. Transcribe
@@ -90,6 +91,7 @@ def background_process(url: str, mode: str, task_id: str):
         result = {
             "title": title,
             "url": url,
+            "youtube_id": video_id,
             "thumbnail": thumbnail or get_youtube_thumbnail_url(url),
             "media_path": os.path.basename(file_path),
             "paragraphs": paragraphs,

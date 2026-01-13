@@ -9,11 +9,19 @@ PROMPT = """
 你是一位专业的视频字幕整理员。我会给你一段带有时间戳的原始转录文本。
 你的任务是：
 1. 将破碎、短小的原始字幕合并成逻辑连贯、易于阅读的【自然段落】。
-2. 为每个段落保留起始时间戳（start）。
+2. 每个段落包含一个句子列表，每个句子必须保留其在原始转录中的精确起始时间戳（start）。
 3. 修正转录中的明显口误、重复词汇，或根据上下文修正错别字，但保持主旨不变。
-4. 输出格式必须是 JSON 格式的列表，每个对象包含:
-   - "start": 段落起始秒数 (float)
-   - "text": 整个段落的文本 (string)
+4. 输出格式必须是 JSON 格式：
+{
+  "paragraphs": [
+    {
+      "sentences": [
+        {"start": 1.2, "text": "句子1内容"},
+        {"start": 5.6, "text": "句子2内容"}
+      ]
+    }
+  ]
+}
 
 原始文本：
 {text_with_timestamps}
@@ -51,6 +59,9 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
                 if isinstance(val, list):
                     return val
         if isinstance(data, list):
+            # 将扁平列表转换为嵌套结构，以便前端统一处理
+            if len(data) > 0 and "sentences" not in data[0]:
+                return [{"sentences": [item]} for item in data]
             return data
             
         print(f"Unexpected data format from LLM: {type(data)}")
@@ -59,21 +70,29 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
         print(f"LLM paragraphing failed: {e}")
         return group_by_time(subtitles)
 
-def group_by_time(subtitles, seconds=30):
+def group_by_time(subtitles, seconds=45):
     """
-    兜底方案：每 30 秒强制合并一段。
+    兜底方案：每 45 秒强制合并一段。
+    返回格式: [{"sentences": [{"start":..., "text":...}, ...]}]
     """
     if not subtitles: return []
     
     paragraphs = []
-    current_p = {"start": subtitles[0]["start"], "text": ""}
+    current_sentences = []
+    chunk_start = subtitles[0]["start"]
     
     for s in subtitles:
-        if s["start"] - current_p["start"] > seconds:
-            paragraphs.append(current_p)
-            current_p = {"start": s["start"], "text": s["text"]}
-        else:
-            current_p["text"] += " " + s["text"]
+        if s["start"] - chunk_start > seconds and current_sentences:
+            paragraphs.append({"sentences": current_sentences})
+            current_sentences = []
+            chunk_start = s["start"]
+        
+        current_sentences.append({
+            "start": s["start"],
+            "text": s["text"].strip()
+        })
     
-    paragraphs.append(current_p)
+    if current_sentences:
+        paragraphs.append({"sentences": current_sentences})
+        
     return paragraphs
