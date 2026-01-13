@@ -2,10 +2,17 @@ import os
 import json
 import time
 import asyncio
-from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import re
+import hashlib
+import random
+import shutil
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+import shutil
+import hashlib
+import random
 
 from downloader import download_audio
 from transcriber import transcribe_audio
@@ -19,6 +26,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files for audio playback
+app.mount("/media", StaticFiles(directory="downloads"), name="media")
 
 DOWNLOADS_DIR = "downloads"
 RESULTS_DIR = "results"
@@ -36,89 +46,77 @@ def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
 
-async def background_process(task_id, url, mode):
+def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None):
     try:
-        # 0. Get ID
         video_id = ""
-        id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
-        if id_match:
-            video_id = id_match.group(1)
-        else:
-            import hashlib
-            video_id = hashlib.md5(url.encode()).hexdigest()[:11]
+        if url:
+            id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
+            if id_match:
+                video_id = id_match.group(1)
+            else:
+                video_id = hashlib.md5(url.encode()).hexdigest()[:11]
+        elif local_file:
+            # For local files, we use the hash of the filename + size or just filename as ID 
+            # or pre-calculated hash from upload
+            video_id = os.path.splitext(os.path.basename(local_file))[0]
 
-        # 1. Check if final result exists
-        # Note: We usually re-process if user clicks, but if we want true "resume",
-        # we check existing JSON. However, task_id is time-based, so it's a new task.
-        # We rely on video_id based cache.
+        # 1. Media Retrieval
+        file_path = local_file
+        if url:
+            # Check cache
+            possible_exts = ["m4a", "mp3", "mp4", "webm"]
+            for ext in possible_exts:
+                p = f"{DOWNLOADS_DIR}/{video_id}.{ext}"
+                if os.path.exists(p):
+                    file_path = p
+                    break
+            
+            # Metadata
+            import yt_dlp
+            with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+                try:
+                    info = ydl.extract_info(url, download=False)
+                    title = info.get('title', 'Unknown Title')
+                    thumbnail = info.get('thumbnail')
+                except:
+                    title = title or "Unknown Title"
+                    thumbnail = thumbnail or get_youtube_thumbnail_url(url)
 
-        # 2. Information & Download (Checkpoint 1)
-        # 支持多种可能的音频后缀
-        possible_exts = ["m4a", "mp3", "mp4", "webm"]
-        file_path = None
-        for ext in possible_exts:
-            p = f"{DOWNLOADS_DIR}/{video_id}.{ext}"
-            if os.path.exists(p):
-                file_path = p
-                break
-
-        # 获取元数据
-        import yt_dlp
-        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-            try:
-                info = ydl.extract_info(url, download=False)
-                title = info.get('title', 'Unknown Title')
-                thumbnail = info.get('thumbnail')
-            except:
-                title = "Unknown Title"
-                thumbnail = get_youtube_thumbnail_url(url)
-
-        if file_path:
-            save_status(task_id, f"检测到本地媒体缓存 ({os.path.basename(file_path)})，跳过下载...", 40, eta=30 if mode == "cloud" else 150)
-        else:
-            def on_download_progress(p):
-                # 将下载进度 0-100% 映射到整体进度的 20%-40%
-                current_p = 20 + (p * 0.2)
-                save_status(task_id, f"正在下载媒体文件... {p:.1f}%", int(current_p), eta=35)
-
-            save_status(task_id, "开始调度下载任务...", 20, eta=40)
-            try:
+            if not file_path:
+                def on_download_progress(p):
+                    current_p = 20 + (p * 0.2)
+                    save_status(task_id, f"正在下载媒体文件... {p:.1f}%", int(current_p), eta=35)
+                
+                save_status(task_id, "开始调度下载任务...", 20, eta=40)
                 file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR, progress_callback=on_download_progress)
-            except Exception as e:
-                raise Exception(f"媒体下载失败: {str(e)}")
-
-        # 3. Transcribe (Checkpoint 2)
+        
+        # 2. Transcribe
         cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"
         if os.path.exists(cache_sub_path):
             save_status(task_id, "检测到转录缓存，正在加载报告...", 50, eta=5)
             with open(cache_sub_path, "r", encoding="utf-8") as rf:
                 raw_subtitles = json.load(rf)
         else:
-            save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == "cloud" else 120)
+            save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == 'cloud' else 120)
             print(f"--- Starting transcription for: {os.path.basename(file_path)} ---")
             raw_subtitles = transcribe_audio(file_path, mode=mode)
-            # 保存转录检查点
             with open(cache_sub_path, "w", encoding="utf-8") as wf:
                 json.dump(raw_subtitles, wf, ensure_ascii=False)
-        
-        # 4. LLM Processing (Checkpoint 3)
-        duration = 0
-        if raw_subtitles:
-            duration = raw_subtitles[-1]["end"]
-        
+
+        # 3. LLM Processing
+        duration = raw_subtitles[-1]["end"] if raw_subtitles else 0
         save_status(task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
         paragraphs, llm_usage = split_into_paragraphs(raw_subtitles)
-        
-        # 5. Final Result
+
+        # 4. Save Final Result
         whisper_cost = (duration / 60.0) * 0.006 if mode == "cloud" else 0
         llm_cost = (llm_usage["prompt_tokens"] / 1000000.0 * 0.15) + (llm_usage["completion_tokens"] / 1000000.0 * 0.6)
-        total_cost = whisper_cost + llm_cost
         
         result = {
             "title": title,
-            "url": url,
-            "youtube_id": video_id,
-            "thumbnail": thumbnail or get_youtube_thumbnail_url(url),
+            "url": url or "Uploaded File",
+            "youtube_id": video_id if url else None,
+            "thumbnail": thumbnail,
             "media_path": os.path.basename(file_path),
             "paragraphs": paragraphs,
             "usage": {
@@ -126,22 +124,17 @@ async def background_process(task_id, url, mode):
                 "whisper_cost": round(whisper_cost, 6),
                 "llm_tokens": llm_usage,
                 "llm_cost": round(llm_cost, 6),
-                "total_cost": round(total_cost, 6),
+                "total_cost": round(whisper_cost + llm_cost, 6),
                 "currency": "USD"
             },
             "raw_subtitles": raw_subtitles
         }
         with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"--- [Task {task_id}] Task completed successfully! ---")
             
     except Exception as e:
         import traceback
         traceback.print_exc()
-        # 如果文件丢失（如下载了一半的 mp3 损坏），通常 os.path.exists 会通过但读取失败，
-        # 这里建议简单重置检查点（删除相关损坏文件）
-        # if "FFmpeg" in str(e) or "FileNotFound" in str(e):
-        #    ...
         with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as f:
             json.dump({"error": str(e)}, f)
 
@@ -149,7 +142,30 @@ async def background_process(task_id, url, mode):
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
     task_id = str(int(time.time()))
     save_status(task_id, "queued", 0)
-    background_tasks.add_task(background_process, task_id, request.url, request.mode)
+    background_tasks.add_task(background_process, task_id, request.mode, url=request.url)
+    return {"task_id": task_id}
+
+@app.post("/upload")
+async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local"):
+    task_id = str(int(time.time()))
+    
+    # 1. Save uploaded file
+    # Use content hash to avoid duplicate uploads
+    content = await file.read()
+    file_hash = hashlib.md5(content).hexdigest()[:11]
+    ext = os.path.splitext(file.filename)[1] or ".mp3"
+    file_path = os.path.join(DOWNLOADS_DIR, f"{file_hash}{ext}")
+    
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    # Generate random colored thumbnail
+    colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"]
+    random_color = random.choice(colors)
+    
+    save_status(task_id, "queued", 0)
+    background_tasks.add_task(background_process, task_id, mode, local_file=file_path, title=file.filename, thumbnail=random_color)
+    
     return {"task_id": task_id}
 
 @app.get("/result/{task_id}")
@@ -163,8 +179,7 @@ async def get_result(task_id: str):
             return {**json.load(f), "status": "completed", "progress": 100}
     elif os.path.exists(error_path):
         with open(error_path, "r") as f:
-            err_data = json.load(f)
-            return {"status": "failed", "detail": err_data.get("error"), "progress": 100}
+            return {"status": "failed", "detail": json.load(f).get("error"), "progress": 100}
     elif os.path.exists(status_path):
         with open(status_path, "r") as f:
             return json.load(f)
@@ -180,48 +195,33 @@ async def get_history():
         return {"items": [], "active_tasks": [], "summary": total_stats}
 
     all_files = os.listdir(RESULTS_DIR)
-    
-    # 1. 扫描进行中的任务
     status_files = [f for f in all_files if f.endswith("_status.json")]
     for sf in status_files:
         tid = sf.replace("_status.json", "")
-        # 如果没有结果文件且没有错误文件，视为进行中
         if not os.path.exists(f"{RESULTS_DIR}/{tid}.json") and not os.path.exists(f"{RESULTS_DIR}/{tid}_error.json"):
-            # 检查 mtime，如果超过 1 小时可能已经僵死了，不计入
             mtime = os.path.getmtime(f"{RESULTS_DIR}/{sf}")
             if time.time() - mtime < 3600:
                 try:
                     with open(f"{RESULTS_DIR}/{sf}", "r") as f:
                         status_data = json.load(f)
                         active_tasks.append({
-                            "id": tid,
-                            "status": status_data.get("status", "pending"),
-                            "progress": status_data.get("progress", 0),
-                            "mtime": mtime
+                            "id": tid, "status": status_data.get("status", "pending"),
+                            "progress": status_data.get("progress", 0), "mtime": mtime
                         })
-                except:
-                    pass
+                except: pass
 
-    # 2. 扫描已完成的任务
     files = [f for f in all_files if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json")]
-    file_infos = []
-    for f in files:
-        f_path = os.path.join(RESULTS_DIR, f)
-        mtime = os.path.getmtime(f_path)
-        file_infos.append((f, mtime))
-    
-    file_infos.sort(key=lambda x: x[1], reverse=True)
+    file_infos = sorted([(f, os.path.getmtime(os.path.join(RESULTS_DIR, f))) for f in files], key=lambda x: x[1], reverse=True)
     
     for f, mtime in file_infos:
         task_id = f.replace(".json", "")
-        with open(os.path.join(RESULTS_DIR, f), "r") as r:
-            try:
+        try:
+            with open(os.path.join(RESULTS_DIR, f), "r") as r:
                 data = json.load(r)
                 url = data.get("url")
                 yt_id = data.get("youtube_id")
-                if not url: continue
-                
-                unique_key = yt_id if yt_id else url
+                # Unique key: YouTube ID or URL or File hash (youtube_id is None for uploads)
+                unique_key = yt_id if yt_id else (url if url != "Uploaded File" else data.get("media_path"))
                 
                 usage = data.get("usage", {})
                 duration = usage.get("duration", 0)
@@ -231,7 +231,7 @@ async def get_history():
                     history_dict[unique_key] = {
                         "id": task_id,
                         "title": data.get("title"),
-                        "thumbnail": data.get("thumbnail") or get_youtube_thumbnail_url(url),
+                        "thumbnail": data.get("thumbnail"),
                         "url": url,
                         "mtime": mtime,
                         "total_cost": round(cost, 4)
@@ -239,8 +239,7 @@ async def get_history():
                     total_stats["total_duration"] += duration
                     total_stats["total_cost"] += cost
                     total_stats["video_count"] += 1
-            except:
-                continue
+        except: continue
                 
     return {
         "items": sorted(history_dict.values(), key=lambda x: x["mtime"], reverse=True),

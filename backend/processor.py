@@ -124,6 +124,9 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
 
         except Exception as e:
             print(f"Error processing chunk {idx+1}: {e}")
+            print(f"--- Raw LLM Response for Chunk {idx+1} ---")
+            print(content if 'content' in locals() else "No content received")
+            print("--- End Raw Response ---")
             # 失败块使用基础分组
             fallback_paras = group_by_time(chunk)
             all_paragraphs.extend(fallback_paras)
