@@ -53,9 +53,16 @@ async def background_process(task_id, url, mode):
         # We rely on video_id based cache.
 
         # 2. Information & Download (Checkpoint 1)
-        save_status(task_id, "正在获取视频信息并下载音频...", 20, eta=45)
-        
-        # 获取元数据 (无论是否缓存最好都更新一下标题)
+        # 支持多种可能的音频后缀
+        possible_exts = ["m4a", "mp3", "mp4", "webm"]
+        file_path = None
+        for ext in possible_exts:
+            p = f"{DOWNLOADS_DIR}/{video_id}.{ext}"
+            if os.path.exists(p):
+                file_path = p
+                break
+
+        # 获取元数据
         import yt_dlp
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             try:
@@ -66,25 +73,29 @@ async def background_process(task_id, url, mode):
                 title = "Unknown Title"
                 thumbnail = get_youtube_thumbnail_url(url)
 
-        file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
-        if os.path.exists(file_path):
-            save_status(task_id, "检测到音频缓存，跳过下载...", 40, eta=30 if mode == "cloud" else 150)
+        if file_path:
+            save_status(task_id, f"检测到本地媒体缓存 ({os.path.basename(file_path)})，跳过下载...", 40, eta=30 if mode == "cloud" else 150)
         else:
-            save_status(task_id, "正在下载音频并提取元数据...", 40, eta=35 if mode == "cloud" else 160)
+            def on_download_progress(p):
+                # 将下载进度 0-100% 映射到整体进度的 20%-40%
+                current_p = 20 + (p * 0.2)
+                save_status(task_id, f"正在下载媒体文件... {p:.1f}%", int(current_p), eta=35)
+
+            save_status(task_id, "开始调度下载任务...", 20, eta=40)
             try:
-                file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR)
+                file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR, progress_callback=on_download_progress)
             except Exception as e:
-                # 场景：下载中断 -> 自动重试机制在下层或上层逻辑可以体现，这里确保清理或报错
-                raise Exception(f"音频下载失败: {str(e)}")
+                raise Exception(f"媒体下载失败: {str(e)}")
 
         # 3. Transcribe (Checkpoint 2)
         cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"
         if os.path.exists(cache_sub_path):
-            save_status(task_id, "检测到转录缓存，正在加载...", 50, eta=10)
+            save_status(task_id, "检测到转录缓存，正在加载报告...", 50, eta=5)
             with open(cache_sub_path, "r", encoding="utf-8") as rf:
                 raw_subtitles = json.load(rf)
         else:
             save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == "cloud" else 120)
+            print(f"--- Starting transcription for: {os.path.basename(file_path)} ---")
             raw_subtitles = transcribe_audio(file_path, mode=mode)
             # 保存转录检查点
             with open(cache_sub_path, "w", encoding="utf-8") as wf:
