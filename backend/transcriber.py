@@ -20,23 +20,24 @@ def transcribe_local(file_path: str):
     model = get_model(model_size)
     
     print(f"--- Starting local transcription for: {file_path} ---")
-    segments, info = model.transcribe(file_path, beam_size=5)
+    # 启用 word_timestamps
+    segments, info = model.transcribe(file_path, beam_size=5, word_timestamps=True)
     
     results = []
     for segment in segments:
         results.append({
             "start": segment.start,
             "end": segment.end,
-            "text": segment.text.strip()
+            "text": segment.text.strip(),
+            "words": [{"start": w.start, "end": w.end, "text": w.word} for w in segment.words] if segment.words else []
         })
     print(f"--- Transcription completed: {len(results)} segments found ---")
     return results
 
 def transcribe_cloud(file_path: str):
-    # OpenAI Whisper API 限制为 25MB
     file_size = os.path.getsize(file_path)
     if file_size > 25 * 1024 * 1024:
-        raise Exception(f"音频文件过大 ({file_size / 1024 / 1024:.2f}MB)，超过了云端 API 的 25MB 限制。请尝试使用 'Local' 模式或缩短视频长度。")
+        raise Exception(f"音频文件过大 ({file_size / 1024 / 1024:.2f}MB)，超过限额。")
 
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
@@ -44,15 +45,19 @@ def transcribe_cloud(file_path: str):
         transcript = client.audio.transcriptions.create(
             model="whisper-1", 
             file=audio_file,
-            response_format="verbose_json"
+            response_format="verbose_json",
+            timestamp_granularities=["word", "segment"]
         )
     
     results = []
-    for segment in transcript.segments:
+    # 兼容 verbose_json 格式
+    segments = getattr(transcript, 'segments', [])
+    for segment in segments:
         results.append({
-            "start": segment["start"],
-            "end": segment["end"],
-            "text": segment["text"].strip()
+            "start": segment["start"] if isinstance(segment, dict) else segment.start,
+            "end": segment["end"] if isinstance(segment, dict) else segment.end,
+            "text": (segment["text"] if isinstance(segment, dict) else segment.text).strip(),
+            "words": segment.get("words", []) if isinstance(segment, dict) else getattr(segment, 'words', [])
         })
     return results
 

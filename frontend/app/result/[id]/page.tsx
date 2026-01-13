@@ -3,24 +3,28 @@
 import { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 
-interface Paragraph {
+interface Sentence {
     start: number;
     text: string;
 }
 
+interface Paragraph {
+    sentences: Sentence[];
+}
+
 interface Result {
     title: string;
-    media_path?: string;
-    media_url?: string;
+    url: string;
+    youtube_id?: string;
     paragraphs?: Paragraph[];
-    subtitles?: Paragraph[];
+    subtitles?: any[];
 }
 
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const [result, setResult] = useState<Result | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
     const [apiBase, setApiBase] = useState("");
 
     useEffect(() => {
@@ -44,9 +48,15 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     }, [id, apiBase]);
 
     const seek = (time: number) => {
-        if (videoRef.current) {
-            videoRef.current.currentTime = time;
-            videoRef.current.play();
+        if (iframeRef.current) {
+            iframeRef.current.contentWindow?.postMessage(
+                JSON.stringify({ event: "command", func: "seekTo", args: [time, true] }),
+                "*"
+            );
+            iframeRef.current.contentWindow?.postMessage(
+                JSON.stringify({ event: "command", func: "playVideo" }),
+                "*"
+            );
         }
     };
 
@@ -68,15 +78,15 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left: Video Section */}
-                    <div className="lg:col-span-7 space-y-6">
+                    <div className="lg:col-span-12 space-y-6">
                         <h1 className="text-3xl font-bold leading-tight">{result.title}</h1>
-                        <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800 sticky top-8">
-                            <video
-                                ref={videoRef}
-                                src={`${apiBase}/media/${result.media_path || result.media_url}`}
-                                controls
+                        <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+                            <iframe
+                                ref={iframeRef}
+                                src={`https://www.youtube.com/embed/${result.youtube_id || result.url.split('v=')[1] || result.url.split('/').pop()}?enablejsapi=1`}
                                 className="w-full h-full"
-                                onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
                             />
                         </div>
                     </div>
@@ -86,38 +96,35 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                         <div className="bg-slate-900/50 rounded-3xl border border-slate-800 p-8 flex-1 overflow-y-auto custom-scrollbar backdrop-blur-sm">
                             <div className="prose prose-invert max-w-none space-y-8">
                                 {(() => {
-                                    const paragraphs = Array.isArray(result.paragraphs)
-                                        ? result.paragraphs
-                                        : Array.isArray(result.subtitles)
-                                            ? result.subtitles
-                                            : [];
+                                    // 兼容性处理
+                                    const rawPara = result.paragraphs || [];
+                                    const rawSub = result.subtitles || [];
 
-                                    return paragraphs.map((p, i) => {
-                                        const nextStart = paragraphs[i + 1]?.start || 999999;
-                                        const isActive = currentTime >= p.start && currentTime < nextStart;
+                                    // 如果是旧版平铺格式 (subtitles)，将其包装成单一句子的段落
+                                    const displayParagraphs: Paragraph[] = rawPara.length > 0
+                                        ? rawPara
+                                        : rawSub.map((s: any) => ({
+                                            sentences: [{ start: s.start, text: s.text }]
+                                        }));
 
-                                        return (
-                                            <div
-                                                key={i}
-                                                onClick={() => seek(p.start)}
-                                                className={`group cursor-pointer transition-all duration-300 p-4 rounded-xl -mx-4 ${isActive
-                                                    ? "bg-blue-600/10 border-l-4 border-blue-500 shadow-lg shadow-blue-500/5"
-                                                    : "hover:bg-slate-800/50 border-l-4 border-transparent"
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3 mb-2 opacity-40 group-hover:opacity-100 transition">
-                                                    <span className="text-xs font-mono bg-slate-800 px-2 py-1 rounded">
-                                                        {new Date(p.start * 1000).toISOString().substr(14, 5)}
+                                    return displayParagraphs.map((para, pIdx) => (
+                                        <div key={pIdx} className="mb-10 text-justify group">
+                                            {para.sentences?.map((sentence, sIdx) => {
+                                                const nextS = para.sentences[sIdx + 1];
+                                                // 粗略判断是否激活 (由于 iframe 无法回调时间，这里仅支持手动点击跳转)
+                                                return (
+                                                    <span
+                                                        key={sIdx}
+                                                        onClick={() => seek(sentence.start)}
+                                                        className="inline-block cursor-pointer hover:text-blue-400 hover:bg-blue-400/10 rounded px-1 transition-all duration-200 text-lg leading-relaxed text-slate-300 decoration-blue-500/30 hover:underline decoration-2 underline-offset-4"
+                                                        title={`跳转到 ${Math.floor(sentence.start / 60)}:${(sentence.start % 60).toFixed(0).padStart(2, '0')}`}
+                                                    >
+                                                        {sentence.text}
                                                     </span>
-                                                    <div className="h-px flex-1 bg-slate-700"></div>
-                                                </div>
-                                                <p className={`text-lg leading-relaxed transition-colors ${isActive ? "text-blue-50" : "text-slate-300 group-hover:text-slate-100"
-                                                    }`}>
-                                                    {p.text}
-                                                </p>
-                                            </div>
-                                        );
-                                    });
+                                                );
+                                            })}
+                                        </div>
+                                    ));
                                 })()}
                             </div>
                         </div>
