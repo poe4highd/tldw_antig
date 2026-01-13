@@ -19,7 +19,7 @@ interface Summary {
 
 export default function Home() {
   const [url, setUrl] = useState("");
-  const [mode, setMode] = useState("cloud");
+  const [mode, setMode] = useState("local");
   const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
   const [eta, setEta] = useState<number | null>(null);
