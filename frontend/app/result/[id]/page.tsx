@@ -79,7 +79,6 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
         window.addEventListener("message", handleMessage);
 
-        // Tell YouTube to start sending info
         const interval = setInterval(() => {
             if (iframeRef.current && iframeRef.current.contentWindow) {
                 iframeRef.current.contentWindow.postMessage(
@@ -123,20 +122,21 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
     return (
         <main className="min-h-screen bg-slate-950 text-slate-50 font-sans">
-            <div className="flex flex-col lg:flex-row min-h-screen">
+            <div className="flex flex-col lg:flex-row min-h-screen relative">
                 
-                {/* Fixed Side Sidebar (Left) */}
-                <div className="lg:w-[450px] xl:w-[500px] lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 border-r border-slate-800 p-6 flex flex-col z-20">
-                    <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-6 transition group w-fit text-sm">
-                        <div className="bg-slate-800 p-1.5 rounded-md mr-3 group-hover:bg-blue-600/20 transition-colors">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {/* Fixed/Sticky Video Panel */}
+                <div className="w-full lg:w-[450px] xl:w-[500px] sticky top-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 lg:border-r border-b lg:border-b-0 border-slate-800 p-4 lg:p-6 flex flex-col z-40 transition-shadow duration-300 shadow-xl lg:shadow-none">
+                    <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-4 lg:mb-6 transition group w-fit text-xs lg:text-sm">
+                        <div className="bg-slate-800 p-1 lg:p-1.5 rounded-md mr-2 lg:mr-3 group-hover:bg-blue-600/20 transition-colors">
+                            <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                         </div>
                         返回列表
                     </Link>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 lg:block hidden">
+                         {/* Desktop Title & Details */}
                         <h1 className="text-xl font-bold leading-tight text-slate-100 mb-6">
                             {result.title}
                         </h1>
@@ -158,7 +158,23 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                         </div>
                     </div>
 
-                    <div className="pt-6 mt-6 border-t border-slate-800/50 flex justify-between items-center text-[10px] text-slate-600 font-mono">
+                    {/* Mobile Player Only (Compact) */}
+                    <div className="lg:hidden block">
+                        <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-lg border border-white/5 ring-1 ring-white/5 mb-2">
+                            <iframe
+                                ref={iframeRef}
+                                src={`https://www.youtube.com/embed/${result.youtube_id || result.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || ''}?enablejsapi=1&autoplay=1`}
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </div>
+                        <h1 className="text-sm font-bold leading-tight text-slate-100 truncate">
+                            {result.title}
+                        </h1>
+                    </div>
+
+                    <div className="pt-4 mt-auto border-t border-slate-800/50 lg:flex hidden justify-between items-center text-[10px] text-slate-600 font-mono">
                         <span>YT QUICK READER v2.1</span>
                         <span className="text-blue-500/50 px-2 py-0.5 border border-blue-500/20 rounded">USER</span>
                     </div>
@@ -166,7 +182,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
                 {/* Main Content Area (Scrollable Right) */}
                 <div className="lg:ml-[450px] xl:ml-[500px] flex-1 min-h-screen bg-slate-950">
-                    <div className="max-w-3xl mx-auto p-12 lg:p-20">
+                    <div className="max-w-3xl mx-auto p-6 lg:p-20">
                         <div className="prose prose-invert max-w-none">
                             {(() => {
                                 const rawPara = result.paragraphs || [];
@@ -178,14 +194,12 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                         sentences: [{ start: s.start, text: s.text }]
                                     }));
 
-                                // Create a flat list of sentences to find nextStart
                                 const allSentences: Sentence[] = [];
                                 displayParagraphs.forEach(p => allSentences.push(...p.sentences));
 
                                 return displayParagraphs.map((para, pIdx) => (
-                                    <div key={pIdx} className="mb-10 text-justify">
+                                    <div key={pIdx} className="mb-8 lg:mb-10 text-justify">
                                         {para.sentences?.map((sentence, sIdx) => {
-                                            // Find index in overall flat list
                                             const flatIdx = allSentences.indexOf(sentence);
                                             const nextS = allSentences[flatIdx + 1];
                                             const active = isSentenceActive(sentence.start, nextS?.start);
@@ -194,9 +208,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                                 <span
                                                     key={sIdx}
                                                     onClick={() => seek(sentence.start)}
-                                                    className={`cursor-pointer rounded transition-all duration-300 text-[15.5px] leading-[1.65] px-0.5 decoration-blue-500/20 hover:underline decoration-1 underline-offset-[6px] ${
+                                                    className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 decoration-blue-500/20 hover:underline decoration-1 underline-offset-[6px] ${
                                                         active 
-                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.02] inline-block shadow-[0_0_20px_rgba(96,165,250,0.1)]" 
+                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]" 
                                                         : "text-slate-400 hover:text-blue-300"
                                                     }`}
                                                     title={`跳转到 ${Math.floor(sentence.start / 60)}:${(sentence.start % 60).toFixed(0).padStart(2, '0')}`}

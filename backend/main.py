@@ -22,8 +22,9 @@ app.add_middleware(
 
 DOWNLOADS_DIR = "downloads"
 RESULTS_DIR = "results"
+CACHE_DIR = "cache"
 
-for d in [DOWNLOADS_DIR, RESULTS_DIR]:
+for d in [DOWNLOADS_DIR, RESULTS_DIR, CACHE_DIR]:
     if not os.path.exists(d):
         os.makedirs(d)
 
@@ -39,53 +40,69 @@ async def background_process(task_id, url, mode):
     try:
         # 0. Get ID
         video_id = ""
-        # 尝试从常见格式提取 ID
         id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
         if id_match:
             video_id = id_match.group(1)
         else:
-            # 回退使用 hash
             import hashlib
             video_id = hashlib.md5(url.encode()).hexdigest()[:11]
 
+        # 1. Check if final result exists
+        # Note: We usually re-process if user clicks, but if we want true "resume",
+        # we check existing JSON. However, task_id is time-based, so it's a new task.
+        # We rely on video_id based cache.
+
+        # 2. Information & Download (Checkpoint 1)
         save_status(task_id, "正在获取视频信息并下载音频...", 20, eta=45)
         
-        # 1. Download (Check cache)
-        file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
-        v_file_path = f"{DOWNLOADS_DIR}/{video_id}.mp4"
-        
-        # 获取基础信息
+        # 获取元数据 (无论是否缓存最好都更新一下标题)
         import yt_dlp
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown Title')
-            thumbnail = info.get('thumbnail')
-        
+            try:
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'Unknown Title')
+                thumbnail = info.get('thumbnail')
+            except:
+                title = "Unknown Title"
+                thumbnail = get_youtube_thumbnail_url(url)
+
+        file_path = f"{DOWNLOADS_DIR}/{video_id}.mp3"
         if os.path.exists(file_path):
-            save_status(task_id, "检测到缓存数据，正在准备转录...", 40, eta=30 if mode == "cloud" else 150)
+            save_status(task_id, "检测到音频缓存，跳过下载...", 40, eta=30 if mode == "cloud" else 150)
         else:
             save_status(task_id, "正在下载音频并提取元数据...", 40, eta=35 if mode == "cloud" else 160)
-            file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR)
+            try:
+                file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR)
+            except Exception as e:
+                # 场景：下载中断 -> 自动重试机制在下层或上层逻辑可以体现，这里确保清理或报错
+                raise Exception(f"音频下载失败: {str(e)}")
+
+        # 3. Transcribe (Checkpoint 2)
+        cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"
+        if os.path.exists(cache_sub_path):
+            save_status(task_id, "检测到转录缓存，正在加载...", 50, eta=10)
+            with open(cache_sub_path, "r", encoding="utf-8") as rf:
+                raw_subtitles = json.load(rf)
+        else:
+            save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == "cloud" else 120)
+            raw_subtitles = transcribe_audio(file_path, mode=mode)
+            # 保存转录检查点
+            with open(cache_sub_path, "w", encoding="utf-8") as wf:
+                json.dump(raw_subtitles, wf, ensure_ascii=False)
         
-        # 2. Transcribe
-        save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == "cloud" else 120)
-        raw_subtitles = transcribe_audio(file_path, mode=mode)
-        
-        # 计算音频时长 (秒)
+        # 4. LLM Processing (Checkpoint 3)
         duration = 0
         if raw_subtitles:
             duration = raw_subtitles[-1]["end"]
         
-        # 3. LLM Processing (Paragraphing)
         save_status(task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
         paragraphs, llm_usage = split_into_paragraphs(raw_subtitles)
         
-        # 费用计算 (估算)
+        # 5. Final Result
         whisper_cost = (duration / 60.0) * 0.006 if mode == "cloud" else 0
         llm_cost = (llm_usage["prompt_tokens"] / 1000000.0 * 0.15) + (llm_usage["completion_tokens"] / 1000000.0 * 0.6)
         total_cost = whisper_cost + llm_cost
         
-        # 4. Save result
         result = {
             "title": title,
             "url": url,
@@ -107,17 +124,13 @@ async def background_process(task_id, url, mode):
             json.dump(result, f, ensure_ascii=False, indent=2)
         print(f"--- [Task {task_id}] Task completed successfully! ---")
             
-        # Cleanup old
-        now = time.time()
-        for f in os.listdir(DOWNLOADS_DIR):
-            fpath = os.path.join(DOWNLOADS_DIR, f)
-            if os.stat(fpath).st_mtime < now - 48 * 3600:
-                if f.endswith(".mp3"):
-                    os.remove(fpath)
-                    
     except Exception as e:
         import traceback
         traceback.print_exc()
+        # 如果文件丢失（如下载了一半的 mp3 损坏），通常 os.path.exists 会通过但读取失败，
+        # 这里建议简单重置检查点（删除相关损坏文件）
+        # if "FFmpeg" in str(e) or "FileNotFound" in str(e):
+        #    ...
         with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as f:
             json.dump({"error": str(e)}, f)
 
@@ -151,16 +164,17 @@ async def get_history():
     history_dict = {}
     total_stats = {"total_duration": 0, "total_cost": 0, "video_count": 0}
     
+    if not os.path.exists(RESULTS_DIR):
+        return {"items": [], "summary": total_stats}
+
     files = [f for f in os.listdir(RESULTS_DIR) if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json")]
     
-    # 获取所有文件的信息并缓存
     file_infos = []
     for f in files:
         f_path = os.path.join(RESULTS_DIR, f)
         mtime = os.path.getmtime(f_path)
         file_infos.append((f, mtime))
     
-    # 按时间降序排序
     file_infos.sort(key=lambda x: x[1], reverse=True)
     
     for f, mtime in file_infos:
@@ -172,7 +186,6 @@ async def get_history():
                 yt_id = data.get("youtube_id")
                 if not url: continue
                 
-                # 使用 youtube_id 去重比 raw url 更准确
                 unique_key = yt_id if yt_id else url
                 
                 usage = data.get("usage", {})
