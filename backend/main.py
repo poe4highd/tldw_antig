@@ -169,18 +169,18 @@ async def get_history():
             try:
                 data = json.load(r)
                 url = data.get("url")
+                yt_id = data.get("youtube_id")
                 if not url: continue
+                
+                # 使用 youtube_id 去重比 raw url 更准确
+                unique_key = yt_id if yt_id else url
                 
                 usage = data.get("usage", {})
                 duration = usage.get("duration", 0)
                 cost = usage.get("total_cost", 0)
                 
-                # 累加统计（全局，不分重复 URL）
-                # 这里我们假设 summary 是针对所有记录的汇总，或者只针对去重后的？
-                # 用户要求汇总，通常指所有视频的累加。
-                
-                if url not in history_dict:
-                    history_dict[url] = {
+                if unique_key not in history_dict:
+                    history_dict[unique_key] = {
                         "id": task_id,
                         "title": data.get("title"),
                         "thumbnail": data.get("thumbnail") or get_youtube_thumbnail_url(url),
@@ -188,7 +188,6 @@ async def get_history():
                         "mtime": mtime,
                         "total_cost": round(cost, 4)
                     }
-                    # 仅对去重后的记录进行累加统计，避免同一视频多次处理重复计算（通常更合逻辑）
                     total_stats["total_duration"] += duration
                     total_stats["total_cost"] += cost
                     total_stats["video_count"] += 1
