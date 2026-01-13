@@ -23,7 +23,6 @@ interface Result {
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const [result, setResult] = useState<Result | null>(null);
-    const [currentTime, setCurrentTime] = useState(0);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [apiBase, setApiBase] = useState("");
 
@@ -67,23 +66,26 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     );
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-50 p-4 md:p-8 font-sans">
-            <div className="max-w-7xl mx-auto">
-                <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-6 transition">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Back to History
+        <main className="min-h-screen bg-slate-950 text-slate-50 p-4 md:p-12 font-sans">
+            <div className="max-w-4xl mx-auto">
+                <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-8 transition group">
+                    <div className="bg-slate-900 p-2 rounded-lg mr-3 group-hover:bg-blue-600/20 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </div>
+                    返回历史记录
                 </Link>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left: Video Section */}
-                    <div className="lg:col-span-12 space-y-6">
-                        <h1 className="text-3xl font-bold leading-tight">{result.title}</h1>
-                        <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+                <div className="space-y-12">
+                    <div className="space-y-6">
+                        <h1 className="text-4xl font-black leading-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                            {result.title}
+                        </h1>
+                        <div className="aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 ring-1 ring-slate-700/50">
                             <iframe
                                 ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id || result.url.split('v=')[1] || result.url.split('/').pop()}?enablejsapi=1`}
+                                src={`https://www.youtube.com/embed/${result.youtube_id || result.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || ''}?enablejsapi=1`}
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
@@ -91,52 +93,37 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                         </div>
                     </div>
 
-                    {/* Right: Reader Section */}
-                    <div className="lg:col-span-5 h-[calc(100vh-8rem)] flex flex-col pt-12 lg:pt-0">
-                        <div className="bg-slate-900/50 rounded-3xl border border-slate-800 p-8 flex-1 overflow-y-auto custom-scrollbar backdrop-blur-sm">
-                            <div className="prose prose-invert max-w-none space-y-8">
-                                {(() => {
-                                    // 兼容性处理
-                                    const rawPara = result.paragraphs || [];
-                                    const rawSub = result.subtitles || [];
+                    <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 p-10 md:p-16 backdrop-blur-xl ring-1 ring-white/5">
+                        <div className="max-w-none text-slate-200">
+                            {(() => {
+                                const rawPara = result.paragraphs || [];
+                                const rawSub = result.subtitles || [];
+                                
+                                const displayParagraphs: Paragraph[] = rawPara.length > 0 
+                                    ? rawPara 
+                                    : rawSub.map((s: any) => ({
+                                        sentences: [{ start: s.start, text: s.text }]
+                                    }));
 
-                                    // 如果是旧版平铺格式 (subtitles)，将其包装成单一句子的段落
-                                    const displayParagraphs: Paragraph[] = rawPara.length > 0
-                                        ? rawPara
-                                        : rawSub.map((s: any) => ({
-                                            sentences: [{ start: s.start, text: s.text }]
-                                        }));
-
-                                    return displayParagraphs.map((para, pIdx) => (
-                                        <div key={pIdx} className="mb-10 text-justify group">
-                                            {para.sentences?.map((sentence, sIdx) => {
-                                                const nextS = para.sentences[sIdx + 1];
-                                                // 粗略判断是否激活 (由于 iframe 无法回调时间，这里仅支持手动点击跳转)
-                                                return (
-                                                    <span
-                                                        key={sIdx}
-                                                        onClick={() => seek(sentence.start)}
-                                                        className="inline-block cursor-pointer hover:text-blue-400 hover:bg-blue-400/10 rounded px-1 transition-all duration-200 text-lg leading-relaxed text-slate-300 decoration-blue-500/30 hover:underline decoration-2 underline-offset-4"
-                                                        title={`跳转到 ${Math.floor(sentence.start / 60)}:${(sentence.start % 60).toFixed(0).padStart(2, '0')}`}
-                                                    >
-                                                        {sentence.text}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    ));
-                                })()}
-                            </div>
+                                return displayParagraphs.map((para, pIdx) => (
+                                    <p key={pIdx} className="mb-12 text-justify last:mb-0">
+                                        {para.sentences?.map((sentence, sIdx) => (
+                                            <span
+                                                key={sIdx}
+                                                onClick={() => seek(sentence.start)}
+                                                className="cursor-pointer hover:text-blue-400 hover:bg-blue-400/5 rounded transition-all duration-200 text-xl leading-[1.8] text-slate-300 decoration-blue-500/20 hover:underline decoration-2 underline-offset-8 px-0.5"
+                                                title={`跳转到 ${Math.floor(sentence.start / 60)}:${(sentence.start % 60).toFixed(0).padStart(2, '0')}`}
+                                            >
+                                                {sentence.text}{\" \"}
+                                            </span>
+                                        ))}
+                                    </p>
+                                ));
+                            })()}
                         </div>
                     </div>
                 </div>
             </div>
-
-            <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-      `}</style>
         </main>
     );
 }
