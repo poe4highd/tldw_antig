@@ -6,18 +6,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROMPT = """
-你是一位专业的视频字幕整理员。我会给你一段带有时间戳的原始转录文本。
+你是一位专业的视频字幕校对与排版专家。我会给你一段带有时间戳的原始录音转录文本。
 你的任务是：
-1. 将破碎、短小的原始字幕合并成逻辑连贯、易于阅读的【自然段落】。
-2. 每个段落包含一个句子列表，每个句子必须保留其在原始转录中的精确起始时间戳（start）。
-3. 修正转录中的明显口误、重复词汇，或根据上下文修正错别字，但保持主旨不变。
-4. 输出格式必须是 JSON 格式：
+1. 【标点与分段】：在不改变原始字数和意思的前提下，为文本添加准确的中文标点符号（，。？！等），并将其整理成逻辑清晰的【自然段落】。
+2. 【句级嵌套】：每个段落包含一个句子列表，每个句子必须严格对应原始转录中的精确起始时间戳（start）。
+3. 【术语修正】：修正转录中的明显同音错别字或明显的口误，确保阅读体验顺滑，但禁止删减内容。
+4. 【输出格式】：必须返回合法的 JSON：
 {
   "paragraphs": [
     {
       "sentences": [
-        {"start": 1.2, "text": "句子1内容"},
-        {"start": 5.6, "text": "句子2内容"}
+        {"start": 1.2, "text": "校对后的句子1内容"},
+        {"start": 5.6, "text": "校对后的句子2内容"}
       ]
     }
   ]
@@ -50,25 +50,37 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
         )
         
         data = json.loads(response.choices[0].message.content)
+        usage = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens
+        }
+
         # 兼容性处理：LLM 可能返回 {"paragraphs": [...] } 或 {"items": [...] } 等
+        paragraphs = []
         if isinstance(data, dict):
             if "paragraphs" in data:
-                return data["paragraphs"]
-            # 尝试找字典中第一个列表
-            for val in data.values():
-                if isinstance(val, list):
-                    return val
-        if isinstance(data, list):
-            # 将扁平列表转换为嵌套结构，以便前端统一处理
-            if len(data) > 0 and "sentences" not in data[0]:
-                return [{"sentences": [item]} for item in data]
-            return data
+                paragraphs = data["paragraphs"]
+            else:
+                # 尝试找字典中第一个列表
+                for val in data.values():
+                    if isinstance(val, list):
+                        paragraphs = val
+                        break
+        elif isinstance(data, list):
+            paragraphs = data
+
+        # 将扁平列表转换为嵌套结构，以便前端统一处理
+        if paragraphs and isinstance(paragraphs, list):
+            if "sentences" not in paragraphs[0]:
+                paragraphs = [{"sentences": [item]} for item in paragraphs]
+            return paragraphs, usage
             
         print(f"Unexpected data format from LLM: {type(data)}")
-        return group_by_time(subtitles)
+        return group_by_time(subtitles), usage
     except Exception as e:
         print(f"LLM paragraphing failed: {e}")
-        return group_by_time(subtitles)
+        return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 def group_by_time(subtitles, seconds=45):
     """
