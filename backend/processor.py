@@ -72,26 +72,44 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
                 response_format={ "type": "json_object" }
             )
             
+            print(f"--- Chunk {idx+1}/{len(chunks)} LLM Response Received ---")
             content = response.choices[0].message.content
-            data = json.loads(content)
+            try:
+                data = json.loads(content)
+            except Exception as je:
+                print(f"JSON Decode Error in chunk {idx+1}: {je}")
+                # 尝试用正则强行提取可能是 JSON 的内容
+                match = re.search(r'\{.*\}', content, re.DOTALL)
+                if match:
+                    data = json.loads(match.group(0))
+                else:
+                    raise je
             
             # 记录 Token
             total_usage["prompt_tokens"] += response.usage.prompt_tokens
             total_usage["completion_tokens"] += response.usage.completion_tokens
             total_usage["total_tokens"] += response.usage.total_tokens
 
-            # 解析段落
+            # 解析段落 (更加鲁棒的查找)
             chunk_paras = []
             if isinstance(data, dict):
-                if "paragraphs" in data:
-                    chunk_paras = data["paragraphs"]
+                # 优先清理键值对（处理 LLM 可能多带进来的换行符键名）
+                clean_data = {k.strip().replace('"', ''): v for k, v in data.items()}
+                
+                if "paragraphs" in clean_data:
+                    chunk_paras = clean_data["paragraphs"]
                 else:
-                    for val in data.values():
+                    # 寻找第一个列表类型的值
+                    for val in clean_data.values():
                         if isinstance(val, list):
                             chunk_paras = val
                             break
             elif isinstance(data, list):
                 chunk_paras = data
+
+            # 如果还是空，尝试 fallback
+            if not chunk_paras:
+                 print(f"Warning: No paragraphs found in chunk {idx+1} JSON. Keys: {list(data.keys())}")
 
             # 结构化
             for p in chunk_paras:
@@ -102,7 +120,7 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
                 elif isinstance(p, str):
                     all_paragraphs.append({"sentences": [{"start": 0, "text": p}]})
             
-            print(f"Chunk {idx+1}/{len(chunks)} processed.")
+            print(f"Chunk {idx+1}/{len(chunks)} structured.")
 
         except Exception as e:
             print(f"Error processing chunk {idx+1}: {e}")

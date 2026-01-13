@@ -173,13 +173,37 @@ async def get_result(task_id: str):
 @app.get("/history")
 async def get_history():
     history_dict = {}
+    active_tasks = []
     total_stats = {"total_duration": 0, "total_cost": 0, "video_count": 0}
     
     if not os.path.exists(RESULTS_DIR):
-        return {"items": [], "summary": total_stats}
+        return {"items": [], "active_tasks": [], "summary": total_stats}
 
-    files = [f for f in os.listdir(RESULTS_DIR) if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json")]
+    all_files = os.listdir(RESULTS_DIR)
     
+    # 1. 扫描进行中的任务
+    status_files = [f for f in all_files if f.endswith("_status.json")]
+    for sf in status_files:
+        tid = sf.replace("_status.json", "")
+        # 如果没有结果文件且没有错误文件，视为进行中
+        if not os.path.exists(f"{RESULTS_DIR}/{tid}.json") and not os.path.exists(f"{RESULTS_DIR}/{tid}_error.json"):
+            # 检查 mtime，如果超过 1 小时可能已经僵死了，不计入
+            mtime = os.path.getmtime(f"{RESULTS_DIR}/{sf}")
+            if time.time() - mtime < 3600:
+                try:
+                    with open(f"{RESULTS_DIR}/{sf}", "r") as f:
+                        status_data = json.load(f)
+                        active_tasks.append({
+                            "id": tid,
+                            "status": status_data.get("status", "pending"),
+                            "progress": status_data.get("progress", 0),
+                            "mtime": mtime
+                        })
+                except:
+                    pass
+
+    # 2. 扫描已完成的任务
+    files = [f for f in all_files if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json")]
     file_infos = []
     for f in files:
         f_path = os.path.join(RESULTS_DIR, f)
@@ -220,6 +244,7 @@ async def get_history():
                 
     return {
         "items": sorted(history_dict.values(), key=lambda x: x["mtime"], reverse=True),
+        "active_tasks": sorted(active_tasks, key=lambda x: x["mtime"], reverse=True),
         "summary": {
             "total_duration": total_stats["total_duration"],
             "total_cost": round(total_stats["total_cost"], 4),

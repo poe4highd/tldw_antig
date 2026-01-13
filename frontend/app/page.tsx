@@ -17,6 +17,12 @@ interface Summary {
   video_count: number;
 }
 
+interface ActiveTask {
+  id: string;
+  status: string;
+  progress: number;
+}
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState("local");
@@ -24,6 +30,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [eta, setEta] = useState<number | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [activeTasks, setActiveTasks] = useState<ActiveTask[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [apiBase, setApiBase] = useState("");
   const [isDev, setIsDev] = useState(false);
@@ -39,6 +46,10 @@ export default function Home() {
     if (params.get("role") === "dev") {
       setIsDev(true);
     }
+
+    // 每 15 秒刷新一次历史和任务状态
+    const interval = setInterval(() => fetchHistory(base), 15000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -54,6 +65,7 @@ export default function Home() {
       const data = await resp.json();
       setHistory(data.items || []);
       setSummary(data.summary || null);
+      setActiveTasks(data.active_tasks || []);
     } catch (e) {
       console.error("Failed to fetch history");
     }
@@ -187,6 +199,35 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Active Tasks (Dev Only) */}
+        {isDev && activeTasks.length > 0 && (
+          <div className="mb-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center gap-4 mb-4">
+              <h2 className="text-xl font-black uppercase tracking-widest text-blue-400">正在运行的任务</h2>
+              <span className="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-0.5 rounded-full border border-blue-500/20">{activeTasks.length}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeTasks.map((task) => (
+                <div key={task.id} className="bg-slate-900/60 border border-blue-500/20 p-5 rounded-3xl backdrop-blur-md relative overflow-hidden group">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 font-mono">TASK ID: {task.id}</p>
+                      <p className="text-sm font-bold text-blue-300 group-hover:text-blue-200 transition-colors uppercase tracking-tight">{task.status}</p>
+                    </div>
+                    <p className="text-2xl font-black text-blue-500/50 group-hover:text-blue-500 transition-colors">{task.progress}%</p>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                    <div
+                      className="bg-blue-500 h-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+                      style={{ width: `${task.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* History Section */}
         <div className="space-y-10">
