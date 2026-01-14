@@ -13,6 +13,7 @@ frontend/.next/
 frontend/.env*
 frontend/out/
 *.log
+backend/uvicorn.log
 
 # OS
 .DS_Store
