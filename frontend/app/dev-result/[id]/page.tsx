@@ -133,13 +133,13 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     };
 
     const generateSRT = (subs: RawSubtitle[]) => {
-        return subs.map((s, i) => 
+        return subs.map((s, i) =>
             `${i + 1}\n${formatTimestamp(s.start, ',')} --> ${formatTimestamp(s.end, ',')}\n${s.text}\n`
         ).join("\n");
     };
 
     const generateVTT = (subs: RawSubtitle[]) => {
-        return "WEBVTT\n\n" + subs.map(s => 
+        return "WEBVTT\n\n" + subs.map(s =>
             `${formatTimestamp(s.start)} --> ${formatTimestamp(s.end)}\n${s.text}\n`
         ).join("\n");
     };
@@ -156,14 +156,33 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
     const getAllText = () => {
         if (!result?.paragraphs) return "";
-        return result.paragraphs.map(p => 
+        return result.paragraphs.map(p =>
             p.sentences.map(s => s.text).join(" ")
         ).join("\n\n");
     };
 
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(getAllText());
-        setCopyStatus("已复制！");
+    const copyToClipboard = async () => {
+        const textToCopy = getAllText();
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(textToCopy);
+            } else {
+                // Fallback for non-secure contexts (e.g., HTTP IP address)
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                textArea.style.position = "absolute";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            setCopyStatus("已复制！");
+        } catch (err) {
+            console.error("Copy failed", err);
+            setCopyStatus("复制失败");
+        }
         setTimeout(() => setCopyStatus("复制全文"), 2000);
     };
 
@@ -290,15 +309,15 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                     <div className="max-w-3xl mx-auto p-6 lg:p-20">
                         {/* Mobile Action Buttons */}
                         <div className="lg:hidden flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
-                             <button onClick={copyToClipboard} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
+                            <button onClick={copyToClipboard} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
                                 {copyStatus}
-                             </button>
-                             <button onClick={() => downloadFile(getAllText(), `${result.title}.txt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
+                            </button>
+                            <button onClick={() => downloadFile(getAllText(), `${result.title}.txt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
                                 下载正文
-                             </button>
-                             <button onClick={() => result.raw_subtitles && downloadFile(generateSRT(result.raw_subtitles), `${result.title}.srt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
+                            </button>
+                            <button onClick={() => result.raw_subtitles && downloadFile(generateSRT(result.raw_subtitles), `${result.title}.srt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
                                 SRT
-                             </button>
+                            </button>
                         </div>
 
                         <div className="prose prose-invert max-w-none">

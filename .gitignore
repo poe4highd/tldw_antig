@@ -5,6 +5,7 @@ __pycache__/
 *$py.class
 backend/results/
 backend/downloads/
+backend/cache/
 backend/.env
 
 # Node

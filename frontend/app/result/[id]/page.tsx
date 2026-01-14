@@ -68,7 +68,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                 if (data.event === "infoDelivery" && data.info && data.info.currentTime !== undefined) {
                     setCurrentTime(data.info.currentTime);
                 }
-            } catch (e) {}
+            } catch (e) { }
         };
 
         window.addEventListener("message", handleMessage);
@@ -117,13 +117,13 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     };
 
     const generateSRT = (subs: RawSubtitle[]) => {
-        return subs.map((s, i) => 
+        return subs.map((s, i) =>
             `${i + 1}\n${formatTimestamp(s.start, ',')} --> ${formatTimestamp(s.end, ',')}\n${s.text}\n`
         ).join("\n");
     };
 
     const generateVTT = (subs: RawSubtitle[]) => {
-        return "WEBVTT\n\n" + subs.map(s => 
+        return "WEBVTT\n\n" + subs.map(s =>
             `${formatTimestamp(s.start)} --> ${formatTimestamp(s.end)}\n${s.text}\n`
         ).join("\n");
     };
@@ -140,14 +140,33 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
     const getAllText = () => {
         if (!result?.paragraphs) return "";
-        return result.paragraphs.map(p => 
+        return result.paragraphs.map(p =>
             p.sentences.map(s => s.text).join(" ")
         ).join("\n\n");
     };
 
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(getAllText());
-        setCopyStatus("已复制！");
+    const copyToClipboard = async () => {
+        const textToCopy = getAllText();
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(textToCopy);
+            } else {
+                // Fallback for non-secure contexts (e.g., HTTP IP address)
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                textArea.style.position = "absolute";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            setCopyStatus("已复制！");
+        } catch (err) {
+            console.error("Copy failed", err);
+            setCopyStatus("复制失败");
+        }
         setTimeout(() => setCopyStatus("复制全文"), 2000);
     };
 
@@ -165,7 +184,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     return (
         <main className="min-h-screen bg-slate-950 text-slate-50 font-sans">
             <div className="flex flex-col lg:flex-row min-h-screen relative">
-                
+
                 <div className="w-full lg:w-[450px] xl:w-[500px] sticky top-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 lg:border-r border-b lg:border-b-0 border-slate-800 p-4 lg:p-6 flex flex-col z-40 shadow-xl lg:shadow-none">
                     <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-3 lg:mb-6 transition group w-fit text-xs lg:text-sm">
                         <div className="bg-slate-800 p-1 lg:p-1.5 rounded-md mr-2 lg:mr-3 group-hover:bg-blue-600/20 transition-colors">
@@ -197,10 +216,10 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                     </svg>
                                 </div>
                                 <div className="p-4 bg-slate-900">
-                                    <audio 
+                                    <audio
                                         ref={audioRef}
-                                        src={`${apiBase}/media/${result.media_path}`} 
-                                        controls 
+                                        src={`${apiBase}/media/${result.media_path}`}
+                                        controls
                                         autoPlay
                                         className="w-full h-8"
                                     />
@@ -247,15 +266,15 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                     <div className="max-w-3xl mx-auto p-6 lg:p-20">
                         {/* Mobile Action Buttons */}
                         <div className="lg:hidden flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
-                             <button onClick={copyToClipboard} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
+                            <button onClick={copyToClipboard} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
                                 {copyStatus}
-                             </button>
-                             <button onClick={() => downloadFile(getAllText(), `${result.title}.txt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
+                            </button>
+                            <button onClick={() => downloadFile(getAllText(), `${result.title}.txt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
                                 下载正文
-                             </button>
-                             <button onClick={() => result.raw_subtitles && downloadFile(generateSRT(result.raw_subtitles), `${result.title}.srt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
+                            </button>
+                            <button onClick={() => result.raw_subtitles && downloadFile(generateSRT(result.raw_subtitles), `${result.title}.srt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
                                 SRT
-                             </button>
+                            </button>
                         </div>
 
                         <div className="prose prose-invert max-w-none">
@@ -271,16 +290,15 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                             const flatIdx = allSentences.indexOf(sentence);
                                             const nextS = allSentences[flatIdx + 1];
                                             const active = isSentenceActive(sentence.start, nextS?.start);
-                                            
+
                                             return (
                                                 <span
                                                     key={sIdx}
                                                     onClick={() => seek(sentence.start)}
-                                                    className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 ${
-                                                        active 
-                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]" 
-                                                        : "text-slate-400 hover:text-blue-300"
-                                                    }`}
+                                                    className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 ${active
+                                                            ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]"
+                                                            : "text-slate-400 hover:text-blue-300"
+                                                        }`}
                                                 >
                                                     {sentence.text}{" "}
                                                 </span>
