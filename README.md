@@ -65,3 +65,16 @@ python maintenance.py
 ## 注意事项
 - **大文件限制**: OpenAI API 限制单文件 25MB。超过此限制的视频请选择 **Local** 模式。
 - **首次运行**: 本地模式首次运行时，系统会自动下载 Whisper 模型（约 1-3GB），请留意终端下载状态。
+
+## 开发者工具 (Dev Tools)
+
+### 单文件重处理脚本
+位于 `backend/tests/reprocess_result.py`，用于针对单个结果文件重新运行 LLM 处理（例如调试 Prompt 效果时）。
+
+**注意：该脚本会直接覆盖原 JSON 文件。**
+
+```bash
+cd backend
+source venv/bin/activate
+python tests/reprocess_result.py results/<filename>.json
+```
