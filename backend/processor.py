@@ -40,14 +40,29 @@ def get_youtube_thumbnail_url(url):
         return ""
     return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
-def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
+def is_traditional(text):
+    """
+    检查文本是否包含明显的繁体中文字符。
+    """
+    # 常用繁体字特征字符集
+    trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
+    return bool(re.search(trad_patterns, text))
+
+def split_into_paragraphs(subtitles, title="", model="gpt-4o-mini"):
     """
     使用 LLM 将原始碎片段合并为自然段落。支持超长文本分段处理。
+    并根据标题自动选择简繁体。
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         print("⚠️ Warning: OPENAI_API_KEY not found. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+    # 检测标题语言偏好
+    is_trad = is_traditional(title)
+    lang_instruction = "【字体要求】：识别到标题为繁体，你必须使用『繁体中文』输出所有文本内容。" if is_trad else "【字体要求】：默认使用『简体中文』输出所有文本内容（除非原文是英文）。"
+    
+    current_prompt = PROMPT + "\n" + lang_instruction
 
     client = OpenAI(api_key=api_key)
     
@@ -67,7 +82,7 @@ def split_into_paragraphs(subtitles, model="gpt-4o-mini"):
                 model=model,
                 messages=[
                     {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。"},
-                    {"role": "user", "content": PROMPT.format(text_with_timestamps=raw_input)}
+                    {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input)}
                 ],
                 response_format={ "type": "json_object" }
             )

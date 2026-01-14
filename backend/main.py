@@ -106,7 +106,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         # 3. LLM Processing
         duration = raw_subtitles[-1]["end"] if raw_subtitles else 0
         save_status(task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
-        paragraphs, llm_usage = split_into_paragraphs(raw_subtitles)
+        paragraphs, llm_usage = split_into_paragraphs(raw_subtitles, title=title)
 
         # 4. Save Final Result
         whisper_cost = (duration / 60.0) * 0.006 if mode == "cloud" else 0
