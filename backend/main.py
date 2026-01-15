@@ -90,6 +90,29 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 save_status(task_id, "开始调度下载任务...", 20, eta=40)
                 file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR, progress_callback=on_download_progress)
         
+        # 1.5 Audio Extraction (for uploaded videos)
+        # We need to transcribe a pure audio file, especially for cloud mode size limits.
+        # But we keep 'media_path' pointing to the ORIGINAL video for frontend playback.
+        
+        transcription_source_path = file_path
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in [".mp4", ".mov", ".avi", ".webm", ".mkv"]:
+            extracted_audio_path = os.path.splitext(file_path)[0] + ".mp3"
+            if not os.path.exists(extracted_audio_path):
+                save_status(task_id, "正在从视频中提取音频...", 45, eta=10)
+                print(f"--- Extracting audio from {file_path} to {extracted_audio_path} ---")
+                import subprocess
+                try:
+                    subprocess.run(
+                        ["ffmpeg", "-i", file_path, "-q:a", "0", "-map", "a", extracted_audio_path, "-y"],
+                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                    transcription_source_path = extracted_audio_path
+                except Exception as e:
+                    print(f"Audio extraction failed: {e}. Trying to transcribe video directly...")
+            else:
+                transcription_source_path = extracted_audio_path
+
         # 2. Transcribe
         cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"
         if os.path.exists(cache_sub_path):
@@ -98,8 +121,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 raw_subtitles = json.load(rf)
         else:
             save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == 'cloud' else 120)
-            print(f"--- Starting transcription for: {os.path.basename(file_path)} ---")
-            raw_subtitles = transcribe_audio(file_path, mode=mode)
+            print(f"--- Starting transcription for: {os.path.basename(transcription_source_path)} ---")
+            raw_subtitles = transcribe_audio(transcription_source_path, mode=mode)
             with open(cache_sub_path, "w", encoding="utf-8") as wf:
                 json.dump(raw_subtitles, wf, ensure_ascii=False)
 

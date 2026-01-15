@@ -35,6 +35,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     const [currentTime, setCurrentTime] = useState(0);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [apiBase, setApiBase] = useState("");
     const [copyStatus, setCopyStatus] = useState("复制全文");
 
@@ -86,12 +87,12 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
     useEffect(() => {
         if (!result || result.youtube_id) return;
-        const audio = audioRef.current;
-        if (!audio) return;
+        const media = videoRef.current || audioRef.current;
+        if (!media) return;
 
-        const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-        audio.addEventListener("timeupdate", onTimeUpdate);
-        return () => audio.removeEventListener("timeupdate", onTimeUpdate);
+        const onTimeUpdate = () => setCurrentTime(media.currentTime);
+        media.addEventListener("timeupdate", onTimeUpdate);
+        return () => media.removeEventListener("timeupdate", onTimeUpdate);
     }, [result]);
 
     const seek = (time: number) => {
@@ -102,9 +103,12 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
             iframeRef.current.contentWindow?.postMessage(
                 JSON.stringify({ event: "command", func: "playVideo" }), "*"
             );
-        } else if (audioRef.current) {
-            audioRef.current.currentTime = time;
-            audioRef.current.play();
+        } else {
+            const media = videoRef.current || audioRef.current;
+            if (media) {
+                media.currentTime = time;
+                media.play();
+            }
         }
     };
 
@@ -209,22 +213,32 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                 allowFullScreen
                             />
                         ) : (
-                            <div className="w-full h-full flex flex-col">
-                                <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: result.thumbnail?.startsWith('#') ? result.thumbnail : '#1e293b' }}>
-                                    <svg className="w-20 h-20 text-white/20" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 3v11.13a3.345 3.345 0 102 3.29V5.47l8-1.6v6.26a3.345 3.345 0 102 3.29V3z" />
-                                    </svg>
+                            result.media_path?.match(/\.(mp4|mov|webm|mkv)$/i) ? (
+                                <video
+                                    ref={videoRef}
+                                    src={`${apiBase}/media/${result.media_path}`}
+                                    controls
+                                    autoPlay
+                                    className="w-full h-full"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex flex-col">
+                                    <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: result.thumbnail?.startsWith('#') ? result.thumbnail : '#1e293b' }}>
+                                        <svg className="w-20 h-20 text-white/20" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 3v11.13a3.345 3.345 0 102 3.29V5.47l8-1.6v6.26a3.345 3.345 0 102 3.29V3z" />
+                                        </svg>
+                                    </div>
+                                    <div className="p-4 bg-slate-900">
+                                        <audio
+                                            ref={audioRef}
+                                            src={`${apiBase}/media/${result.media_path}`}
+                                            controls
+                                            autoPlay
+                                            className="w-full h-8"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="p-4 bg-slate-900">
-                                    <audio
-                                        ref={audioRef}
-                                        src={`${apiBase}/media/${result.media_path}`}
-                                        controls
-                                        autoPlay
-                                        className="w-full h-8"
-                                    />
-                                </div>
-                            </div>
+                            )
                         )}
                     </div>
 
@@ -296,8 +310,8 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                                     key={sIdx}
                                                     onClick={() => seek(sentence.start)}
                                                     className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 ${active
-                                                            ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]"
-                                                            : "text-slate-400 hover:text-blue-300"
+                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]"
+                                                        : "text-slate-400 hover:text-blue-300"
                                                         }`}
                                                 >
                                                     {sentence.text}{" "}
