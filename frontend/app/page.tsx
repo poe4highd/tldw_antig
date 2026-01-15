@@ -172,56 +172,56 @@ export default function Home() {
         {/* Input Section */}
         <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl mb-20 max-w-4xl mx-auto ring-1 ring-white/5">
           <div className="flex flex-col gap-4">
-             <div className="flex flex-col md:flex-row gap-4">
-                <input
-                  type="text"
-                  placeholder="Paste YouTube link here..."
-                  className="flex-1 bg-slate-950 border border-slate-700/50 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-lg"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
-                <div className="flex gap-3">
-                    <select
-                        className="bg-slate-950 border border-slate-700/50 rounded-2xl px-5 py-5 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-300 font-medium cursor-pointer"
-                        value={mode}
-                        onChange={(e) => setMode(e.target.value)}
-                    >
-                        <option value="cloud">云端 (API)</option>
-                        <option value="local">本地 (FREE)</option>
-                    </select>
-                    <button
-                        onClick={startProcess}
-                        className="bg-blue-600 hover:bg-blue-500 transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-blue-900/20 active:scale-[0.98] whitespace-nowrap"
-                    >
-                        开始阅读
-                    </button>
-                </div>
-             </div>
-             
-             <div className="flex items-center gap-4 px-2">
-                <div className="h-px flex-1 bg-slate-800"></div>
-                <span className="text-xs text-slate-600 font-bold uppercase tracking-widest">或者</span>
-                <div className="h-px flex-1 bg-slate-800"></div>
-             </div>
-
-             <div className="flex justify-center">
-                <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-3 px-8 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl text-slate-300 transition-all group"
+            <div className="flex flex-col md:flex-row gap-4">
+              <input
+                type="text"
+                placeholder="Paste YouTube link here..."
+                className="flex-1 bg-slate-950 border border-slate-700/50 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-lg"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <select
+                  className="bg-slate-950 border border-slate-700/50 rounded-2xl px-5 py-5 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-300 font-medium cursor-pointer"
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value)}
                 >
-                    <svg className="w-5 h-5 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span className="font-bold">上传音频文件 (MP3/M4A/WAV)</span>
+                  <option value="cloud">云端 (API)</option>
+                  <option value="local">本地 (FREE)</option>
+                </select>
+                <button
+                  onClick={startProcess}
+                  className="bg-blue-600 hover:bg-blue-500 transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-blue-900/20 active:scale-[0.98] whitespace-nowrap"
+                >
+                  开始阅读
                 </button>
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="audio/*" 
-                    onChange={onFileUpload}
-                />
-             </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-2">
+              <div className="h-px flex-1 bg-slate-800"></div>
+              <span className="text-xs text-slate-600 font-bold uppercase tracking-widest">或者</span>
+              <div className="h-px flex-1 bg-slate-800"></div>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-3 px-8 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl text-slate-300 transition-all group"
+              >
+                <svg className="w-5 h-5 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span className="font-bold">上传视频或音频文件 (MP4/MOV/MP3/M4A)</span>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="audio/*,video/*"
+                onChange={onFileUpload}
+              />
+            </div>
           </div>
 
           {status && (
@@ -249,8 +249,8 @@ export default function Home() {
         {isDev && activeTasks.length > 0 && (
           <div className="mb-12 space-y-4">
             <h2 className="text-xl font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                正在后台处理
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>
+              正在后台处理
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {activeTasks.map((task) => (
@@ -290,16 +290,16 @@ export default function Home() {
               >
                 <div className="aspect-video relative overflow-hidden">
                   {item.thumbnail?.startsWith("#") ? (
-                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: item.thumbnail }}>
-                         <svg className="w-12 h-12 text-white/50" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 3v11.13a3.345 3.345 0 102 3.29V5.47l8-1.6v6.26a3.345 3.345 0 102 3.29V3z" />
-                         </svg>
-                      </div>
+                    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: item.thumbnail }}>
+                      <svg className="w-12 h-12 text-white/50" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 3v11.13a3.345 3.345 0 102 3.29V5.47l8-1.6v6.26a3.345 3.345 0 102 3.29V3z" />
+                      </svg>
+                    </div>
                   ) : (
                     <img
-                        src={item.thumbnail || "https://images.unsplash.com/photo-1611162617474-5b21e879e113"}
-                        alt={item.title}
-                        className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
+                      src={item.thumbnail?.startsWith("http") ? item.thumbnail : (item.thumbnail ? `${apiBase}/media/${item.thumbnail}` : "https://images.unsplash.com/photo-1611162617474-5b21e879e113")}
+                      alt={item.title}
+                      className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
                     />
                   )}
                   {isDev && item.total_cost !== undefined && (

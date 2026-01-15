@@ -97,7 +97,11 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         transcription_source_path = file_path
         ext = os.path.splitext(file_path)[1].lower()
         if ext in [".mp4", ".mov", ".avi", ".webm", ".mkv"]:
-            extracted_audio_path = os.path.splitext(file_path)[0] + ".mp3"
+            base_path = os.path.splitext(file_path)[0]
+            extracted_audio_path = base_path + ".mp3"
+            extracted_thumb_path = base_path + ".jpg"
+
+            # Audio extraction
             if not os.path.exists(extracted_audio_path):
                 save_status(task_id, "正在从视频中提取音频...", 45, eta=10)
                 print(f"--- Extracting audio from {file_path} to {extracted_audio_path} ---")
@@ -112,6 +116,22 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     print(f"Audio extraction failed: {e}. Trying to transcribe video directly...")
             else:
                 transcription_source_path = extracted_audio_path
+            
+            # Thumbnail extraction
+            if not os.path.exists(extracted_thumb_path):
+                print(f"--- Extracting thumbnail from {file_path} to {extracted_thumb_path} ---")
+                import subprocess
+                try:
+                    # Capture at 1 second mark
+                    subprocess.run(
+                        ["ffmpeg", "-i", file_path, "-ss", "00:00:01", "-vframes", "1", extracted_thumb_path, "-y"],
+                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                    thumbnail = os.path.basename(extracted_thumb_path)
+                except Exception as e:
+                    print(f"Thumbnail extraction failed: {e}")
+            else:
+                thumbnail = os.path.basename(extracted_thumb_path)
 
         # 2. Transcribe
         cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"

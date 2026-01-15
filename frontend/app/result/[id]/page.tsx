@@ -217,6 +217,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                 <video
                                     ref={videoRef}
                                     src={`${apiBase}/media/${result.media_path}`}
+                                    poster={result.thumbnail && !result.thumbnail.startsWith('#') && !result.thumbnail.startsWith('http') ? `${apiBase}/media/${result.thumbnail}` : (result.thumbnail?.startsWith('http') ? result.thumbnail : undefined)}
                                     controls
                                     autoPlay
                                     className="w-full h-full"
@@ -224,7 +225,14 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                             ) : (
                                 <div className="w-full h-full flex flex-col">
                                     <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: result.thumbnail?.startsWith('#') ? result.thumbnail : '#1e293b' }}>
-                                        <svg className="w-20 h-20 text-white/20" fill="currentColor" viewBox="0 0 20 20">
+                                        {result.thumbnail && !result.thumbnail.startsWith('#') && (
+                                            <img
+                                                src={result.thumbnail.startsWith('http') ? result.thumbnail : `${apiBase}/media/${result.thumbnail}`}
+                                                alt="thumbnail"
+                                                className="absolute inset-0 w-full h-full object-cover opacity-30"
+                                            />
+                                        )}
+                                        <svg className="w-20 h-20 text-white/20 relative z-10" fill="currentColor" viewBox="0 0 20 20">
                                             <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 3v11.13a3.345 3.345 0 102 3.29V5.47l8-1.6v6.26a3.345 3.345 0 102 3.29V3z" />
                                         </svg>
                                     </div>
