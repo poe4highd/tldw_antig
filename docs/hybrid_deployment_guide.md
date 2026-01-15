@@ -21,39 +21,28 @@
 
 ---
 
-## 准备工作二：后端内网穿透 (Tunneling)
+### 推荐方案 A：Cloudflare Tunnel (多服务穿透)
 
-### 推荐方案 A：Cloudflare Tunnel (更稳定，推荐)
+由于 Vercel (HTTPS) 要求 API 也必须是 HTTPS，且 `cloudflared` 默认一个 URL 对应一个端口，您需要确保**前后端同时穿透**。
 
-Cloudflare Tunnel 是目前最专业的内网穿透方案，属于 Cloudflare Zero Trust 产品线。
+#### 1. 双隧道方案 (推荐)
+为了性能和独立管理，建议运行两个隧道：
+*   **前端隧道**: `cloudflared tunnel --url http://localhost:3000` -> 获得 URL A。
+*   **后端隧道**: `cloudflared tunnel --url http://localhost:8000` -> 获得 URL B。
 
-#### 1. 免费版 vs 付费版
-*   **免费版 (Free Plan)**: 
-    *   **费用**: $0 / 月。
-    *   **能力**: 支持无限数量的隧道，支持自定义域名（需将域名托管在 Cloudflare），提供 SSL 证书。对于大众公测完全足够。
-    *   **限制**: 基础的安全策略，但对个人开发者来说几乎无感。
-*   **付费版 (Standard/Enterprise)**:
-    *   **费用**: 约 $7 / 用户 / 月起。
-    *   **能力**: 提供更高级的身份验证（SAML）、更细致的访问控制、以及 WARP 客户端的高级性能优化。
-    *   **建议**: 除非您需要极高安全等级的企业级身份管控，否则**无需购买**。
+#### 2. 配置与常见报错 (Mixed Content)
+如果您发现页面能打开但数据加载失败，并提示 `Mixed Content`：
+*   **原因**: HTTPS 页面请求了 HTTP 的 API。
+*   **修复**: 我们的代码已支持动态协议检测。如果您的页面是 `https://...`，它会自动尝试使用 `https://` 请求后端。
+*   **关键配置**: 在 Vercel 或启动前端时，设置环境变量 `NEXT_PUBLIC_API_BASE=https://您的后端隧道地址`。如果不设置且在本地访问，系统会自动尝试 `http://localhost:8000`。
 
-#### 2. 详细操作步骤 (免费版)
-1.  **准备域名**: 将您的域名（或从第三方购买的域名）的 DNS 托管给 Cloudflare。
-2.  **开通 Zero Trust**: 在 Cloudflare 控制台左侧进入 `Zero Trust`，选择连接付款方式（免费版也需要绑定，但不会扣费）。
-3.  **创建隧道 (Dashboard 方式)**:
-    *   进入 `Networks` -> `Tunnels` -> `Create a tunnel`。
-    *   选择 `Cloudflared`，给隧道起个名字库（如 `tldw-backend`）。
-    *   **安装连接器**: 根据页面提示，在您的本地服务器运行相应的安装命令（支持 Mac, Linux, Windows, Docker）。
-4.  **配置公开主机名 (Public Hostname)**:
-    *   在隧道设置中增加 `Public Hostname`。
-    *   **Domain**: 输入您的二级域名（如 `api.yourdomain.com`）。
-    *   **Service**: 选中 `HTTP`，URL 输入 `localhost:8000`。
-5.  **完成**: Cloudflare 会自动创建对应的 DNS 记录。现在访问该域名即可直连您的本地后端。
-
-### 推荐方案 B：ngrok (配置简单，适合快速测试)
-1.  **注册账号**: 并在本地安装 ngrok 客户端。
-2.  **启动转发**: 执行 `ngrok http 8000`。
-3.  **获取地址**: 复制生成的 `https://xxxx.ngrok-free.app` 地址，这就是您的公网 API 终点。
+#### 3. Cloudflare Tunnel 免费版指南 (Dashboard 方式)
+1.  **准备域名**: 将您的域名 DNS 托管给 Cloudflare。
+2.  **创建隧道**: 在 Zero Trust 控制台创建隧道，并安装连接器。
+3.  **配置 Public Hostname**:
+    *   **域名 1 (UI)**: `tldw.yourdomain.com` -> `http://localhost:3000`
+    *   **域名 2 (API)**: `api-tldw.yourdomain.com` -> `http://localhost:8000`
+4.  **完成**: 这种方式最稳定，且完全免费。
 
 ---
 

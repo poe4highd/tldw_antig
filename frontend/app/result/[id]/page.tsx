@@ -40,7 +40,21 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     const [copyStatus, setCopyStatus] = useState("复制全文");
 
     useEffect(() => {
-        setApiBase(`http://${window.location.hostname}:8000`);
+        // 优先使用环境变量，否则根据当前协议动态推导
+        const hostname = window.location.hostname;
+        const protocol = window.location.protocol;
+        const defaultPort = ":8000";
+
+        let base = process.env.NEXT_PUBLIC_API_BASE;
+        if (!base) {
+            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")) {
+                base = `http://${hostname}${defaultPort}`;
+            } else {
+                const isTunnel = hostname.includes("trycloudflare.com") || hostname.includes("vercel.app");
+                base = `${protocol}//${hostname}${isTunnel ? "" : defaultPort}`;
+            }
+        }
+        setApiBase(base);
     }, []);
 
     useEffect(() => {

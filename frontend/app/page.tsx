@@ -38,7 +38,23 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const base = `http://${window.location.hostname}:8000`;
+    // 优先使用环境变量，否则根据当前协议动态推导
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const defaultPort = ":8000";
+
+    let base = process.env.NEXT_PUBLIC_API_BASE;
+    if (!base) {
+      if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")) {
+        base = `http://${hostname}${defaultPort}`;
+      } else {
+        // 在外网/隧道环境下，如果当前是 HTTPS，API 也必须是 HTTPS
+        // 且外网环境下通常不直接跟 :8000 (除非是自定义端口隧道)
+        const isTunnel = hostname.includes("trycloudflare.com") || hostname.includes("vercel.app");
+        base = `${protocol}//${hostname}${isTunnel ? "" : defaultPort}`;
+      }
+    }
+
     setApiBase(base);
     fetchHistory(base);
 
