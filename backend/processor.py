@@ -64,7 +64,7 @@ def split_into_paragraphs(subtitles, title="", model="gpt-4o-mini"):
 
     # 检测标题语言偏好
     is_trad = is_traditional(title)
-    lang_instruction = "【字体要求】：识别到标题为繁体，你必须使用『繁体中文』输出所有文本内容。" if is_trad else "【字体要求】：默认使用『简体中文』输出所有文本内容（除非原文是英文）。"
+    lang_instruction = "【字体要求】：识别到标题为繁体，你必须使用『繁体中文』输出所有文本内容。" if is_trad else "【字体要求（CRITICAL）】：无论原文是简体还是繁体，你必须使用『简体中文』输出所有文本内容（除非原文是英文）。"
     
     current_prompt = PROMPT + "\n" + lang_instruction
 
