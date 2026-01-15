@@ -23,11 +23,32 @@
 
 ## 准备工作二：后端内网穿透 (Tunneling)
 
-### 推荐方案 A：Cloudflare Tunnel (更稳定，适合长期)
-1.  **安装 Cloudflared**: 在本地服务器安装 Cloudflare 官方客户端。
-2.  **创建隧道**: 通过命令行执行 `cloudflared tunnel create <name>`。
-3.  **路由配置**: 将您的端口 `8000` 映射到一个您拥有的二级域名（例如 `api-tldw.yourdomain.com`）。
-4.  **运行隧道**: 保持客户端在后台运行，确保请求能转发至本地。
+### 推荐方案 A：Cloudflare Tunnel (更稳定，推荐)
+
+Cloudflare Tunnel 是目前最专业的内网穿透方案，属于 Cloudflare Zero Trust 产品线。
+
+#### 1. 免费版 vs 付费版
+*   **免费版 (Free Plan)**: 
+    *   **费用**: $0 / 月。
+    *   **能力**: 支持无限数量的隧道，支持自定义域名（需将域名托管在 Cloudflare），提供 SSL 证书。对于大众公测完全足够。
+    *   **限制**: 基础的安全策略，但对个人开发者来说几乎无感。
+*   **付费版 (Standard/Enterprise)**:
+    *   **费用**: 约 $7 / 用户 / 月起。
+    *   **能力**: 提供更高级的身份验证（SAML）、更细致的访问控制、以及 WARP 客户端的高级性能优化。
+    *   **建议**: 除非您需要极高安全等级的企业级身份管控，否则**无需购买**。
+
+#### 2. 详细操作步骤 (免费版)
+1.  **准备域名**: 将您的域名（或从第三方购买的域名）的 DNS 托管给 Cloudflare。
+2.  **开通 Zero Trust**: 在 Cloudflare 控制台左侧进入 `Zero Trust`，选择连接付款方式（免费版也需要绑定，但不会扣费）。
+3.  **创建隧道 (Dashboard 方式)**:
+    *   进入 `Networks` -> `Tunnels` -> `Create a tunnel`。
+    *   选择 `Cloudflared`，给隧道起个名字库（如 `tldw-backend`）。
+    *   **安装连接器**: 根据页面提示，在您的本地服务器运行相应的安装命令（支持 Mac, Linux, Windows, Docker）。
+4.  **配置公开主机名 (Public Hostname)**:
+    *   在隧道设置中增加 `Public Hostname`。
+    *   **Domain**: 输入您的二级域名（如 `api.yourdomain.com`）。
+    *   **Service**: 选中 `HTTP`，URL 输入 `localhost:8000`。
+5.  **完成**: Cloudflare 会自动创建对应的 DNS 记录。现在访问该域名即可直连您的本地后端。
 
 ### 推荐方案 B：ngrok (配置简单，适合快速测试)
 1.  **注册账号**: 并在本地安装 ngrok 客户端。
