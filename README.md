@@ -10,7 +10,8 @@
 
 ## 📖 指南与规划
 - 👉 **[功能细节与指导文档](docs/features_guide.md)**：了解系统当前的核心能力与使用技巧。
-- 👉 **[产品公测与路线图 (Roadmap)](docs/product_roadmap.md)**：了解如何将本项目推向大众以及未来的开发规划。
+- 👉 **[混合云部署指南 (Vercel + 穿透)](docs/hybrid_deployment_guide.md)**：分步指导如何零成本将服务公开。
+- 👉 **[产品公测与路线图 (Roadmap)](docs/product_roadmap.md)**：了解未来的开发规划与商业化路径。
 
 ---
 
