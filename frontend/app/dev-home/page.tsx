@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface HistoryItem {
   id: string;
@@ -34,10 +35,22 @@ export default function Home() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [apiBase, setApiBase] = useState("");
   const [isDev, setIsDev] = useState(false);
+
+  // 权限控制逻辑
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [error, setError] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
+    // 检查本地存储是否已登录
+    const sessionAuth = sessionStorage.getItem("dev_authorized");
+    if (sessionAuth === "true") {
+      setIsAuthorized(true);
+    }
+
     // 优先使用环境变量，否则根据当前协议动态推导
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
@@ -69,6 +82,62 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const correctPassword = process.env.NEXT_PUBLIC_DEV_PASSWORD;
+    if (passwordInput === correctPassword) {
+      setIsAuthorized(true);
+      sessionStorage.setItem("dev_authorized", "true");
+      setError("");
+    } else {
+      setError("密码错误，请重试");
+    }
+  };
+
+  // 如果未授权，显示遮罩层
+  if (!isAuthorized) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950">
+        <div className="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl ring-1 ring-white/5 animate-fade-in">
+          <div className="flex flex-col items-center mb-10">
+            <div className="p-4 bg-slate-800 rounded-3xl mb-6 shadow-inner">
+              <img src="/icon.png" alt="Logo" className="w-12 h-12" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight mb-2">开发测试入口</h1>
+            <p className="text-slate-500 text-sm font-medium">Password Protected Area</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <input
+                type="password"
+                placeholder="请输入开发测试密码"
+                className="w-full bg-slate-950 border border-slate-700/50 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-center text-lg tracking-widest"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                autoFocus
+              />
+              {error && <p className="text-rose-500 text-xs text-center font-bold font-mono uppercase tracking-widest animate-shake">{error}</p>}
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all py-5 rounded-2xl font-black text-white active:scale-[0.98]"
+            >
+              验证并进入
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <Link href="/" className="text-slate-500 text-xs hover:text-slate-300 transition-colors uppercase font-bold tracking-widest">
+              返回主页
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 以下是原始主页内容，仅在 isAuthorized 为 true 时显示 (或 isDev 为 false)
   useEffect(() => {
     if (eta !== null && eta > 0) {
       const timer = setTimeout(() => setEta(eta - 1), 1000);
