@@ -293,7 +293,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                     </div>
 
                     <div className="pt-4 mt-auto border-t border-slate-800/50 lg:flex hidden justify-between items-center text-[10px] text-slate-600 font-mono">
-                        <span>READ-TUBE v2.5</span>
+                        <span>Read-Tube v2.5</span>
                         <span className="text-blue-500/50 px-2 py-0.5 border border-blue-500/20 rounded">USER</span>
                     </div>
                 </div>
