@@ -5,7 +5,7 @@ I have updated the documentation to include steps for binding the Vercel app to 
 ## Changes Made
 
 ### 1. 全套图标生成与部署 (Icon Set Generation)
-- 使用选定的“AI 智能播放”方案生成了全套 Web 图标：
+- 使用选定的“AI 智能播放”方案（透明背景版）更新了全套 Web 图标：
   - `favicon.ico` (32x32)
   - `icon.png` & `apple-icon.png` (Next.js App Router 规范)
   - 不同比例的 PWA 通用图标 (`icon-192.png`, `icon-512.png`) 等。
