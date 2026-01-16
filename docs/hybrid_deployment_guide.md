@@ -23,6 +23,31 @@
 
 ---
 
+## 准备工作一 (补充)：Vercel 绑定自定义域名
+
+如果您希望通过您的自定义域名访问前端（例如 `www.yourdomain.com` 或 `tldw.yourdomain.com`）：
+
+### 1. Vercel 控制台配置
+1.  进入 Vercel 项目控制面板 -> **Settings** -> **Domains**。
+2.  输入您的域名（例如 `tldw.yourdomain.com`），点击 **Add**。
+3.  Vercel 会提示您配置 DNS 记录。它通常会提供两种选择：**A 记录** 或 **CNAME 记录**。
+    *   **推荐模式**: 如果是二级域名（如 `tldw.vourdomain.com`），请使用 **CNAME** 指向 `cname.vercel-dns.com`。
+
+### 2. Cloudflare DNS 配置
+由于您的域名托管在 Cloudflare，请前往 [Cloudflare Dashboard](https://dash.cloudflare.com/)：
+1.  选择您的域名 -> **DNS** -> **Records**。
+2.  点击 **Add record**。
+3.  **Type**: `CNAME`
+4.  **Name**: `tldw` (即您的二级域名前缀)
+5.  **Target**: `cname.vercel-dns.com`
+6.  **Proxy status**: **DNS Only** (通常建议先关闭代理以加速 Vercel 自动化颁发 SSL 证书，稳定后可根据需要开启)。
+
+### 3. 等待生效
+*   回到 Vercel 域名设置页面，看到 **Valid Configuration** 变为绿色勾选，说明绑定成功。
+*   现在您可以通过 `https://tldw.yourdomain.com` 访问您的前端。
+
+---
+
 ## 准备工作二：Cloudflare Tunnel 详细操作 (自有域名版)
 
 既然您已有 DNS 域名，建议使用最稳定的 **Dashboard 模式**：
