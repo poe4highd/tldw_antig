@@ -44,6 +44,83 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const fetchHistory = async (base: string) => {
+    try {
+      const resp = await fetch(`${base}/history`);
+      const data = await resp.json();
+      setHistory(data.items || []);
+      setSummary(data.summary || null);
+      setActiveTasks(data.active_tasks || []);
+    } catch (e) {
+      console.error("Failed to fetch history");
+    }
+  };
+
+  const startProcess = async () => {
+    if (!url) return;
+    setStatus("正在初始化任务...");
+    setProgress(0);
+    setEta(null);
+    try {
+      const resp = await fetch(`${apiBase}/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, mode }),
+      });
+      const data = await resp.json();
+      pollStatus(data.task_id);
+    } catch (e) {
+      setStatus("Error starting process");
+    }
+  };
+
+  const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setStatus("正在上传音频文件...");
+    setProgress(0);
+    setEta(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("mode", mode);
+
+    try {
+      const resp = await fetch(`${apiBase}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await resp.json();
+      pollStatus(data.task_id);
+    } catch (err) {
+      setStatus("上传失败");
+    }
+  };
+
+  const pollStatus = (taskId: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const resp = await fetch(`${apiBase}/result/${taskId}`);
+        const data = await resp.json();
+        setProgress(data.progress || 0);
+        if (data.eta !== undefined) setEta(data.eta);
+
+        if (data.status === "completed") {
+          clearInterval(interval);
+          router.push(`/${isDev ? 'dev-result' : 'result'}/${taskId}${isDev ? '?role=dev' : ''}`);
+        } else if (data.status === "failed") {
+          setStatus("Failed: " + (data.detail || "Unknown error"));
+          clearInterval(interval);
+        } else {
+          setStatus(data.status || "Processing...");
+        }
+      } catch (e) {
+        setStatus("Connection lost...");
+      }
+    }, 2000);
+  };
+
   useEffect(() => {
     // 检查本地存储是否已登录
     const sessionAuth = sessionStorage.getItem("dev_authorized");
@@ -144,83 +221,6 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [eta]);
-
-  const fetchHistory = async (base: string) => {
-    try {
-      const resp = await fetch(`${base}/history`);
-      const data = await resp.json();
-      setHistory(data.items || []);
-      setSummary(data.summary || null);
-      setActiveTasks(data.active_tasks || []);
-    } catch (e) {
-      console.error("Failed to fetch history");
-    }
-  };
-
-  const startProcess = async () => {
-    if (!url) return;
-    setStatus("正在初始化任务...");
-    setProgress(0);
-    setEta(null);
-    try {
-      const resp = await fetch(`${apiBase}/process`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, mode }),
-      });
-      const data = await resp.json();
-      pollStatus(data.task_id);
-    } catch (e) {
-      setStatus("Error starting process");
-    }
-  };
-
-  const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setStatus("正在上传音频文件...");
-    setProgress(0);
-    setEta(null);
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("mode", mode);
-
-    try {
-      const resp = await fetch(`${apiBase}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await resp.json();
-      pollStatus(data.task_id);
-    } catch (err) {
-      setStatus("上传失败");
-    }
-  };
-
-  const pollStatus = (taskId: string) => {
-    const interval = setInterval(async () => {
-      try {
-        const resp = await fetch(`${apiBase}/result/${taskId}`);
-        const data = await resp.json();
-        setProgress(data.progress || 0);
-        if (data.eta !== undefined) setEta(data.eta);
-
-        if (data.status === "completed") {
-          clearInterval(interval);
-          router.push(`/${isDev ? 'dev-result' : 'result'}/${taskId}${isDev ? '?role=dev' : ''}`);
-        } else if (data.status === "failed") {
-          setStatus("Failed: " + (data.detail || "Unknown error"));
-          clearInterval(interval);
-        } else {
-          setStatus(data.status || "Processing...");
-        }
-      } catch (e) {
-        setStatus("Connection lost...");
-      }
-    }, 2000);
-  };
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-20">
