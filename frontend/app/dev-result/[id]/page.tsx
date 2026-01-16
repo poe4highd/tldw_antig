@@ -375,7 +375,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                                                     key={sIdx}
                                                     onClick={() => seek(sentence.start)}
                                                     className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 ${active
-                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]"
+                                                        ? "text-blue-400 bg-blue-400/10 shadow-[0_0_15px_rgba(96,165,250,0.08)]"
                                                         : "text-slate-400 hover:text-blue-300"
                                                         }`}
                                                 >
