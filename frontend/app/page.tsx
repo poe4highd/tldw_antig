@@ -156,10 +156,13 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-20">
       <div className="max-w-6xl mx-auto px-6 py-12">
-        <header className="text-center mb-16">
-          <h1 className="text-5xl font-black mb-4 bg-gradient-to-r from-indigo-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
-            Read-Tube
-          </h1>
+        <header className="text-center mb-16 flex flex-col items-center">
+          <div className="flex items-center justify-center mb-4">
+            <img src="/icon.png" alt="Read-Tube Logo" className="w-16 h-16 mr-4" />
+            <h1 className="text-5xl font-black bg-gradient-to-r from-indigo-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
+              Read-Tube
+            </h1>
+          </div>
           <p className="text-slate-400 text-lg">YouTube / Audio / Video Quick Reader</p>
         </header>
 
