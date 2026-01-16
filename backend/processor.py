@@ -9,14 +9,15 @@ load_dotenv()
 PROMPT = """
 你是一位极致专业的视频文本编辑。我会给你一段带有时间戳的原始语音转录。
 你的任务是：
-1. 【标点符号（CRITICAL）】：必须为所有文本添加正确的全角标点符号（，。？！“”）。
-   - 现在的输入非常破碎，缺乏标点。你必须将其整理成通顺的句子。
-   - 即使原文没有明显的停顿，也要根据语法添加逗号或句号。
-2. 【合并与分段】：
-   - 如果几个碎片只是一个完整句子的不同部分，请将它们合并为一个句子（start 时间戳取第一段的 start）。
+1. 【忠实原文（MUST）】：绝对禁止删除任何有意义的词汇。在不改变原意和字数的前提下，根据上下文仅纠正明显的文本错误（如多音字、同音字）。
+2. 【标点符号（CRITICAL）】：必须为所有文本添加正确的标点符号。
+   - 中文使用全角标点（，。？！“”）。
+   - 英文使用半角标点（,.?!""）。
+3. 【合并与分段】：
+   - 将碎片化的文本合并为通顺的句子。
    - 根据逻辑进行自然分段。
-3. 【精准修正】：在不改变原意和字数的前提下，根据上下文纠正多音字或同音字。
-4. 【禁止删减】：绝对禁止删除任何有意义的词汇。
+4. 【语言一致要求】：
+   - 请务必保持输出语言与要求的【目标语言】一致。不要进行翻译。
 
 输出示例：
 {{
@@ -44,27 +45,42 @@ def get_youtube_thumbnail_url(url):
         return ""
     return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
-def is_traditional(text):
+def detect_language_preference(title, text_sample):
     """
-    检查文本是否包含明显的繁体中文字符。
+    根据标题和文本样本自动识别语言偏好。
+    返回: "traditional", "english", "simplified"
     """
+    # 检测英文 (标题大部分是英文)
+    if re.search(r'[a-zA-Z]{5,}', title) and not re.search(r'[\u4e00-\u9fa5]', title):
+        return "english"
+    
     # 常用繁体字特征字符集
     trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
-    return bool(re.search(trad_patterns, text))
+    if re.search(trad_patterns, title) or re.search(trad_patterns, text_sample):
+        return "traditional"
+    
+    return "simplified"
 
 def split_into_paragraphs(subtitles, title="", model="gpt-4o-mini"):
     """
     使用 LLM 将原始碎片段合并为自然段落。支持超长文本分段处理。
-    并根据标题自动选择简繁体。
+    并根据标题自动选择简繁体或英文。
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         print("⚠️ Warning: OPENAI_API_KEY not found. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-    # 检测标题语言偏好
-    is_trad = is_traditional(title)
-    lang_instruction = "【字体要求】：识别到标题为繁体，你必须使用『繁体中文』输出所有文本内容。" if is_trad else "【字体要求（CRITICAL）】：无论原文是简体还是繁体，你必须使用『简体中文』输出所有文本内容（除非原文是英文）。"
+    # 检测语言偏好
+    sample_text = "".join([s['text'] for s in subtitles[:10]])
+    lang_pref = detect_language_preference(title, sample_text)
+    
+    if lang_pref == "english":
+        lang_instruction = "【目标语言】：英文。请使用英文校正，并添加半角标点。严禁翻译为中文。"
+    elif lang_pref == "traditional":
+        lang_instruction = "【目标语言】：繁体中文。请使用繁体输出，并添加全角标点。"
+    else:
+        lang_instruction = "【目标语言】：简体中文。请使用简体输出，并添加全角标点。"
     
     current_prompt = PROMPT + "\n" + lang_instruction
 

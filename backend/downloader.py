@@ -18,6 +18,7 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
         'format': 'm4a/bestaudio/best',
         'outtmpl': f'{output_path}/%(id)s.%(ext)s',
         'progress_hooks': [ydl_progress_hook],
+        'noplaylist': True,
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
