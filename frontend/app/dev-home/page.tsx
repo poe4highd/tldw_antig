@@ -159,6 +159,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (eta !== null && eta > 0) {
+      const timer = setTimeout(() => setEta(eta - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [eta]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const correctPassword = process.env.NEXT_PUBLIC_DEV_PASSWORD;
@@ -213,14 +220,6 @@ export default function Home() {
       </main>
     );
   }
-
-  // 以下是原始主页内容，仅在 isAuthorized 为 true 时显示 (或 isDev 为 false)
-  useEffect(() => {
-    if (eta !== null && eta > 0) {
-      const timer = setTimeout(() => setEta(eta - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [eta]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-20">
