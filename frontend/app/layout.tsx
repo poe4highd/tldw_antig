@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "YouTube Quick Reader",
-  description: "YouTube 视频转录与沉浸式阅读器",
+  title: "Read-Tube",
+  description: "YouTube / Audio / Video Quick Reader",
 };
 
 export default function RootLayout({

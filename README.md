@@ -1,6 +1,6 @@
-# YouTube 转录与交互播放工具
+# Read-Tube
+YouTube / Audio / Video Quick Reader
 
-这是一个全栈应用，支持从 YouTube 下载视频并将其转录为文本，支持云端 (OpenAI) 和本地 (Whisper) 两种模式。
 
 ## 系统要求
 - Python 3.9+

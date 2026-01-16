@@ -157,10 +157,10 @@ export default function Home() {
     <main className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-20">
       <div className="max-w-6xl mx-auto px-6 py-12">
         <header className="text-center mb-16">
-          <h1 className="text-5xl font-black mb-4 bg-gradient-to-r from-indigo-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">
-            Youtube Quick Reader
+          <h1 className="text-5xl font-black mb-4 bg-gradient-to-r from-indigo-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent uppercase tracking-tight">
+            Read-Tube
           </h1>
-          <p className="text-slate-400 text-lg">智能视频/音频转录与沉浸式阅读器</p>
+          <p className="text-slate-400 text-lg">YouTube / Audio / Video Quick Reader</p>
         </header>
 
         {/* Stats Dashboard */}
@@ -343,7 +343,7 @@ export default function Home() {
         </div>
       </div>
       <footer className="max-w-6xl mx-auto px-6 py-12 border-t border-slate-900 mt-20 flex justify-between items-center text-slate-600 text-xs font-mono">
-        <span>© 2026 Youtube Quick Reader</span>
+        <span>© 2026 Read-Tube</span>
         <a href={isDev ? "/" : "/?role=dev"} className="hover:text-blue-500 transition-colors">
           {isDev ? "退出开发者模式" : "进入开发者模式"}
         </a>

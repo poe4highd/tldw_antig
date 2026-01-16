@@ -336,7 +336,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                     )}
 
                     <div className="pt-4 mt-auto border-t border-slate-800/50 lg:flex hidden justify-between items-center text-[10px] text-slate-600 font-mono">
-                        <span>AUDIO QUICK READER v2.5 (DEV)</span>
+                        <span>READ-TUBE v2.5 (DEV)</span>
                         <span className="text-blue-500/50 px-2 py-0.5 border border-blue-500/20 rounded">DEV</span>
                     </div>
                 </div>
