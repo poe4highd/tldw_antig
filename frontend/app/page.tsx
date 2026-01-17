@@ -1,9 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/utils/supabase";
 
 export default function MarketingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // 检查是否有活跃会话
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push("/dashboard");
+      }
+    };
+
+    checkUser();
+
+    // 监听状态变化（处理 OAuth 回调后的状态切换）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        router.push("/dashboard");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-indigo-500/30">
       {/* Background Glows */}
