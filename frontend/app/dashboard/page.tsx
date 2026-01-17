@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     LayoutGrid,
     List,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { supabase } from "@/utils/supabase";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -83,6 +85,35 @@ const MOCK_VIDEOS = [
 export default function DashboardPage() {
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [searchQuery, setSearchQuery] = useState("");
+    const [user, setUser] = useState<any>(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                router.push("/login");
+                return;
+            }
+            setUser(session.user);
+        };
+        fetchUser();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!session) {
+                router.push("/login");
+            } else {
+                setUser(session.user);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [router]);
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        router.push("/");
+    };
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
@@ -131,18 +162,29 @@ export default function DashboardPage() {
 
                 <div className="mt-auto p-6 border-t border-slate-900">
                     <div className="flex items-center space-x-3 mb-6 px-2">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold border-2 border-white/10 shadow-lg shadow-indigo-500/20">
-                            G
-                        </div>
+                        {user?.user_metadata?.avatar_url ? (
+                            <img
+                                src={user.user_metadata.avatar_url}
+                                alt="Avatar"
+                                className="w-10 h-10 rounded-full border-2 border-white/10 shadow-lg shadow-indigo-500/20"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold border-2 border-white/10 shadow-lg shadow-indigo-500/20">
+                                {user?.email?.[0].toUpperCase() || "U"}
+                            </div>
+                        )}
                         <div className="overflow-hidden">
-                            <p className="text-sm font-bold truncate">Guest User</p>
-                            <p className="text-[10px] text-slate-500 truncate">演示模式</p>
+                            <p className="text-sm font-bold truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || "加载中..."}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{user?.email || "已登录"}</p>
                         </div>
                     </div>
-                    <Link href="/" className="w-full flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all">
+                    <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
+                    >
                         <LogOut className="w-4 h-4" />
                         <span>退出登录</span>
-                    </Link>
+                    </button>
                 </div>
             </aside>
 
