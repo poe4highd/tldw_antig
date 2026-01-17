@@ -50,7 +50,10 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [isLiked, setIsLiked] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
+    const [viewCount, setViewCount] = useState(0);
+
     useEffect(() => {
+        setViewCount(Math.floor(Math.random() * 5000 + 1000));
         const fetchResult = async () => {
             try {
                 const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
@@ -182,7 +185,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         <div>
                             <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
                             <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                <span>{Math.floor(Math.random() * 5000 + 1000)} 次阅读</span>
+                                <span>{viewCount > 0 ? viewCount.toLocaleString() : "..."} 次阅读</span>
                                 <span>自动生成于 2024</span>
                             </div>
                         </div>

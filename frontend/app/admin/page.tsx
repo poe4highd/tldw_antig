@@ -16,11 +16,16 @@ import {
 
 export default function AdminInsightPage() {
     // Mock Heatmap Data
-    const heatmapRows = Array.from({ length: 8 }, (_, i) => ({
-        id: i,
-        label: `视频领域 ${i + 1}`,
-        cells: Array.from({ length: 24 }, () => Math.random() * 100)
-    }));
+    const [heatmapRows, setHeatmapRows] = React.useState<{ id: number; label: string; cells: number[] }[]>([]);
+
+    React.useEffect(() => {
+        const rows = Array.from({ length: 8 }, (_, i) => ({
+            id: i,
+            label: `视频领域 ${i + 1}`,
+            cells: Array.from({ length: 24 }, () => Math.random() * 100)
+        }));
+        setHeatmapRows(rows);
+    }, []);
 
     return (
         <main className="min-h-screen bg-slate-950 text-slate-50 p-10 font-sans">
