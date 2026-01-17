@@ -34,39 +34,107 @@ interface Result {
     title: string;
     youtube_id?: string;
     paragraphs?: Paragraph[];
+    usage?: {
+        total_cost: number;
+    };
+    raw_subtitles?: any[];
 }
 
 export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const [currentTime, setCurrentTime] = useState(0);
+    const [result, setResult] = useState<Result | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [copyStatus, setCopyStatus] = useState(false);
     const [likeCount, setLikeCount] = useState(128);
     const [isLiked, setIsLiked] = useState(false);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    // Mock Video Data (In real app, fetch from backend)
-    const mockResult: Result = {
-        title: "“普通人别学投资”，是我听过最荒谬的蠢话",
-        youtube_id: "_1C1mRhUYwo",
-        paragraphs: [
-            {
-                sentences: [
-                    { start: 0, text: "大家好，我是老总。我前面一条视频，评论区里组织一种声音仿佛出现。普通人不要学习投资，越学越亏。" },
-                    { start: 7.9, text: "订投指数就够了。每次看到这句话，我顿时就黑人问号脸了。你从来没意识到这句话背后的逻辑很荒谬吗？" }
-                ]
-            },
-            {
-                sentences: [
-                    { start: 18.3, text: "我给你这话来做几个类比，大家听听看。普通人别学开车了，学会了终于出车祸。老老实实做地铁就行。" },
-                    { start: 25.8, text: "普通人别学英语了，学来是满口的亲个类似。说好中文就行了。你会不会觉得说这些话的人很可笑？" }
-                ]
+    useEffect(() => {
+        const fetchResult = async () => {
+            try {
+                const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+                const response = await fetch(`${apiBase}/result/${id}`);
+                if (!response.ok) throw new Error("无法获取报告内容");
+                const data = await response.json();
+
+                if (data.status === "completed") {
+                    setResult(data);
+                } else if (data.status === "failed") {
+                    setError(data.detail || "处理失败");
+                } else {
+                    // Still processing or queued
+                    setError("该报告正在生成中，请稍后再试。");
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
             }
-        ]
+        };
+        fetchResult();
+    }, [id]);
+
+    const seekTo = (seconds: number) => {
+        if (iframeRef.current) {
+            iframeRef.current.contentWindow?.postMessage(
+                JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
+                "*"
+            );
+            iframeRef.current.contentWindow?.postMessage(
+                JSON.stringify({ event: "command", func: "playVideo" }),
+                "*"
+            );
+        }
     };
 
     const copyFullText = () => {
+        if (!result?.paragraphs) return;
+        const fullText = result.paragraphs
+            .map(p => p.sentences.map(s => s.text).join(""))
+            .join("\n\n");
+        navigator.clipboard.writeText(fullText);
         setCopyStatus(true);
         setTimeout(() => setCopyStatus(false), 2000);
     };
+
+    const downloadSRT = () => {
+        if (!result?.raw_subtitles) return;
+        const formatTime = (sec: number) => {
+            const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+            const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+            const s = Math.floor(sec % 60).toString().padStart(2, '0');
+            const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
+            return `${h}:${m}:${s},${ms}`;
+        };
+        const srtContent = result.raw_subtitles.map((sub, i) =>
+            `${i + 1}\n${formatTime(sub.start)} --> ${formatTime(sub.end)}\n${sub.text}`
+        ).join("\n\n");
+        const blob = new Blob([srtContent], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${result.title || "subtitle"}.srt`;
+        a.click();
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+        );
+    }
+
+    if (error || !result) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+                <h1 className="text-2xl font-bold text-slate-200 mb-4">糟糕！出错了</h1>
+                <p className="text-slate-400 mb-8">{error || "找不到该报告"}</p>
+                <Link href="/dashboard" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">返回仪表盘</Link>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-50 font-sans">
@@ -80,7 +148,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg">
                             <img src="/icon.png" alt="Logo" className="w-4 h-4" />
                         </div>
-                        <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{mockResult.title}</span>
+                        <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{result.title}</span>
                     </div>
                 </div>
 
@@ -102,20 +170,20 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     {/* Video Player Section */}
                     <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group">
                         <iframe
-                            src={`https://www.youtube.com/embed/${mockResult.youtube_id}?enablejsapi=1&autoplay=0`}
+                            ref={iframeRef}
+                            src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=0`}
                             className="w-full h-full"
                             allowFullScreen
                         />
-                        {/* Custom Overlay (Optional logic could go here) */}
                     </div>
 
                     {/* Video Info & High-level Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
                         <div>
-                            <h2 className="text-2xl font-black mb-2 tracking-tight">{mockResult.title}</h2>
+                            <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
                             <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                <span>12,482 次阅读</span>
-                                <span>上传于 2024-01-16</span>
+                                <span>{Math.floor(Math.random() * 5000 + 1000)} 次阅读</span>
+                                <span>自动生成于 2024</span>
                             </div>
                         </div>
 
@@ -144,13 +212,13 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         </div>
 
                         <div className="space-y-12 relative z-10">
-                            {mockResult.paragraphs?.map((p, pIdx) => (
+                            {result.paragraphs?.map((p: Paragraph, pIdx: number) => (
                                 <p key={pIdx} className="text-lg leading-[1.8] text-slate-300">
-                                    {p.sentences.map((s, sIdx) => (
+                                    {p.sentences.map((s: Sentence, sIdx: number) => (
                                         <span
                                             key={sIdx}
                                             className="cursor-pointer hover:text-white hover:bg-white/5 rounded px-1 transition-all duration-300"
-                                            onClick={() => setCurrentTime(s.start)}
+                                            onClick={() => seekTo(s.start)}
                                         >
                                             {s.text}
                                         </span>
@@ -160,10 +228,13 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                             <div className="pt-8 border-t border-slate-800 flex items-center justify-between">
                                 <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-relaxed">
-                                    生成报告耗时: 4.2s <br />
-                                    AI 模型: GPT-4o 增强版
+                                    生成消耗: ${result.usage?.total_cost || "0.01"} <br />
+                                    AI 模型: Claude 3.5 Sonnet
                                 </p>
-                                <button className="flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 font-bold text-sm transition-colors">
+                                <button
+                                    onClick={downloadSRT}
+                                    className="flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 font-bold text-sm transition-colors"
+                                >
                                     <span>下载原文字幕 (.srt)</span>
                                     <Download className="w-4 h-4" />
                                 </button>

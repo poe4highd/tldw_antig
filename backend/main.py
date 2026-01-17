@@ -217,15 +217,30 @@ async def get_result(task_id: str):
     error_path = f"{RESULTS_DIR}/{task_id}_error.json"
     status_path = f"{RESULTS_DIR}/{task_id}_status.json"
     
+    # 1. Try finding by Task ID directly
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             return {**json.load(f), "status": "completed", "progress": 100}
-    elif os.path.exists(error_path):
+    
+    # 2. If task_id looks like a YouTube ID (11 chars), search in results
+    if len(task_id) == 11:
+        for f_name in os.listdir(RESULTS_DIR):
+            if f_name.endswith(".json") and not f_name.endswith("_status.json") and not f_name.endswith("_error.json"):
+                try:
+                    with open(f"{RESULTS_DIR}/{f_name}", "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        if data.get("youtube_id") == task_id:
+                            return {**data, "status": "completed", "progress": 100}
+                except:
+                    continue
+
+    if os.path.exists(error_path):
         with open(error_path, "r") as f:
             return {"status": "failed", "detail": json.load(f).get("error"), "progress": 100}
     elif os.path.exists(status_path):
         with open(status_path, "r") as f:
             return json.load(f)
+            
     raise HTTPException(status_code=404, detail="Task not found")
 
 @app.get("/history")
