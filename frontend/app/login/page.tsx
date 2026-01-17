@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Mail, ArrowRight, Chrome, ShieldCheck } from "lucide-react";
+import { supabase } from "@/utils/supabase";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -10,6 +11,20 @@ export default function LoginPage() {
     const handleGuestEntry = () => {
         // 模拟进入 Dashboard
         window.location.href = "/dashboard?mode=guest";
+    };
+
+    const handleGoogleLogin = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/dashboard`,
+            },
+        });
+
+        if (error) {
+            console.error("Error logging in with Google:", error.message);
+            alert("登录失败: " + error.message);
+        }
     };
 
     return (
@@ -42,7 +57,10 @@ export default function LoginPage() {
 
                     <div className="space-y-4">
                         {/* Google Login */}
-                        <button className="w-full flex items-center justify-center space-x-3 py-4 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-[0.98] shadow-lg shadow-white/5">
+                        <button
+                            onClick={handleGoogleLogin}
+                            className="w-full flex items-center justify-center space-x-3 py-4 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-[0.98] shadow-lg shadow-white/5"
+                        >
                             <Chrome className="w-5 h-5" />
                             <span>使用 Google 账号继续</span>
                         </button>
