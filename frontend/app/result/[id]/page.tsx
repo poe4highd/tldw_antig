@@ -38,6 +38,7 @@ interface Result {
         total_cost: number;
     };
     raw_subtitles?: any[];
+    mtime?: string | number;
 }
 
 export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
@@ -186,7 +187,11 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
                             <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
                                 <span>{viewCount > 0 ? viewCount.toLocaleString() : "..."} 次阅读</span>
-                                <span>自动生成于 2024</span>
+                                <span>自动生成于 {result.mtime ? new Date(result.mtime).toLocaleDateString('zh-CN', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                }).replace(/\//g, '-') : '...'}</span>
                             </div>
                         </div>
 
