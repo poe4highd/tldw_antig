@@ -1,350 +1,264 @@
 "use client";
 
-import { useState, useRef, useEffect, use } from "react";
+import React, { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
+import {
+    ArrowLeft,
+    Share2,
+    MessageSquare,
+    ThumbsUp,
+    Download,
+    Copy,
+    Check,
+    User,
+    Send,
+    MoreVertical,
+    Play
+} from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
+
+// Types
 interface Sentence {
     start: number;
     text: string;
 }
-
 interface Paragraph {
     sentences: Sentence[];
 }
-
-interface RawSubtitle {
-    start: number;
-    end: number;
-    text: string;
-}
-
 interface Result {
     title: string;
-    url: string;
     youtube_id?: string;
-    media_path?: string;
-    thumbnail?: string;
     paragraphs?: Paragraph[];
-    subtitles?: any[];
-    raw_subtitles?: RawSubtitle[];
 }
 
-export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
+export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const [result, setResult] = useState<Result | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [apiBase, setApiBase] = useState("");
-    const [copyStatus, setCopyStatus] = useState("复制全文");
+    const [copyStatus, setCopyStatus] = useState(false);
+    const [likeCount, setLikeCount] = useState(128);
+    const [isLiked, setIsLiked] = useState(false);
 
-    useEffect(() => {
-        // 优先使用环境变量，否则根据当前协议动态推导
-        const hostname = window.location.hostname;
-        const protocol = window.location.protocol;
-        const defaultPort = ":8000";
-
-        let base = process.env.NEXT_PUBLIC_API_BASE;
-        if (!base) {
-            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")) {
-                base = `http://${hostname}${defaultPort}`;
-            } else {
-                const isTunnel = hostname.includes("trycloudflare.com") || hostname.includes("vercel.app");
-                base = `${protocol}//${hostname}${isTunnel ? "" : defaultPort}`;
+    // Mock Video Data (In real app, fetch from backend)
+    const mockResult: Result = {
+        title: "“普通人别学投资”，是我听过最荒谬的蠢话",
+        youtube_id: "_1C1mRhUYwo",
+        paragraphs: [
+            {
+                sentences: [
+                    { start: 0, text: "大家好，我是老总。我前面一条视频，评论区里组织一种声音仿佛出现。普通人不要学习投资，越学越亏。" },
+                    { start: 7.9, text: "订投指数就够了。每次看到这句话，我顿时就黑人问号脸了。你从来没意识到这句话背后的逻辑很荒谬吗？" }
+                ]
+            },
+            {
+                sentences: [
+                    { start: 18.3, text: "我给你这话来做几个类比，大家听听看。普通人别学开车了，学会了终于出车祸。老老实实做地铁就行。" },
+                    { start: 25.8, text: "普通人别学英语了，学来是满口的亲个类似。说好中文就行了。你会不会觉得说这些话的人很可笑？" }
+                ]
             }
-        }
-        setApiBase(base);
-    }, []);
-
-    useEffect(() => {
-        if (!id || !apiBase) return;
-        const fetchResult = async () => {
-            try {
-                const resp = await fetch(`${apiBase}/result/${id}`);
-                const data = await resp.json();
-                if (data.status === "completed") {
-                    setResult(data);
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        };
-        fetchResult();
-    }, [id, apiBase]);
-
-    useEffect(() => {
-        if (!result || !result.youtube_id) return;
-
-        const handleMessage = (event: MessageEvent) => {
-            if (event.origin !== "https://www.youtube.com") return;
-            try {
-                const data = JSON.parse(event.data);
-                if (data.event === "infoDelivery" && data.info && data.info.currentTime !== undefined) {
-                    setCurrentTime(data.info.currentTime);
-                }
-            } catch (e) { }
-        };
-
-        window.addEventListener("message", handleMessage);
-        const interval = setInterval(() => {
-            if (iframeRef.current?.contentWindow) {
-                iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "listening" }), "*");
-            }
-        }, 500);
-
-        return () => {
-            window.removeEventListener("message", handleMessage);
-            clearInterval(interval);
-        };
-    }, [result]);
-
-    useEffect(() => {
-        if (!result || result.youtube_id) return;
-        const media = videoRef.current || audioRef.current;
-        if (!media) return;
-
-        const onTimeUpdate = () => setCurrentTime(media.currentTime);
-        media.addEventListener("timeupdate", onTimeUpdate);
-        return () => media.removeEventListener("timeupdate", onTimeUpdate);
-    }, [result]);
-
-    const seek = (time: number) => {
-        if (result?.youtube_id && iframeRef.current) {
-            iframeRef.current.contentWindow?.postMessage(
-                JSON.stringify({ event: "command", func: "seekTo", args: [time, true] }), "*"
-            );
-            iframeRef.current.contentWindow?.postMessage(
-                JSON.stringify({ event: "command", func: "playVideo" }), "*"
-            );
-        } else {
-            const media = videoRef.current || audioRef.current;
-            if (media) {
-                media.currentTime = time;
-                media.play();
-            }
-        }
+        ]
     };
 
-    const formatTimestamp = (seconds: number, separator: string = ".") => {
-        const hrs = Math.floor(seconds / 3600);
-        const mins = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor(seconds % 60);
-        const ms = Math.floor((seconds % 1) * 1000);
-        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}${separator}${ms.toString().padStart(3, '0')}`;
-    };
-
-    const generateSRT = (subs: RawSubtitle[]) => {
-        return subs.map((s, i) =>
-            `${i + 1}\n${formatTimestamp(s.start, ',')} --> ${formatTimestamp(s.end, ',')}\n${s.text}\n`
-        ).join("\n");
-    };
-
-    const generateVTT = (subs: RawSubtitle[]) => {
-        return "WEBVTT\n\n" + subs.map(s =>
-            `${formatTimestamp(s.start)} --> ${formatTimestamp(s.end)}\n${s.text}\n`
-        ).join("\n");
-    };
-
-    const downloadFile = (content: string, filename: string) => {
-        const blob = new Blob([content], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const getAllText = () => {
-        if (!result?.paragraphs) return "";
-        return result.paragraphs.map(p =>
-            p.sentences.map(s => s.text).join(" ")
-        ).join("\n\n");
-    };
-
-    const copyToClipboard = async () => {
-        const textToCopy = getAllText();
-
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(textToCopy);
-            } else {
-                // Fallback for non-secure contexts (e.g., HTTP IP address)
-                const textArea = document.createElement("textarea");
-                textArea.value = textToCopy;
-                textArea.style.position = "absolute";
-                textArea.style.left = "-9999px";
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-            }
-            setCopyStatus("已复制！");
-        } catch (err) {
-            console.error("Copy failed", err);
-            setCopyStatus("复制失败");
-        }
-        setTimeout(() => setCopyStatus("复制全文"), 2000);
-    };
-
-    if (!result) return (
-        <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-    );
-
-    const isSentenceActive = (start: number, nextStart?: number) => {
-        if (nextStart === undefined) return currentTime >= start;
-        return currentTime >= start && currentTime < nextStart;
+    const copyFullText = () => {
+        setCopyStatus(true);
+        setTimeout(() => setCopyStatus(false), 2000);
     };
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-50 font-sans">
-            <div className="flex flex-col lg:flex-row min-h-screen relative">
-
-                <div className="w-full lg:w-[450px] xl:w-[500px] sticky top-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 bg-slate-900 lg:border-r border-b lg:border-b-0 border-slate-800 p-4 lg:p-6 flex flex-col z-40 shadow-xl lg:shadow-none">
-                    <Link href="/" className="inline-flex items-center text-slate-400 hover:text-blue-400 mb-3 lg:mb-6 transition group w-fit text-xs lg:text-sm">
-                        <div className="bg-slate-800 p-1 lg:p-1.5 rounded-md mr-2 lg:mr-3 group-hover:bg-blue-600/20 transition-colors">
-                            <img src="/icon.png" alt="Logo" className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                        </div>
-                        返回列表
+        <div className="min-h-screen bg-slate-950 text-slate-50 font-sans">
+            {/* Top Navigation Bar */}
+            <nav className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-900 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                    <Link href="/dashboard" className="p-2 hover:bg-slate-900 rounded-xl transition-colors">
+                        <ArrowLeft className="w-5 h-5" />
                     </Link>
+                    <div className="flex items-center space-x-3">
+                        <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg">
+                            <img src="/icon.png" alt="Logo" className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{mockResult.title}</span>
+                    </div>
+                </div>
 
-                    <h1 className="hidden lg:block text-xl font-bold leading-tight text-slate-100 mb-6 px-1">
-                        {result.title}
-                    </h1>
+                <div className="flex items-center space-x-3">
+                    <button className="flex items-center space-x-2 px-4 py-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">
+                        <Share2 className="w-4 h-4" />
+                        <span className="hidden sm:inline">共享报告</span>
+                    </button>
+                    <button className="p-2 bg-indigo-500 text-white rounded-full hover:scale-105 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 md:hidden">
+                        <Download className="w-5 h-5" />
+                    </button>
+                </div>
+            </nav>
 
-                    <div className="aspect-video bg-black rounded-lg lg:rounded-xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 mb-2 lg:mb-8 relative">
-                        {result.youtube_id ? (
-                            <iframe
-                                ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=1`}
-                                className="w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        ) : (
-                            result.media_path?.match(/\.(mp4|mov|webm|mkv)$/i) ? (
-                                <video
-                                    ref={videoRef}
-                                    src={`${apiBase}/media/${result.media_path}`}
-                                    poster={result.thumbnail && !result.thumbnail.startsWith('#') && !result.thumbnail.startsWith('http') ? `${apiBase}/media/${result.thumbnail}` : (result.thumbnail?.startsWith('http') ? result.thumbnail : undefined)}
-                                    controls
-                                    autoPlay
-                                    className="w-full h-full"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex flex-col">
-                                    <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: result.thumbnail?.startsWith('#') ? result.thumbnail : '#1e293b' }}>
-                                        {result.thumbnail && !result.thumbnail.startsWith('#') && (
-                                            <img
-                                                src={result.thumbnail.startsWith('http') ? result.thumbnail : `${apiBase}/media/${result.thumbnail}`}
-                                                alt="thumbnail"
-                                                className="absolute inset-0 w-full h-full object-cover opacity-30"
-                                            />
-                                        )}
-                                        <svg className="w-20 h-20 text-white/20 relative z-10" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 3v11.13a3.345 3.345 0 102 3.29V5.47l8-1.6v6.26a3.345 3.345 0 102 3.29V3z" />
-                                        </svg>
+            <main className="max-w-[1440px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                {/* Left Column: Video & Transcription */}
+                <div className="lg:col-span-8 space-y-8">
+                    {/* Video Player Section */}
+                    <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group">
+                        <iframe
+                            src={`https://www.youtube.com/embed/${mockResult.youtube_id}?enablejsapi=1&autoplay=0`}
+                            className="w-full h-full"
+                            allowFullScreen
+                        />
+                        {/* Custom Overlay (Optional logic could go here) */}
+                    </div>
+
+                    {/* Video Info & High-level Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
+                        <div>
+                            <h2 className="text-2xl font-black mb-2 tracking-tight">{mockResult.title}</h2>
+                            <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                <span>12,482 次阅读</span>
+                                <span>上传于 2024-01-16</span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => { setIsLiked(!isLiked); setLikeCount(l => isLiked ? l - 1 : l + 1); }}
+                                className={cn(
+                                    "flex items-center space-x-2 px-5 py-2.5 rounded-2xl font-bold text-sm border transition-all",
+                                    isLiked ? "bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                                )}
+                            >
+                                <ThumbsUp className={cn("w-4 h-4", isLiked && "fill-current")} />
+                                <span>{likeCount}</span>
+                            </button>
+                            <button onClick={copyFullText} className="flex items-center space-x-2 px-5 py-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl font-bold text-sm text-slate-400 hover:text-white transition-all">
+                                {copyStatus ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                                <span>{copyStatus ? "已复制" : "复制全文"}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Transcription Content */}
+                    <div className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-10 relative overflow-hidden">
+                        <div className="absolute top-8 right-8 text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
+                            TLDW
+                        </div>
+
+                        <div className="space-y-12 relative z-10">
+                            {mockResult.paragraphs?.map((p, pIdx) => (
+                                <p key={pIdx} className="text-lg leading-[1.8] text-slate-300">
+                                    {p.sentences.map((s, sIdx) => (
+                                        <span
+                                            key={sIdx}
+                                            className="cursor-pointer hover:text-white hover:bg-white/5 rounded px-1 transition-all duration-300"
+                                            onClick={() => setCurrentTime(s.start)}
+                                        >
+                                            {s.text}
+                                        </span>
+                                    ))}
+                                </p>
+                            ))}
+
+                            <div className="pt-8 border-t border-slate-800 flex items-center justify-between">
+                                <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-relaxed">
+                                    生成报告耗时: 4.2s <br />
+                                    AI 模型: GPT-4o 增强版
+                                </p>
+                                <button className="flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 font-bold text-sm transition-colors">
+                                    <span>下载原文字幕 (.srt)</span>
+                                    <Download className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Column: Discussion & Analytics Side Panel */}
+                <div className="lg:col-span-4 space-y-8">
+                    {/* Discussion Section */}
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] flex flex-col h-[600px]">
+                        <div className="p-8 border-b border-slate-800 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <MessageSquare className="w-5 h-5 text-indigo-400" />
+                                <h3 className="font-bold">讨论区 (32)</h3>
+                            </div>
+                            <MoreVertical className="w-5 h-5 text-slate-600 cursor-pointer" />
+                        </div>
+
+                        <div className="flex-grow overflow-y-auto p-8 space-y-8 no-scrollbar">
+                            {/* Mock Comments */}
+                            <div className="flex gap-4">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center font-bold text-xs ring-2 ring-white/5">A</div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold">Alice_Wonder</span>
+                                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">2小时前</span>
                                     </div>
-                                    <div className="p-4 bg-slate-900">
-                                        <audio
-                                            ref={audioRef}
-                                            src={`${apiBase}/media/${result.media_path}`}
-                                            controls
-                                            autoPlay
-                                            className="w-full h-8"
-                                        />
+                                    <p className="text-sm text-slate-400 leading-relaxed">这个视频里的开车类比真的绝了，很多所谓的“专家”就是喜欢把简单的东西复杂化来收割普通人。</p>
+                                    <div className="flex items-center gap-4 pt-1">
+                                        <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
+                                            <ThumbsUp className="w-3 h-3" /> 12
+                                        </button>
+                                        <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">回复</button>
                                     </div>
                                 </div>
-                            )
-                        )}
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold text-xs ring-2 ring-white/5">K</div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold">Ken_Growth</span>
+                                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">5小时前</span>
+                                    </div>
+                                    <p className="text-sm text-slate-400 leading-relaxed">有没有人觉得 7:15 那段关于复利的解释有点过于理想化了？实际操作中的磨损很大性。</p>
+                                    <div className="flex items-center gap-4 pt-1">
+                                        <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
+                                            <ThumbsUp className="w-3 h-3" /> 5
+                                        </button>
+                                        <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">回复</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-800 bg-slate-900/50">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="发表你的深度见解..."
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-700 transition-all font-medium"
+                                />
+                                <button className="absolute right-2 top-2 p-1.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors">
+                                    <Send className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <h1 className="lg:hidden block text-sm font-bold leading-tight text-slate-100 truncate mb-1">
-                        {result.title}
-                    </h1>
-
-                    {/* Action Buttons (Desktop Sidebar) */}
-                    <div className="hidden lg:grid grid-cols-2 gap-2 mt-4">
-                        <button onClick={copyToClipboard} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 p-3 rounded-xl text-[11px] font-bold transition-colors">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                            {copyStatus}
-                        </button>
-                        <button onClick={() => downloadFile(getAllText(), `${result.title}.txt`)} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 p-3 rounded-xl text-[11px] font-bold transition-colors">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            下载正文
-                        </button>
-                        <button onClick={() => result.raw_subtitles && downloadFile(generateSRT(result.raw_subtitles), `${result.title}.srt`)} className="flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 p-3 rounded-xl text-[10px] font-bold text-blue-400 transition-colors">
-                            SRT 导出
-                        </button>
-                        <button onClick={() => result.raw_subtitles && downloadFile(generateVTT(result.raw_subtitles), `${result.title}.vtt`)} className="flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 p-3 rounded-xl text-[10px] font-bold text-blue-400 transition-colors">
-                            VTT 导出
-                        </button>
-                    </div>
-
-                    <div className="hidden lg:block p-4 bg-slate-950/20 rounded-xl border border-slate-800/50 mt-4">
-                        <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                            💡 高亮显示为当前播放内容。点击文字可快速跳转。
+                    {/* User Interest Heatmap Placeholder */}
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-bold">关注热度统计</h3>
+                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">实时</span>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
+                                <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
+                                <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
+                                <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>
+                            </div>
+                            <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                                <span>00:00</span>
+                                <span>重点关注区域</span>
+                                <span>12:45</span>
+                            </div>
+                        </div>
+                        <p className="mt-6 text-xs text-slate-500 leading-relaxed font-medium">
+                            本视频的 **4:12 - 6:30** 区域互动量最高，建议重点阅读。
                         </p>
                     </div>
-
-                    <div className="pt-4 mt-auto border-t border-slate-800/50 lg:flex hidden justify-between items-center text-[10px] text-slate-600 font-mono">
-                        <span>Read-Tube v2.5</span>
-                        <span className="text-blue-500/50 px-2 py-0.5 border border-blue-500/20 rounded">USER</span>
-                    </div>
                 </div>
-
-                <div className="lg:ml-[450px] xl:ml-[500px] flex-1 min-h-screen bg-slate-950">
-                    <div className="max-w-3xl mx-auto p-6 lg:p-20">
-                        {/* Mobile Action Buttons */}
-                        <div className="lg:hidden flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
-                            <button onClick={copyToClipboard} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
-                                {copyStatus}
-                            </button>
-                            <button onClick={() => downloadFile(getAllText(), `${result.title}.txt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
-                                下载正文
-                            </button>
-                            <button onClick={() => result.raw_subtitles && downloadFile(generateSRT(result.raw_subtitles), `${result.title}.srt`)} className="shrink-0 flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap">
-                                SRT
-                            </button>
-                        </div>
-
-                        <div className="prose prose-invert max-w-none">
-                            {(() => {
-                                const rawPara = result.paragraphs || [];
-                                const displayParagraphs = rawPara;
-                                const allSentences: Sentence[] = [];
-                                displayParagraphs.forEach(p => allSentences.push(...p.sentences));
-
-                                return displayParagraphs.map((para, pIdx) => (
-                                    <div key={pIdx} className="mb-8 lg:mb-10 text-justify">
-                                        {para.sentences?.map((sentence, sIdx) => {
-                                            const flatIdx = allSentences.indexOf(sentence);
-                                            const nextS = allSentences[flatIdx + 1];
-                                            const active = isSentenceActive(sentence.start, nextS?.start);
-
-                                            return (
-                                                <span
-                                                    key={sIdx}
-                                                    onClick={() => seek(sentence.start)}
-                                                    className={`cursor-pointer rounded transition-all duration-300 text-[14.5px] lg:text-[15.5px] leading-[1.65] px-0.5 ${active
-                                                        ? "text-blue-400 font-bold bg-blue-400/10 scale-[1.01] inline-block shadow-[0_0_15px_rgba(96,165,250,0.08)]"
-                                                        : "text-slate-400 hover:text-blue-300"
-                                                        }`}
-                                                >
-                                                    {sentence.text}{" "}
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                ));
-                            })()}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+            </main>
+        </div>
     );
 }
