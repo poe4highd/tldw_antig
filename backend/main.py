@@ -17,6 +17,9 @@ import random
 from downloader import download_audio
 from transcriber import transcribe_audio
 from processor import split_into_paragraphs, get_youtube_thumbnail_url
+from db import get_db
+
+supabase = get_db()
 
 app = FastAPI()
 
@@ -175,6 +178,27 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
             
+        # 5. Save to Supabase
+        if supabase:
+            try:
+                # Prepare data for 'videos' table
+                video_data = {
+                    "id": video_id if url else task_id,
+                    "title": title,
+                    "thumbnail": thumbnail,
+                    "media_path": os.path.basename(file_path),
+                    "report_data": {
+                        "paragraphs": paragraphs,
+                        "raw_subtitles": raw_subtitles
+                    },
+                    "usage": result["usage"],
+                    "status": "completed"
+                }
+                supabase.table("videos").upsert(video_data).execute()
+                print(f"Successfully saved to Supabase: {video_data['id']}")
+            except Exception as e:
+                print(f"Failed to save to Supabase: {e}")
+            
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -213,6 +237,27 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
 
 @app.get("/result/{task_id}")
 async def get_result(task_id: str):
+    # 0. Try Supabase first
+    if supabase:
+        try:
+            response = supabase.table("videos").select("*").eq("id", task_id).execute()
+            if response.data:
+                video = response.data[0]
+                return {
+                    "title": video["title"],
+                    "url": "N/A", # Supabase schema currently doesn't store original URL in videos table, but we could add it
+                    "youtube_id": video["id"] if len(video["id"]) == 11 else None,
+                    "thumbnail": video["thumbnail"],
+                    "media_path": video["media_path"],
+                    "paragraphs": video["report_data"].get("paragraphs"),
+                    "usage": video["usage"],
+                    "raw_subtitles": video["report_data"].get("raw_subtitles"),
+                    "status": "completed",
+                    "progress": 100
+                }
+        except Exception as e:
+            print(f"Supabase fetch failed: {e}")
+
     file_path = f"{RESULTS_DIR}/{task_id}.json"
     error_path = f"{RESULTS_DIR}/{task_id}_error.json"
     status_path = f"{RESULTS_DIR}/{task_id}_status.json"
@@ -245,62 +290,91 @@ async def get_result(task_id: str):
 
 @app.get("/history")
 async def get_history():
-    history_dict = {}
-    active_tasks = []
+    history_items = []
     total_stats = {"total_duration": 0, "total_cost": 0, "video_count": 0}
-    
-    if not os.path.exists(RESULTS_DIR):
-        return {"items": [], "active_tasks": [], "summary": total_stats}
+    active_tasks = []
 
-    all_files = os.listdir(RESULTS_DIR)
-    status_files = [f for f in all_files if f.endswith("_status.json")]
-    for sf in status_files:
-        tid = sf.replace("_status.json", "")
-        if not os.path.exists(f"{RESULTS_DIR}/{tid}.json") and not os.path.exists(f"{RESULTS_DIR}/{tid}_error.json"):
-            mtime = os.path.getmtime(f"{RESULTS_DIR}/{sf}")
-            if time.time() - mtime < 3600:
-                try:
-                    with open(f"{RESULTS_DIR}/{sf}", "r") as f:
-                        status_data = json.load(f)
-                        active_tasks.append({
-                            "id": tid, "status": status_data.get("status", "pending"),
-                            "progress": status_data.get("progress", 0), "mtime": mtime
-                        })
-                except: pass
-
-    files = [f for f in all_files if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json")]
-    file_infos = sorted([(f, os.path.getmtime(os.path.join(RESULTS_DIR, f))) for f in files], key=lambda x: x[1], reverse=True)
-    
-    for f, mtime in file_infos:
-        task_id = f.replace(".json", "")
+    # 1. Fetch from Supabase if available
+    if supabase:
         try:
-            with open(os.path.join(RESULTS_DIR, f), "r") as r:
-                data = json.load(r)
-                url = data.get("url")
-                yt_id = data.get("youtube_id")
-                # Unique key: YouTube ID or URL or File hash (youtube_id is None for uploads)
-                unique_key = yt_id if yt_id else (url if url != "Uploaded File" else data.get("media_path"))
-                
-                usage = data.get("usage", {})
+            response = supabase.table("videos").select("id, title, thumbnail, usage, created_at").order("created_at", desc=True).execute()
+            for video in response.data:
+                usage = video.get("usage", {})
                 duration = usage.get("duration", 0)
                 cost = usage.get("total_cost", 0)
                 
-                if unique_key not in history_dict:
-                    history_dict[unique_key] = {
-                        "id": task_id,
-                        "title": data.get("title"),
-                        "thumbnail": data.get("thumbnail"),
-                        "url": url,
-                        "mtime": mtime,
-                        "total_cost": round(cost, 4)
-                    }
-                    total_stats["total_duration"] += duration
-                    total_stats["total_cost"] += cost
-                    total_stats["video_count"] += 1
-        except: continue
+                history_items.append({
+                    "id": video["id"],
+                    "title": video["title"],
+                    "thumbnail": video["thumbnail"],
+                    "url": "N/A",
+                    "mtime": video["created_at"],
+                    "total_cost": round(cost, 4)
+                })
+                total_stats["total_duration"] += duration
+                total_stats["total_cost"] += cost
+                total_stats["video_count"] += 1
+        except Exception as e:
+            print(f"Supabase history fetch failed: {e}")
+
+    # 2. Add local results that might not be in Supabase (fallback/sync)
+    # To keep code simple for now, we'll just return Supabase if it worked, 
+    # or local if Supabase didn't run.
+    if not history_items:
+        # (Existing local logic here, I'll keep it as fallback)
+        history_dict = {}
+        if os.path.exists(RESULTS_DIR):
+            all_files = os.listdir(RESULTS_DIR)
+            files = [f for f in all_files if f.endswith(".json") and not f.endswith("_error.json") and not f.endswith("_status.json")]
+            file_infos = sorted([(f, os.path.getmtime(os.path.join(RESULTS_DIR, f))) for f in files], key=lambda x: x[1], reverse=True)
+            
+            for f, mtime in file_infos:
+                task_id = f.replace(".json", "")
+                try:
+                    with open(os.path.join(RESULTS_DIR, f), "r") as r:
+                        data = json.load(r)
+                        url = data.get("url")
+                        yt_id = data.get("youtube_id")
+                        unique_key = yt_id if yt_id else (url if url != "Uploaded File" else data.get("media_path"))
+                        
+                        usage = data.get("usage", {})
+                        duration = usage.get("duration", 0)
+                        cost = usage.get("total_cost", 0)
+                        
+                        if unique_key not in history_dict:
+                            history_dict[unique_key] = {
+                                "id": task_id,
+                                "title": data.get("title"),
+                                "thumbnail": data.get("thumbnail"),
+                                "url": url,
+                                "mtime": mtime,
+                                "total_cost": round(cost, 4)
+                            }
+                            total_stats["total_duration"] += duration
+                            total_stats["total_cost"] += cost
+                            total_stats["video_count"] += 1
+                except: continue
+        history_items = sorted(history_dict.values(), key=lambda x: x["mtime"], reverse=True)
+
+    # Handle active tasks (remains local for now as they are transient)
+    if os.path.exists(RESULTS_DIR):
+        status_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith("_status.json")]
+        for sf in status_files:
+            tid = sf.replace("_status.json", "")
+            if not os.path.exists(f"{RESULTS_DIR}/{tid}.json") and not os.path.exists(f"{RESULTS_DIR}/{tid}_error.json"):
+                mtime = os.path.getmtime(f"{RESULTS_DIR}/{sf}")
+                if time.time() - mtime < 3600:
+                    try:
+                        with open(f"{RESULTS_DIR}/{sf}", "r") as f:
+                            status_data = json.load(f)
+                            active_tasks.append({
+                                "id": tid, "status": status_data.get("status", "pending"),
+                                "progress": status_data.get("progress", 0), "mtime": mtime
+                            })
+                    except: pass
                 
     return {
-        "items": sorted(history_dict.values(), key=lambda x: x["mtime"], reverse=True),
+        "items": history_items,
         "active_tasks": sorted(active_tasks, key=lambda x: x["mtime"], reverse=True),
         "summary": {
             "total_duration": total_stats["total_duration"],
