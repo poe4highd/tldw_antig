@@ -196,9 +196,9 @@ export default function DashboardPage() {
                                     <Youtube className="w-5 h-5" />
                                     <span>YouTube 发现</span>
                                 </button>
-                                <Link href="/dev-home" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
+                                <Link href="/tasks" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
                                     <FileUp className="w-5 h-5" />
-                                    <span>处理机入口</span>
+                                    <span>任务处理中心</span>
                                 </Link>
                             </div>
                         </div>
@@ -251,7 +251,7 @@ export default function DashboardPage() {
                         <h1 className="text-4xl font-black tracking-tight mb-2">仪表盘</h1>
                         <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您最近的知识处理记录。</p>
                     </div>
-                    <Link href="/dev-home" className="flex items-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
+                    <Link href="/tasks" className="flex items-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
                         <Plus className="w-5 h-5" />
                         <span>新建处理任务</span>
                     </Link>
