@@ -90,6 +90,19 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
+    // 1. 初始化时从 localStorage 读取偏好
+    useEffect(() => {
+        const savedViewMode = localStorage.getItem("rt-view-mode");
+        if (savedViewMode === "grid" || savedViewMode === "list") {
+            setViewMode(savedViewMode);
+        }
+    }, []);
+
+    // 2. 偏好改变时保存到 localStorage
+    useEffect(() => {
+        localStorage.setItem("rt-view-mode", viewMode);
+    }, [viewMode]);
+
     useEffect(() => {
         const fetchUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -193,10 +206,10 @@ export default function DashboardPage() {
                         <div>
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">个人中心</p>
                             <div className="space-y-1">
-                                <button className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
+                                <Link href="/settings" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
                                     <Settings className="w-5 h-5" />
                                     <span>偏好设置</span>
-                                </button>
+                                </Link>
                             </div>
                         </div>
                     </nav>
@@ -238,10 +251,10 @@ export default function DashboardPage() {
                         <h1 className="text-4xl font-black tracking-tight mb-2">仪表盘</h1>
                         <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您最近的知识处理记录。</p>
                     </div>
-                    <button className="flex items-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
+                    <Link href="/dev-home" className="flex items-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
                         <Plus className="w-5 h-5" />
                         <span>新建处理任务</span>
-                    </button>
+                    </Link>
                 </header>
 
                 {/* Filters & View Toggle */}
