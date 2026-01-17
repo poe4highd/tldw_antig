@@ -11,8 +11,18 @@ backend/.env
 # Node
 frontend/node_modules/
 frontend/.next/
-frontend/.env*
 frontend/out/
+
+# Environment Files
+.env
+.env.local
+.env.*
+!.env.example
+!.env.local.example
+frontend/.env*
+!frontend/.env.local.example
+backend/.env
+!backend/.env.example
 *.log
 backend/uvicorn.log
 
