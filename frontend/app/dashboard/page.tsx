@@ -86,6 +86,8 @@ export default function DashboardPage() {
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [searchQuery, setSearchQuery] = useState("");
     const [user, setUser] = useState<any>(null);
+    const [videos, setVideos] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
@@ -96,7 +98,46 @@ export default function DashboardPage() {
                 return;
             }
             setUser(session.user);
+            fetchHistory();
         };
+
+        const fetchHistory = async () => {
+            setIsLoading(true);
+            try {
+                // Determine API Base
+                let apiBase = "http://localhost:8000";
+                if (typeof window !== "undefined") {
+                    if (window.location.hostname === "read-tube.com" || window.location.hostname.endsWith(".vercel.app")) {
+                        apiBase = process.env.NEXT_PUBLIC_API_BASE || "https://api.read-tube.com";
+                    }
+                }
+
+                const response = await fetch(`${apiBase}/history`);
+                const data = await response.json();
+
+                if (data.history) {
+                    // Map backend data to frontend structure
+                    const formattedVideos = data.history.map((item: any) => ({
+                        id: item.id,
+                        title: item.title,
+                        thumbnail: item.thumbnail,
+                        source: item.id.length === 11 ? "youtube" : "upload",
+                        isPublic: true, // For now, assume public until privacy logic is in
+                        date: new Date(item.mtime).toLocaleDateString('zh-CN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                        }).replace(/\//g, '-')
+                    }));
+                    setVideos(formattedVideos);
+                }
+            } catch (error) {
+                console.error("Failed to fetch history:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         fetchUser();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -104,6 +145,7 @@ export default function DashboardPage() {
                 router.push("/login");
             } else {
                 setUser(session.user);
+                fetchHistory();
             }
         });
 
@@ -211,6 +253,8 @@ export default function DashboardPage() {
                         <input
                             type="text"
                             placeholder="搜索标题、类型或来源..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-600 transition-all"
                         />
                     </div>
@@ -238,9 +282,22 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Content Area */}
-                {viewMode === "grid" ? (
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                        <div className="w-12 h-12 bg-slate-900 rounded-full mb-4" />
+                        <div className="h-4 w-48 bg-slate-900 rounded" />
+                    </div>
+                ) : videos.length === 0 ? (
+                    <div className="text-center py-20 bg-slate-900/20 border border-dashed border-slate-800 rounded-3xl">
+                        <p className="text-slate-500 font-medium">暂无处理记录</p>
+                        <button className="mt-4 text-indigo-400 text-sm font-bold flex items-center justify-center mx-auto space-x-2">
+                            <Plus className="w-4 h-4" />
+                            <span>立即开始第一次阅读</span>
+                        </button>
+                    </div>
+                ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {MOCK_VIDEOS.map((video) => (
+                        {videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase())).map((video) => (
                             <div key={video.id} className="group relative bg-slate-900/30 border border-slate-800/50 rounded-3xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
                                 <div className="aspect-video relative overflow-hidden">
                                     <img src={video.thumbnail} alt={video.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
@@ -285,7 +342,7 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {MOCK_VIDEOS.map((video) => (
+                        {videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase())).map((video) => (
                             <Link
                                 key={video.id}
                                 href={`/result/${video.id}`}
