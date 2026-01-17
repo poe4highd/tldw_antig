@@ -26,9 +26,9 @@ export default function MarketingPage() {
           <Link href="/dev-home" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">
             开发测试
           </Link>
-          <button className="px-5 py-2.5 bg-white text-slate-950 rounded-full text-sm font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-lg shadow-white/5">
+          <Link href="/login" className="px-5 py-2.5 bg-white text-slate-950 rounded-full text-sm font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-lg shadow-white/5">
             立即登录
-          </button>
+          </Link>
         </div>
       </nav>
 
@@ -55,9 +55,9 @@ export default function MarketingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-bold text-lg hover:shadow-[0_0_40px_rgba(79,70,229,0.4)] transition-all active:scale-95">
+          <Link href="/login" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-bold text-lg hover:shadow-[0_0_40px_rgba(79,70,229,0.4)] transition-all active:scale-95 text-center">
             开始免费阅读
-          </button>
+          </Link>
           <button className="w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white rounded-2xl font-bold text-lg hover:bg-slate-800/50 transition-all">
             了解功能详情
           </button>
