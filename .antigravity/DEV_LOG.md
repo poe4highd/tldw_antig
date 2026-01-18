@@ -1,3 +1,59 @@
+# 2026-01-18 开发日志 (Part 11)
+
+## 任务：修复字幕同步问题
+
+### 1. 需求背景
+- **问题描述**：视频播放时，字幕高亮功能失效，无法跟随视频进度自动跳转。
+- **原因分析**：YouTube IFrame API 在启用 `enablejsapi=1` 时，若不指定 `origin` 参数，浏览器会阻止跨域 `postMessage` 通信，导致 `currentTime` 无法回传。
+
+### 2. 方案实施
+- **Origin 注入**：
+    - 在 `frontend/app/result/[id]/page.tsx` 中，使用 `useEffect` 获取并在 Client Side 注入 `window.location.origin`。
+    - 修复了 iframe `src` 构建逻辑，追加 `&origin=${origin}` 参数。
+
+### 3. 回顾
+- **第三方集成**：依赖 `postMessage` 的第三方嵌入组件（如 YouTube, Vimeo）对 Origin 策略非常敏感，必须严格遵循官方安全参数要求。
+
+---
+
+# 2026-01-18 开发日志 (Part 10)
+
+## 任务：诊断并修复 Cloudflare 隧道连接问题
+
+### 1. 需求背景
+- **问题描述**：公网访问 `api.read-tube.com` 返回 530 错误，并引发前端 CORS 错误。经排查，本地 `cloudflared` 隧道凭证丢失，即使 Login 也无法恢复原 UUID。
+
+### 2. 方案实施
+- **隧道重建**：
+    - 删除失效的旧隧道。
+    - 使用 `cloudflared tunnel create` 创建新隧道 `mac-read-tube`。
+    - 生成本地 `config.yml` 配置文件。
+    - 使用 `cloudflared tunnel route dns -f` 强制更新 CNAME 记录。
+- **脚本优化**：
+    - 在 `dev.sh` 中集成了 `pgrep` 检查，若检测不到 `cloudflared` 进程会输出黄色警告，提醒开发者启动隧道。
+
+### 3. 回顾
+- **坑点记录**：Cloudflare 的 `tunnel login` 仅生成用户证书，并不恢复特定隧道的 `credentials.json`。如果后者丢失，最快的恢复路径往往是删除并重建隧道，而非尝试找回旧凭证。
+- **环境一致性**：将隧道配置从“云端 Dashboard 托管”迁移为“本地 CLI/Config 文件托管”，虽然初期配置稍繁琐，但保证了开发环境配置（如 Ingress 规则）的代码化和版本可控性。
+
+---
+
+# 2026-01-18 开发日志 (Part 9)
+
+## 任务：修复导航重定向死循环
+
+### 1. 方案实施
+- **营销页修复**：修正了 `frontend/app/page.tsx` 中的 `onAuthStateChange` 监听器。此前它会忽略 URL 中的 `noredirect=1` 参数，导致已登录用户在访问首页时被强行弹回仪表盘。
+- **Logo 链接统一**：
+    - 更新了仪表盘侧边栏 Logo 链接。
+    - 在报告页（Result Page）为 Logo 增加了链接包裹。
+    - 统一使用 `/?noredirect=1` 作为目标地址，确保用户点击图标能稳定停留在营销页。
+
+### 2. 回顾
+- **逻辑严密性**：单页应用（SPA）中的状态监听器（如 Supabase Auth Change）比单纯的 `useEffect` 初始化检查更具强制性。在实现“防止重定向”功能时，必须确保所有相关的路由跳转逻辑都遵循同样的白名单或参数规则。
+
+---
+
 # 2026-01-18 开发日志 (Part 8)
 
 ## 任务：修复 dev.sh 日志着色失效问题

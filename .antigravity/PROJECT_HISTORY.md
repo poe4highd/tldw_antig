@@ -1,3 +1,6 @@
+[2026-01-18] | [Fix/Visual] | 修复字幕同步失效 | 指定 YouTube Iframe origin 参数，恢复 postMessage 通信，解决字幕不高亮/不滚动问题 | archive/log_20260118_14.md
+[2026-01-18] | [Fix/Infra] | 重建 Cloudflare 隧道与环境自检 | 修复凭证丢失导致的 530/CORS 错误，重建本地管理型隧道并在 dev.sh 增加状态检测 | archive/log_20260118_13.md
+[2026-01-18] | [Fix/Nav] | 修复导航重定向死循环 | 修正营销页状态监听逻辑以支持 noredirect 参数，并统一各页面 Logo 链接，确保护航回营销页不被强制跳回 | archive/log_20260118_12.md
 [2026-01-18] | [Fix/Tool] | 修复 dev.sh 日志着色 | 改用 printf 定义逃逸字符，修复 macOS 下日志前缀颜色失效及原始代码外露的问题 | archive/log_20260118_11.md
 [2026-01-18] | [Docs] | 补充开发指南端口检查特性 | 在 docs/development_guide.md 中补充 dev.sh 的自动化端口冲突处理说明 | archive/log_20260118_10.md
 [2026-01-18] | [Tool] | 增强 dev.sh 端口检查 | 为启动脚本增加自动端口冲突检测与清理功能，解决“端口已占用”导致启动失败的问题 | archive/log_20260118_9.md

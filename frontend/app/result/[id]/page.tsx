@@ -59,6 +59,11 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [viewCount, setViewCount] = useState(0);
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
+    const [origin, setOrigin] = useState("");
+
+    useEffect(() => {
+        setOrigin(window.location.origin);
+    }, []);
 
     useEffect(() => {
         const fetchResult = async () => {
@@ -228,12 +233,12 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     <Link href="/dashboard" className="p-2 hover:bg-slate-900 rounded-xl transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
-                    <div className="flex items-center space-x-3">
-                        <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg">
+                    <Link href="/?noredirect=1" className="flex items-center space-x-3 cursor-pointer group">
+                        <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-indigo-500/50 transition-colors">
                             <img src="/icon.png" alt="Logo" className="w-4 h-4" />
                         </div>
                         <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{result.title}</span>
-                    </div>
+                    </Link>
                 </div>
 
                 <div className="flex items-center space-x-3">
@@ -280,7 +285,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         ) : (
                             <iframe
                                 ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=0&hl=zh-CN`}
+                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=0&hl=zh-CN&origin=${origin}`}
                                 className="w-full h-full"
                                 allowFullScreen
                             />

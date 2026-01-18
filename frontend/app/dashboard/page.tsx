@@ -179,7 +179,7 @@ export default function DashboardPage() {
             {/* Sidebar */}
             <aside className="w-64 flex-shrink-0 border-r border-slate-900 bg-slate-950 flex flex-col z-20 sticky top-0 h-screen overflow-y-auto">
                 <div className="p-8">
-                    <Link href="/" className="flex items-center space-x-3 group mb-12">
+                    <Link href="/?noredirect=1" className="flex items-center space-x-3 group mb-12">
                         <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300">
                             <img src="/icon.png" alt="Read-Tube Logo" className="w-6 h-6" />
                         </div>

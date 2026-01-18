@@ -3,6 +3,8 @@
 # 定义颜色 (使用 printf 保证 macOS 兼容性)
 BLUE=$(printf '\033[0;34m')
 GREEN=$(printf '\033[0;32m')
+YELLOW=$(printf '\033[0;33m')
+RED=$(printf '\033[0;31m')
 NC=$(printf '\033[0m') # No Color
 
 # 打印带有前缀的日志函数
@@ -40,6 +42,14 @@ printf "${NC}开始启动自动开发环境...${NC}\n"
 # 0. 检查并清理冲突
 check_and_kill_port 8000 "BACKEND"
 check_and_kill_port 3000 "FRONTEND"
+
+# 0.5 检查 Cloudflare 隧道状态
+if ! pgrep -x "cloudflared" > /dev/null; then
+    printf "${YELLOW}[WARN] 未检测到 Cloudflare 隧道进程 (cloudflared)。${NC}\n"
+    printf "${YELLOW}若需公网访问，请运行: ${NC}cloudflared tunnel run mac-read-tube\n"
+else
+    printf "${GREEN}[INFO] Cloudflare 隧道进程运行中。${NC}\n"
+fi
 
 # 1. 启动后端
 printf "${BLUE}启动后端服务 (FastAPI)...${NC}\n"

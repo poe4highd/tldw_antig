@@ -9,20 +9,13 @@ export default function MarketingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // 检查是否有活跃会话
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const urlParams = new URLSearchParams(window.location.search);
-      if (session && !urlParams.get("noredirect")) {
-        router.push("/dashboard");
-      }
-    };
-
-    checkUser();
-
-    // 监听状态变化（处理 OAuth 回调后的状态切换）
+    // 监听状态变化（处理挂载时的初始检查及 OAuth 回调后的状态切换）
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
+      // 检查当前 URL 缓存或实时获取，避免异步竞争
+      const urlParams = new URLSearchParams(window.location.search);
+      const isNoRedirect = urlParams.get("noredirect") === "1";
+
+      if (session && !isNoRedirect) {
         router.push("/dashboard");
       }
     });
@@ -39,16 +32,16 @@ export default function MarketingPage() {
       </div>
 
       <nav className="relative z-10 max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
-        <div className="flex items-center space-x-3 group">
+        <Link href="/?noredirect=1" className="flex items-center space-x-3 group cursor-pointer">
           <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-colors duration-300">
             <img src="/icon.png" alt="Read-Tube Logo" className="w-8 h-8" />
           </div>
           <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
             Read-Tube
           </span>
-        </div>
+        </Link>
         <div className="flex items-center space-x-6">
-          <Link href="/dev-home" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">
+          <Link href="/tasks" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">
             开发测试
           </Link>
           <Link href="/login" className="px-5 py-2.5 bg-white text-slate-950 rounded-full text-sm font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-lg shadow-white/5">
@@ -147,7 +140,7 @@ export default function MarketingPage() {
         <p>© 2026 Read-Tube. All rights reserved.</p>
         <div className="mt-4 flex items-center justify-center space-x-6">
           <Link href="/project-history" className="hover:text-white transition-colors">项目更新历史</Link>
-          <Link href="/dev-home" className="hover:text-white transition-colors">开发者入口</Link>
+          <Link href="/tasks" className="hover:text-white transition-colors">开发者入口</Link>
           <a href="#" className="hover:text-white transition-colors">服务条款</a>
           <a href="#" className="hover:text-white transition-colors">隐私政策</a>
         </div>
