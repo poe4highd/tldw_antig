@@ -292,52 +292,53 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
                         </button>
 
-                        {/* Floating Action Bar inside Video Area but fixed to bottom */}
-                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between pointer-events-none">
-                            <div className="flex items-center space-x-2 pointer-events-auto">
-                                <button
-                                    onClick={copyFullText}
-                                    className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-500 transition-all flex items-center space-x-2"
-                                >
-                                    {copyStatus ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                                    <span>{copyStatus ? "已复制" : "复制全文"}</span>
-                                </button>
-                                <button
-                                    onClick={downloadSRT}
-                                    className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-500 transition-all flex items-center space-x-2"
-                                >
-                                    <Download className="w-3 h-3" />
-                                    <span>SRT</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (!result?.paragraphs) return;
-                                        const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
-                                        const blob = new Blob([text], { type: "text/plain" });
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement("a");
-                                        a.href = url;
-                                        a.download = `${result.title}.txt`;
-                                        a.click();
-                                    }}
-                                    className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-500 transition-all flex items-center space-x-2"
-                                >
-                                    <Download className="w-3 h-3" />
-                                    <span>TXT</span>
-                                </button>
-                            </div>
-                            <div className="pointer-events-auto">
-                                <button
-                                    onClick={handleToggleLike}
-                                    className={cn(
-                                        "px-4 py-2 backdrop-blur-md border rounded-xl text-[10px] font-bold transition-all flex items-center space-x-2",
-                                        isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-white/10 border-white/10 text-white hover:bg-indigo-500"
-                                    )}
-                                >
-                                    <ThumbsUp className={cn("w-3 h-3", isLiked && "fill-current")} />
-                                    <span>{likeCount}</span>
-                                </button>
-                            </div>
+                    </div>
+
+                    {/* Action Bar Below Video */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-2xl backdrop-blur-sm">
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={copyFullText}
+                                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                            >
+                                {copyStatus ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400 group-hover:text-white" />}
+                                <span>{copyStatus ? "已复制" : "复制全文"}</span>
+                            </button>
+                            <button
+                                onClick={downloadSRT}
+                                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                            >
+                                <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                <span>SRT</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!result?.paragraphs) return;
+                                    const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
+                                    const blob = new Blob([text], { type: "text/plain" });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = `${result.title}.txt`;
+                                    a.click();
+                                }}
+                                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                            >
+                                <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                <span>TXT</span>
+                            </button>
+                        </div>
+                        <div>
+                            <button
+                                onClick={handleToggleLike}
+                                className={cn(
+                                    "px-5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-sm",
+                                    isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-indigo-500 hover:border-indigo-500"
+                                )}
+                            >
+                                <ThumbsUp className={cn("w-4 h-4", isLiked && "fill-current")} />
+                                <span>{likeCount}</span>
+                            </button>
                         </div>
                     </div>
 
@@ -346,9 +347,12 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
                         <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
                             <span>{viewCount.toLocaleString()} 次阅读</span>
-                            <span>自动生成于 {result.mtime ? new Date(result.mtime).toLocaleDateString('zh-CN', {
-                                year: 'numeric', month: '2-digit', day: '2-digit'
-                            }).replace(/\//g, '-') : '...'}</span>
+                            <span>自动生成于 {(() => {
+                                const date = result.mtime ? new Date(result.mtime) : new Date();
+                                return date.toLocaleDateString('zh-CN', {
+                                    year: 'numeric', month: '2-digit', day: '2-digit'
+                                }).replace(/\//g, '-');
+                            })()}</span>
                         </div>
                     </div>
 
@@ -391,13 +395,6 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     生成消耗: ${result.usage?.total_cost || "0.01"} <br />
                                     AI 模型: Claude 3.5 Sonnet
                                 </p>
-                                <button
-                                    onClick={downloadSRT}
-                                    className="flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 font-bold text-sm transition-colors"
-                                >
-                                    <span>下载原文字幕 (.srt)</span>
-                                    <Download className="w-4 h-4" />
-                                </button>
                             </div>
                         </div>
                     </div>

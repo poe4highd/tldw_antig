@@ -287,6 +287,7 @@ async def get_result(task_id: str):
                     "raw_subtitles": video["report_data"].get("raw_subtitles"),
                     "view_count": video.get("view_count", 0),
                     "interaction_count": video.get("interaction_count", 0),
+                    "mtime": video.get("created_at"),
                     "status": "completed",
                     "progress": 100
                 }
