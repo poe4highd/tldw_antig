@@ -7,6 +7,8 @@ import { supabase } from "@/utils/supabase";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     const handleGuestEntry = () => {
         // 模拟进入 Dashboard
@@ -25,6 +27,40 @@ export default function LoginPage() {
         if (error) {
             console.error("Error logging in with Google:", error.message);
             alert("登录失败: " + error.message);
+        }
+    };
+
+    const handleEmailLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email) return;
+
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+        setLoading(true);
+        setStatus(null);
+
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    emailRedirectTo: `${siteUrl}/dashboard`,
+                },
+            });
+
+            if (error) throw error;
+
+            setStatus({
+                type: 'success',
+                message: "神奇链接已发送！请检查您的收件箱。"
+            });
+        } catch (error: any) {
+            console.error("Error sending magic link:", error.message);
+            setStatus({
+                type: 'error',
+                message: "发送失败: " + error.message
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -73,7 +109,7 @@ export default function LoginPage() {
                         </div>
 
                         {/* Email Login */}
-                        <div className="space-y-4">
+                        <form onSubmit={handleEmailLogin} className="space-y-4">
                             <div className="relative group/input">
                                 <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-500 group-focus-within/input:text-indigo-400 transition-colors">
                                     <Mail className="w-5 h-5" />
@@ -81,15 +117,37 @@ export default function LoginPage() {
                                 <input
                                     type="email"
                                     placeholder="电子邮箱地址"
+                                    required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-14 pr-5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
                                 />
                             </div>
-                            <button className="w-full py-4 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-white rounded-2xl font-bold text-sm transition-all active:scale-[0.98]">
-                                发送神奇登录链接
+
+                            {status && (
+                                <div className={`text-sm px-4 py-3 rounded-xl border ${status.type === 'success'
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                    : 'bg-red-500/10 border-red-500/20 text-red-400'
+                                    }`}>
+                                    {status.message}
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading || !email}
+                                className="w-full py-4 bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
+                            >
+                                {loading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        <span>正在发送...</span>
+                                    </>
+                                ) : (
+                                    <span>发送神奇登录链接</span>
+                                )}
                             </button>
-                        </div>
+                        </form>
                     </div>
 
                     {/* Guest Entry */}
