@@ -194,7 +194,7 @@ export default function DashboardPage() {
                             <div className="space-y-1">
                                 <button className="w-full flex items-center space-x-3 px-4 py-3 bg-indigo-500/10 text-indigo-400 rounded-xl font-bold text-sm">
                                     <LayoutGrid className="w-5 h-5" />
-                                    <span>仪表盘</span>
+                                    <span>见地</span>
                                 </button>
                                 <button className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
                                     <Youtube className="w-5 h-5" />
@@ -260,7 +260,7 @@ export default function DashboardPage() {
                 {/* Header Section */}
                 <header className="flex items-center justify-between mb-12">
                     <div>
-                        <h1 className="text-4xl font-black tracking-tight mb-2">仪表盘</h1>
+                        <h1 className="text-4xl font-black tracking-tight mb-2">见地</h1>
                         <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您最近的知识处理记录。</p>
                     </div>
                     <Link href="/tasks" className="flex items-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">

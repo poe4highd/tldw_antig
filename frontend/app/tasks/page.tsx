@@ -219,7 +219,7 @@ export default function TasksPage() {
                         </div>
                     </div>
                     <Link href="/dashboard" className="text-slate-500 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                        返回仪表盘 <ArrowRight className="w-4 h-4" />
+                        返回见地 <ArrowRight className="w-4 h-4" />
                     </Link>
                 </header>
 
@@ -408,7 +408,7 @@ export default function TasksPage() {
             <footer className="max-w-6xl mx-auto px-6 py-12 border-t border-slate-900 mt-20 flex justify-between items-center text-slate-600 text-[10px] font-black uppercase tracking-widest">
                 <span>© 2026 Read-Tube · 任务处理中心</span>
                 <div className="flex gap-8">
-                    <Link href="/dashboard" className="hover:text-white transition-colors">仪表盘</Link>
+                    <Link href="/dashboard" className="hover:text-white transition-colors">见地</Link>
                     <Link href="/settings" className="hover:text-white transition-colors">设置</Link>
                 </div>
             </footer>
