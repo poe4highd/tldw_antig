@@ -145,6 +145,7 @@ export default function MarketingPage() {
       <footer className="relative z-10 max-w-7xl mx-auto px-6 py-12 border-t border-slate-900 text-center text-slate-500 text-sm">
         <p>© 2026 Read-Tube. All rights reserved.</p>
         <div className="mt-4 flex items-center justify-center space-x-6">
+          <Link href="/project-history" className="hover:text-white transition-colors">项目审计史</Link>
           <Link href="/dev-home" className="hover:text-white transition-colors">开发者入口</Link>
           <a href="#" className="hover:text-white transition-colors">服务条款</a>
           <a href="#" className="hover:text-white transition-colors">隐私政策</a>

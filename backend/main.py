@@ -458,6 +458,34 @@ async def get_dev_doc(filename: str):
     with open(file_path, "r", encoding="utf-8") as f:
         return {"content": f.read()}
 
+@app.get("/project-history")
+async def get_project_history():
+    history_file = os.path.join(os.path.dirname(__file__), "..", ".antigravity", "PROJECT_HISTORY.md")
+    if not os.path.exists(history_file):
+        return []
+    
+    history_data = []
+    try:
+        with open(history_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or not "|" in line:
+                    continue
+                
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 5:
+                    history_data.append({
+                        "date": parts[0].strip("[]"),
+                        "category": parts[1],
+                        "task": parts[2],
+                        "description": parts[3],
+                        "log_file": parts[4]
+                    })
+    except Exception as e:
+        print(f"Error parsing project history: {e}")
+        
+    return history_data
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
