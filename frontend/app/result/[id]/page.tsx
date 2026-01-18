@@ -63,6 +63,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [currentTime, setCurrentTime] = useState(0);
     const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false); // New state for scroll control
     const subtitleContainerRef = useRef<HTMLDivElement>(null); // Ref for custom scrolling
+    const isProgrammaticScroll = useRef(false); // Flag to distinguish auto-scroll from user scroll
 
     const [viewCount, setViewCount] = useState(0);
     const [comments, setComments] = useState<any[]>([]);
@@ -176,6 +177,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 const targetScroll = container.scrollTop + offset - (container.clientHeight / 2) + (el.clientHeight / 2);
 
                 if (force || Math.abs(container.scrollTop - targetScroll) > 10) {
+                    isProgrammaticScroll.current = true;
                     container.scrollTo({
                         top: targetScroll,
                         behavior: 'smooth'
@@ -287,7 +289,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 {/* Left Column: Video & Transcription */}
                 <div className="lg:col-span-8 lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)] flex flex-col gap-6">
                     {/* Fixed Header Group: Video, Actions, Info */}
-                    <div className="flex-shrink-0 space-y-6 sticky top-20 lg:static z-40 bg-slate-950/95 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none py-2 lg:py-0 -mx-6 px-6 lg:mx-0 lg:px-0 transition-all">
+                    <div className="flex-shrink-0 space-y-6 sticky top-20 lg:static z-50 bg-slate-950/95 lg:bg-slate-950 py-2 lg:py-0 -mx-6 px-6 lg:mx-0 lg:px-0 transition-all rounded-b-3xl lg:rounded-none shadow-xl lg:shadow-none border-b border-white/5 lg:border-none">
                         {/* Video Player Section */}
                         <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group transition-all duration-300">
                             <div className="relative aspect-video group">
