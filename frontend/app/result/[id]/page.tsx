@@ -62,6 +62,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
     const [currentTime, setCurrentTime] = useState(0);
     const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false); // New state for scroll control
+    const subtitleContainerRef = useRef<HTMLDivElement>(null); // Ref for custom scrolling
 
     const [viewCount, setViewCount] = useState(0);
     const [comments, setComments] = useState<any[]>([]);
@@ -170,14 +171,22 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             if (activeId) break;
         }
 
-        if (activeId) {
+        if (activeId && subtitleContainerRef.current) {
+            const container = subtitleContainerRef.current;
             const el = document.getElementById(activeId);
             if (el) {
-                const rect = el.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                // Only scroll if significantly off-center to avoid jitter
-                if (Math.abs(rect.top - viewportHeight / 2) > 100) {
-                    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                // Calculate position relative to container
+                const containerRect = container.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+                const offset = elRect.top - containerRect.top;
+                const targetScroll = container.scrollTop + offset - (container.clientHeight / 2) + (el.clientHeight / 2);
+
+                // Check distance to avoid micro-jitters (threshold 50px)
+                if (Math.abs(container.scrollTop - targetScroll) > 50) {
+                    container.scrollTo({
+                        top: targetScroll,
+                        behavior: 'smooth'
+                    });
                 }
             }
         }
@@ -413,7 +422,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     </div> {/* End of Header Group */}
 
                     {/* Transcription Content - Scrollable Area */}
-                    <div className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth">
+                    <div ref={subtitleContainerRef} className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth">
                         <div className="absolute top-8 right-8 text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
                             TLDW
                         </div>

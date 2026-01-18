@@ -11,8 +11,26 @@
     - 在 `frontend/app/result/[id]/page.tsx` 中，使用 `useEffect` 获取并在 Client Side 注入 `window.location.origin`。
     - 修复了 iframe `src` 构建逻辑，追加 `&origin=${origin}` 参数。
 
+
 ### 3. 回顾
 - **第三方集成**：依赖 `postMessage` 的第三方嵌入组件（如 YouTube, Vimeo）对 Origin 策略非常敏感，必须严格遵循官方安全参数要求。
+
+---
+
+# 2026-01-18 开发日志 (Part 17)
+
+## 任务：优化字幕区域自动滚动 (Scroll Logic Refinement)
+
+### 1. 问题
+- **现象**：虽然布局已固定，但使用 `scrollIntoView` 会触发浏览器的“视口居中”行为，导致整个页面（包括 Main Window）发生滚动，使用户感觉“字幕跑到了视频后面”或页面发生抖动。
+- **需求**：仅字幕容器内部滚动，页面主体不动。
+
+### 2. 解决方案
+- **自定义滚动计算**：
+    - 引入 `subtitleContainerRef` 获取字幕容器 DOM。
+    - 计算公式：`targetScroll = container.scrollTop + elementOffset - containerHeight/2 + elementHeight/2`。
+    - 使用 `container.scrollTo({ top: target, behavior: 'smooth' })` 替代全局 API。
+- **效果**：无论字幕如何变化，左侧 Video Header 纹丝不动，仅下方字幕区域平滑流转。
 
 ---
 

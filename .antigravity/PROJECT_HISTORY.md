@@ -1,3 +1,4 @@
+[2026-01-18] | [Fix/UX] | 优化字幕滚动逻辑 | 弃用 scrollIntoView 改为容器内 scrollTop 计算，彻底修复自动滚动导致页面抖动/视频移位的问题 | archive/log_20260118_20.md
 [2026-01-18] | [Refactor/Brand] | 品牌升级：仪表盘更名为“见地” | 将全站 Dashboard 文案统一替换为“见地 (Insights)”，提升应用文化调性 | archive/log_20260118_19.md
 [2026-01-18] | [Refactor/UI] | 重构左侧栏布局 | 实现视频+操作栏固定吸顶，字幕区域独立滚动，彻底解决长字幕阅读遮挡视频的问题 | archive/log_20260118_18.md
 [2026-01-18] | [Fix/Sync] | 修复页面刷新后字幕不同步 | 将 Player 实例改为 useRef 存储，解决初始化时闭包导致的轮询失效问题 | archive/log_20260118_17.md
