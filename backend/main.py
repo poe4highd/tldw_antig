@@ -138,6 +138,14 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
             else:
                 thumbnail = os.path.basename(extracted_thumb_path)
 
+            # Cleanup original video if audio was successfully extracted
+            if os.path.exists(extracted_audio_path) and file_path != extracted_audio_path:
+                try:
+                    print(f"--- Automatic Cleanup: Removing original video file: {file_path} ---")
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"Failed to remove original video: {e}")
+
         # 2. Transcribe
         cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"
         if os.path.exists(cache_sub_path):

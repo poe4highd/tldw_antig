@@ -1,7 +1,7 @@
-import yt_dlp
 import os
 
 def download_audio(url: str, output_path: str = "downloads", progress_callback=None):
+    import yt_dlp
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     
