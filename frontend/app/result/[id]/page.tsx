@@ -292,125 +292,128 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             <main className="max-w-[1440px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
 
                 {/* Left Column: Video & Transcription */}
-                <div className="lg:col-span-8 space-y-8">
-                    {/* Video Player Section - Sticky */}
-                    <div className="sticky top-24 z-40 bg-slate-950/95 backdrop-blur-sm rounded-[2.5rem] shadow-2xl border border-white/5 ring-1 ring-white/5 overflow-hidden transition-all duration-300">
-                        <div className="relative aspect-video group">
-                            {useLocalAudio ? (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
-                                    <img
-                                        src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
-                                        alt="Thumbnail"
-                                        className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
-                                    />
-                                    <div className="relative z-10 p-8 flex flex-col items-center text-center">
-                                        <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
-                                            <Play className="w-8 h-8 text-white fill-current" />
-                                        </div>
-                                        <h4 className="text-xl font-bold mb-2">正在播放本地音频</h4>
-                                        <p className="text-sm text-slate-400 max-w-xs">已切换至转录音频，确保语音与字幕严格同步。</p>
-                                    </div>
-                                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
-                                        <audio
-                                            ref={audioRef}
-                                            src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
-                                            controls
-                                            onTimeUpdate={handleLocalTimeUpdate}
-                                            className="w-full h-10 accent-indigo-500"
+                <div className="lg:col-span-8 lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] flex flex-col gap-6">
+                    {/* Fixed Header Group: Video, Actions, Info */}
+                    <div className="flex-shrink-0 space-y-6">
+                        {/* Video Player Section */}
+                        <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group transition-all duration-300">
+                            <div className="relative aspect-video group">
+                                {useLocalAudio ? (
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
+                                        <img
+                                            src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
+                                            alt="Thumbnail"
+                                            className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
                                         />
+                                        <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                                            <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
+                                                <Play className="w-8 h-8 text-white fill-current" />
+                                            </div>
+                                            <h4 className="text-xl font-bold mb-2">正在播放本地音频</h4>
+                                            <p className="text-sm text-slate-400 max-w-xs">已切换至转录音频，确保语音与字幕严格同步。</p>
+                                        </div>
+                                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
+                                            <audio
+                                                ref={audioRef}
+                                                src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
+                                                controls
+                                                onTimeUpdate={handleLocalTimeUpdate}
+                                                className="w-full h-10 accent-indigo-500"
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <YouTube
-                                    videoId={result.youtube_id}
-                                    className="w-full h-full"
-                                    iframeClassName="w-full h-full"
-                                    onReady={onPlayerReady}
-                                    opts={{
-                                        height: '100%',
-                                        width: '100%',
-                                        playerVars: {
-                                            autoplay: 0,
-                                            hl: 'zh-CN',
-                                            // origin will be handled automatically, but explicitly disabling modestbranding etc can be nice
-                                        },
-                                    }}
-                                />
-                            )}
-                            <button
-                                onClick={() => setUseLocalAudio(!useLocalAudio)}
-                                className="absolute top-6 right-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
-                            >
-                                {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
-                            </button>
-
-                        </div>
-                    </div>
-
-                    {/* Action Bar Below Video */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-2xl backdrop-blur-sm">
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={copyFullText}
-                                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
-                            >
-                                {copyStatus ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400 group-hover:text-white" />}
-                                <span>{copyStatus ? "已复制" : "复制全文"}</span>
-                            </button>
-                            <button
-                                onClick={downloadSRT}
-                                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
-                            >
-                                <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                                <span>SRT</span>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (!result?.paragraphs) return;
-                                    const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
-                                    const blob = new Blob([text], { type: "text/plain" });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `${result.title}.txt`;
-                                    a.click();
-                                }}
-                                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
-                            >
-                                <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                                <span>TXT</span>
-                            </button>
-                        </div>
-                        <div>
-                            <button
-                                onClick={handleToggleLike}
-                                className={cn(
-                                    "px-5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-sm",
-                                    isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-indigo-500 hover:border-indigo-500"
+                                ) : (
+                                    <YouTube
+                                        videoId={result.youtube_id}
+                                        className="w-full h-full"
+                                        iframeClassName="w-full h-full"
+                                        onReady={onPlayerReady}
+                                        opts={{
+                                            height: '100%',
+                                            width: '100%',
+                                            playerVars: {
+                                                autoplay: 0,
+                                                hl: 'zh-CN',
+                                                // origin will be handled automatically, but explicitly disabling modestbranding etc can be nice
+                                            },
+                                        }}
+                                    />
                                 )}
-                            >
-                                <ThumbsUp className={cn("w-4 h-4", isLiked && "fill-current")} />
-                                <span>{likeCount}</span>
-                            </button>
-                        </div>
-                    </div>
+                                <button
+                                    onClick={() => setUseLocalAudio(!useLocalAudio)}
+                                    className="absolute top-6 right-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
+                                >
+                                    {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
+                                </button>
 
-                    {/* Video Info */}
-                    <div className="px-4">
-                        <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
-                        <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                            <span>{viewCount.toLocaleString()} 次阅读</span>
-                            <span>自动生成于 {(() => {
-                                const date = result.mtime ? new Date(result.mtime) : new Date();
-                                return date.toLocaleDateString('zh-CN', {
-                                    year: 'numeric', month: '2-digit', day: '2-digit'
-                                }).replace(/\//g, '-');
-                            })()}</span>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Transcription Content */}
-                    <div className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-10 relative overflow-hidden">
+                        {/* Action Bar Below Video */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-2xl backdrop-blur-sm">
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={copyFullText}
+                                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                                >
+                                    {copyStatus ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400 group-hover:text-white" />}
+                                    <span>{copyStatus ? "已复制" : "复制全文"}</span>
+                                </button>
+                                <button
+                                    onClick={downloadSRT}
+                                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                                >
+                                    <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span>SRT</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!result?.paragraphs) return;
+                                        const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
+                                        const blob = new Blob([text], { type: "text/plain" });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${result.title}.txt`;
+                                        a.click();
+                                    }}
+                                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                                >
+                                    <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span>TXT</span>
+                                </button>
+                            </div>
+                            <div>
+                                <button
+                                    onClick={handleToggleLike}
+                                    className={cn(
+                                        "px-5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-sm",
+                                        isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-indigo-500 hover:border-indigo-500"
+                                    )}
+                                >
+                                    <ThumbsUp className={cn("w-4 h-4", isLiked && "fill-current")} />
+                                    <span>{likeCount}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Video Info */}
+                        <div className="px-4">
+                            <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
+                            <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                <span>{viewCount.toLocaleString()} 次阅读</span>
+                                <span>自动生成于 {(() => {
+                                    const date = result.mtime ? new Date(result.mtime) : new Date();
+                                    return date.toLocaleDateString('zh-CN', {
+                                        year: 'numeric', month: '2-digit', day: '2-digit'
+                                    }).replace(/\//g, '-');
+                                })()}</span>
+                            </div>
+                        </div>
+                    </div> {/* End of Header Group */}
+
+                    {/* Transcription Content - Scrollable Area */}
+                    <div className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative overflow-y-auto flex-1 min-h-0 no-scrollbar scroll-smooth">
                         <div className="absolute top-8 right-8 text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
                             TLDW
                         </div>
