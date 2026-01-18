@@ -101,22 +101,35 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     useEffect(() => {
         let interval: any;
         if (!useLocalAudio && iframeRef.current) {
+            // Subscribe to YouTube events
+            const subscribe = () => {
+                iframeRef.current?.contentWindow?.postMessage(
+                    JSON.stringify({ event: "listening", id: 1 }),
+                    "*"
+                );
+            };
+
+            // Poll for time as backup/trigger
             interval = setInterval(() => {
                 iframeRef.current?.contentWindow?.postMessage(
-                    JSON.stringify({ event: "listening", id: "current_time" }),
+                    JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
                     "*"
                 );
             }, 500);
+
+            setTimeout(subscribe, 2000); // Wait for iframe load
         }
 
         const handleMessage = (event: MessageEvent) => {
             try {
-                const data = JSON.parse(event.data);
-                if (data.event === "onStateChange" && data.info === "playing") {
-                    // Start tracking time if needed
-                }
-                if (data.info?.currentTime !== undefined) {
+                // YouTube sends data as a string that might be JSON
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+
+                // YouTube IFrame API returns time in 'info' or as a result of 'getCurrentTime'
+                if (data.event === "infoDelivery" && data.info?.currentTime !== undefined) {
                     setCurrentTime(data.info.currentTime);
+                } else if (data.id === "current_time" || (data.event === "onStateChange" && data.info)) {
+                    // Handle other potential time update formats
                 }
             } catch (e) { }
         };
@@ -346,30 +359,32 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         </div>
 
                         <div className="space-y-12 relative z-10">
-                            {result.paragraphs?.map((p: Paragraph, pIdx: number) => (
-                                <p key={pIdx} className="text-lg leading-[1.8] text-slate-400">
-                                    {p.sentences.map((s: Sentence, sIdx: number) => {
-                                        // Current sentence highlight logic
-                                        const isCurrent = currentTime >= s.start && (pIdx === result.paragraphs!.length - 1 && sIdx === p.sentences.length - 1 ? true : (
-                                            p.sentences[sIdx + 1] ? currentTime < p.sentences[sIdx + 1].start : true
-                                        ));
+                            {(() => {
+                                const allSentences = result.paragraphs?.flatMap(p => p.sentences) || [];
+                                return result.paragraphs?.map((p: Paragraph, pIdx: number) => (
+                                    <p key={pIdx} className="text-lg leading-[1.8] text-slate-400">
+                                        {p.sentences.map((s: Sentence, sIdx: number) => {
+                                            const flatIdx = allSentences.indexOf(s);
+                                            const nextS = allSentences[flatIdx + 1];
+                                            const isCurrent = currentTime >= s.start && (nextS ? currentTime < nextS.start : true);
 
-                                        return (
-                                            <span
-                                                key={sIdx}
-                                                className={cn(
-                                                    "cursor-pointer rounded px-1 transition-all duration-300 inline",
-                                                    isCurrent ? "text-indigo-400 bg-indigo-500/10 font-medium" : "hover:text-white hover:bg-white/5"
-                                                )}
-                                                style={{ fontSize: 'inherit' }} // Force stable font size
-                                                onClick={() => seekTo(s.start)}
-                                            >
-                                                {s.text}
-                                            </span>
-                                        );
-                                    })}
-                                </p>
-                            ))}
+                                            return (
+                                                <span
+                                                    key={sIdx}
+                                                    className={cn(
+                                                        "cursor-pointer rounded px-1 transition-all duration-300 inline",
+                                                        isCurrent ? "text-indigo-400 bg-indigo-500/10" : "hover:text-white hover:bg-white/5"
+                                                    )}
+                                                    style={{ fontSize: 'inherit', fontWeight: 'inherit' }} // Force stable font size
+                                                    onClick={() => seekTo(s.start)}
+                                                >
+                                                    {s.text}
+                                                </span>
+                                            );
+                                        })}
+                                    </p>
+                                ))
+                            })()}
 
                             <div className="pt-8 border-t border-slate-800 flex items-center justify-between">
                                 <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-relaxed">
