@@ -39,6 +39,8 @@ interface Result {
     };
     raw_subtitles?: any[];
     mtime?: string | number;
+    thumbnail?: string;
+    media_path?: string;
 }
 
 export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,6 +52,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [likeCount, setLikeCount] = useState(128);
     const [isLiked, setIsLiked] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [useLocalAudio, setUseLocalAudio] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
 
     const [viewCount, setViewCount] = useState(0);
 
@@ -80,7 +85,10 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     }, [id]);
 
     const seekTo = (seconds: number) => {
-        if (iframeRef.current) {
+        if (useLocalAudio && audioRef.current) {
+            audioRef.current.currentTime = seconds;
+            audioRef.current.play();
+        } else if (iframeRef.current) {
             iframeRef.current.contentWindow?.postMessage(
                 JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
                 "*"
@@ -173,12 +181,43 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 <div className="lg:col-span-8 space-y-8">
                     {/* Video Player Section */}
                     <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group">
-                        <iframe
-                            ref={iframeRef}
-                            src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=0`}
-                            className="w-full h-full"
-                            allowFullScreen
-                        />
+                        {useLocalAudio ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
+                                <img
+                                    src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
+                                    alt="Thumbnail"
+                                    className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
+                                />
+                                <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                                    <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
+                                        <Play className="w-8 h-8 text-white fill-current" />
+                                    </div>
+                                    <h4 className="text-xl font-bold mb-2">正在播放本地音频</h4>
+                                    <p className="text-sm text-slate-400 max-w-xs">已切换至转录音频，确保语音与字幕严格同步。</p>
+                                </div>
+                                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
+                                    <audio
+                                        ref={audioRef}
+                                        src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
+                                        controls
+                                        className="w-full h-10 accent-indigo-500"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <iframe
+                                ref={iframeRef}
+                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=0&hl=zh-CN`}
+                                className="w-full h-full"
+                                allowFullScreen
+                            />
+                        )}
+                        <button
+                            onClick={() => setUseLocalAudio(!useLocalAudio)}
+                            className="absolute top-6 right-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
+                        >
+                            {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
+                        </button>
                     </div>
 
                     {/* Video Info & High-level Actions */}

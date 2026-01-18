@@ -15,7 +15,7 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
                 pass
 
     ydl_opts = {
-        'format': 'm4a/bestaudio/best',
+        'format': 'm4a[language*=zh]/bestaudio[language*=zh]/m4a/bestaudio/best',
         'outtmpl': f'{output_path}/%(id)s.%(ext)s',
         'progress_hooks': [ydl_progress_hook],
         'noplaylist': True,
