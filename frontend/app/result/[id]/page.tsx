@@ -1,7 +1,8 @@
-"use client";
 
 import React, { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
+import YouTube, { YouTubeProps } from 'react-youtube';
+
 import {
     ArrowLeft,
     Share2,
@@ -51,7 +52,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [copyStatus, setCopyStatus] = useState(false);
     const [likeCount, setLikeCount] = useState(128);
     const [isLiked, setIsLiked] = useState(false);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
+    // const iframeRef = useRef<HTMLIFrameElement>(null); // Removed in favor of react-youtube
+    const [player, setPlayer] = useState<any>(null); // YouTube Player instance
     const audioRef = useRef<HTMLAudioElement>(null);
     const [useLocalAudio, setUseLocalAudio] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -59,11 +61,11 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [viewCount, setViewCount] = useState(0);
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
-    const [origin, setOrigin] = useState("");
+    // const [origin, setOrigin] = useState(""); // react-youtube handles origin
 
-    useEffect(() => {
-        setOrigin(window.location.origin);
-    }, []);
+    // useEffect(() => {
+    //     setOrigin(window.location.origin);
+    // }, []);
 
     useEffect(() => {
         const fetchResult = async () => {
@@ -104,47 +106,21 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     }, [id]);
 
     useEffect(() => {
-        let interval: any;
-        if (!useLocalAudio && iframeRef.current) {
-            // Subscribe to YouTube events
-            const subscribe = () => {
-                iframeRef.current?.contentWindow?.postMessage(
-                    JSON.stringify({ event: "listening", id: 1 }),
-                    "*"
-                );
-            };
-
-            // Poll for time as backup/trigger
+        let interval: NodeJS.Timeout;
+        if (!useLocalAudio && player) {
             interval = setInterval(() => {
-                iframeRef.current?.contentWindow?.postMessage(
-                    JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
-                    "*"
-                );
-            }, 500);
-
-            setTimeout(subscribe, 2000); // Wait for iframe load
-        }
-
-        const handleMessage = (event: MessageEvent) => {
-            try {
-                // YouTube sends data as a string that might be JSON
-                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-
-                // YouTube IFrame API returns time in 'info' or as a result of 'getCurrentTime'
-                if (data.event === "infoDelivery" && data.info?.currentTime !== undefined) {
-                    setCurrentTime(data.info.currentTime);
-                } else if (data.id === "current_time" || (data.event === "onStateChange" && data.info)) {
-                    // Handle other potential time update formats
+                // Ensure player is ready and has the function
+                if (player && typeof player.getCurrentTime === 'function') {
+                    const time = player.getCurrentTime();
+                    // getCurrentTime returns a number, safeguard against undefined
+                    if (typeof time === 'number') {
+                        setCurrentTime(time);
+                    }
                 }
-            } catch (e) { }
-        };
-
-        window.addEventListener("message", handleMessage);
-        return () => {
-            clearInterval(interval);
-            window.removeEventListener("message", handleMessage);
-        };
-    }, [useLocalAudio]);
+            }, 200); // Poll every 200ms for smoother updates
+        }
+        return () => clearInterval(interval);
+    }, [useLocalAudio, player]);
 
     const handleLocalTimeUpdate = () => {
         if (audioRef.current) {
@@ -156,16 +132,14 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         if (useLocalAudio && audioRef.current) {
             audioRef.current.currentTime = seconds;
             audioRef.current.play();
-        } else if (iframeRef.current) {
-            iframeRef.current.contentWindow?.postMessage(
-                JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
-                "*"
-            );
-            iframeRef.current.contentWindow?.postMessage(
-                JSON.stringify({ event: "command", func: "playVideo" }),
-                "*"
-            );
+        } else if (player && typeof player.seekTo === 'function') {
+            player.seekTo(seconds, true);
+            player.playVideo();
         }
+    };
+
+    const onPlayerReady: YouTubeProps['onReady'] = (event) => {
+        setPlayer(event.target);
     };
 
     const copyFullText = () => {
@@ -283,11 +257,20 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 </div>
                             </div>
                         ) : (
-                            <iframe
-                                ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=0&hl=zh-CN&origin=${origin}`}
+                            <YouTube
+                                videoId={result.youtube_id}
                                 className="w-full h-full"
-                                allowFullScreen
+                                iframeClassName="w-full h-full"
+                                onReady={onPlayerReady}
+                                opts={{
+                                    height: '100%',
+                                    width: '100%',
+                                    playerVars: {
+                                        autoplay: 0,
+                                        hl: 'zh-CN',
+                                        // origin will be handled automatically, but explicitly disabling modestbranding etc can be nice
+                                    },
+                                }}
                             />
                         )}
                         <button

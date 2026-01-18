@@ -1,3 +1,4 @@
+[2026-01-18] | [Refactor/Lib] | 重构播放器组件 | 废弃 iframe postMessage 方案，引入 react-youtube 库以彻底解决字幕同步不稳定的回归问题 | archive/log_20260118_15.md
 [2026-01-18] | [Fix/Visual] | 修复字幕同步失效 | 指定 YouTube Iframe origin 参数，恢复 postMessage 通信，解决字幕不高亮/不滚动问题 | archive/log_20260118_14.md
 [2026-01-18] | [Fix/Infra] | 重建 Cloudflare 隧道与环境自检 | 修复凭证丢失导致的 530/CORS 错误，重建本地管理型隧道并在 dev.sh 增加状态检测 | archive/log_20260118_13.md
 [2026-01-18] | [Fix/Nav] | 修复导航重定向死循环 | 修正营销页状态监听逻辑以支持 noredirect 参数，并统一各页面 Logo 链接，确保护航回营销页不被强制跳回 | archive/log_20260118_12.md
