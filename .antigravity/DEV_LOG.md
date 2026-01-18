@@ -30,6 +30,7 @@
     - 引入 `subtitleContainerRef` 获取字幕容器 DOM。
     - 计算公式：`targetScroll = container.scrollTop + elementOffset - containerHeight/2 + elementHeight/2`。
     - 使用 `container.scrollTo({ top: target, behavior: 'smooth' })` 替代全局 API。
+    - **优化**：将防抖阈值从 `50px` 降低至 `10px`，确保字幕始终保持在视觉绝对中心，消除“将至未至”的漂移感。
 - **效果**：无论字幕如何变化，左侧 Video Header 纹丝不动，仅下方字幕区域平滑流转。
 
 ---

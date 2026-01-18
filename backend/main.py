@@ -66,6 +66,7 @@ def save_status(task_id, status, progress, eta=None):
 def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None, user_id=None):
     try:
         video_id = ""
+        description = ""
         if url:
             id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
             if id_match:
@@ -95,6 +96,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     info = ydl.extract_info(url, download=False)
                     title = info.get('title', 'Unknown Title')
                     thumbnail = info.get('thumbnail')
+                    description = info.get('description', '')
                 except:
                     title = title or "Unknown Title"
                     thumbnail = thumbnail or get_youtube_thumbnail_url(url)
@@ -174,7 +176,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         # 3. LLM Processing
         duration = raw_subtitles[-1]["end"] if raw_subtitles else 0
         save_status(task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
-        paragraphs, llm_usage = split_into_paragraphs(raw_subtitles, title=title)
+        paragraphs, llm_usage = split_into_paragraphs(raw_subtitles, title=title, description=description)
 
         # 4. Save Final Result
         whisper_cost = (duration / 60.0) * 0.006 if mode == "cloud" else 0

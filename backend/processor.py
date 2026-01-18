@@ -9,7 +9,7 @@ load_dotenv()
 PROMPT = """
 你是一位极致专业的视频文本编辑。我会给你一段带有时间戳的原始语音转录。
 你的任务是：
-1. 【忠实原文（MUST）】：绝对禁止删除任何有意义的词汇。在不改变原意和字数的前提下，根据上下文仅纠正明显的文本错误（如多音字、同音字）。
+1. 【忠实原文（MUST）】：绝对禁止删除任何有意义的词汇。在不改变原意和字数的前提下，仅纠正明显的文本错误（如多音字、同音字）。对于高度确信的同音错误（如“智席”应为“窒息”），允许根据上下文进行合理修正。
 2. 【标点符号（CRITICAL）】：必须为所有文本添加正确的标点符号。
    - 中文使用全角标点（，。？！“”）。
    - 英文使用半角标点（,.?!""）。
@@ -45,35 +45,38 @@ def get_youtube_thumbnail_url(url):
         return ""
     return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
-def detect_language_preference(title, text_sample):
+def detect_language_preference(title, description):
     """
-    根据标题和文本样本自动识别语言偏好。
+    根据标题和描述自动识别语言偏好。
     返回: "traditional", "english", "simplified"
     """
-    # 检测英文 (标题大部分是英文)
+    # 组合标题和描述进行检查
+    content_to_check = (title or "") + " " + (description or "")
+    
+    # 检测英文 (大部分是英文)
+    # 简单启发式：如果非中文字符占比极高，且包含较多英文字符
     if re.search(r'[a-zA-Z]{5,}', title) and not re.search(r'[\u4e00-\u9fa5]', title):
-        return "english"
+         return "english"
     
     # 常用繁体字特征字符集
     trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
-    if re.search(trad_patterns, title) or re.search(trad_patterns, text_sample):
+    if re.search(trad_patterns, content_to_check):
         return "traditional"
     
     return "simplified"
 
-def split_into_paragraphs(subtitles, title="", model="gpt-4o-mini"):
+def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-mini"):
     """
     使用 LLM 将原始碎片段合并为自然段落。支持超长文本分段处理。
-    并根据标题自动选择简繁体或英文。
+    并根据标题和描述自动选择简繁体或英文。
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         print("⚠️ Warning: OPENAI_API_KEY not found. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-    # 检测语言偏好
-    sample_text = "".join([s['text'] for s in subtitles[:10]])
-    lang_pref = detect_language_preference(title, sample_text)
+    # 检测语言偏好 (不再使用 subtitles 样本)
+    lang_pref = detect_language_preference(title, description)
     
     if lang_pref == "english":
         lang_instruction = "【目标语言】：英文。请使用英文校正，并添加半角标点。严禁翻译为中文。"

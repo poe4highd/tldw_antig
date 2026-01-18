@@ -181,8 +181,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 const offset = elRect.top - containerRect.top;
                 const targetScroll = container.scrollTop + offset - (container.clientHeight / 2) + (el.clientHeight / 2);
 
-                // Check distance to avoid micro-jitters (threshold 50px)
-                if (Math.abs(container.scrollTop - targetScroll) > 50) {
+                // Check distance to avoid micro-jitters (threshold reduced to 10px for tighter sync)
+                if (Math.abs(container.scrollTop - targetScroll) > 10) {
                     container.scrollTo({
                         top: targetScroll,
                         behavior: 'smooth'
