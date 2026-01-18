@@ -14,7 +14,8 @@ import {
     User,
     Send,
     MoreVertical,
-    Play
+    Play,
+    ArrowDownToLine // New icon for sync button
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -56,7 +57,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [player, setPlayer] = useState<any>(null); // YouTube Player instance
     const audioRef = useRef<HTMLAudioElement>(null);
     const [useLocalAudio, setUseLocalAudio] = useState(false);
+
     const [currentTime, setCurrentTime] = useState(0);
+    const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false); // New state for scroll control
 
     const [viewCount, setViewCount] = useState(0);
     const [comments, setComments] = useState<any[]>([]);
@@ -140,6 +143,63 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
     const onPlayerReady: YouTubeProps['onReady'] = (event) => {
         setPlayer(event.target);
+    };
+
+    // Auto-scroll logic
+    useEffect(() => {
+        if (isAutoScrollPaused) return;
+
+        // Find the active sentence based on currentTime
+        if (!result?.paragraphs) return;
+
+        let activeId = "";
+        for (let pIdx = 0; pIdx < result.paragraphs.length; pIdx++) {
+            const p = result.paragraphs[pIdx];
+            for (let sIdx = 0; sIdx < p.sentences.length; sIdx++) {
+                const s = p.sentences[sIdx];
+                const nextS = p.sentences[sIdx + 1] || result.paragraphs[pIdx + 1]?.sentences?.[0];
+                // Check if current time matching this sentence
+                if (currentTime >= s.start && (nextS ? currentTime < nextS.start : true)) {
+                    activeId = `sentence-${pIdx}-${sIdx}`;
+                    break;
+                }
+            }
+            if (activeId) break;
+        }
+
+        if (activeId) {
+            const el = document.getElementById(activeId);
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                // Only scroll if significantly off-center to avoid jitter
+                if (Math.abs(rect.top - viewportHeight / 2) > 100) {
+                    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            }
+        }
+    }, [currentTime, isAutoScrollPaused, result]);
+
+    // Detect user manual scroll
+    useEffect(() => {
+        const handleUserIntervention = () => {
+            // If the user scrolls, pause auto-scroll
+            setIsAutoScrollPaused(true);
+        };
+
+        window.addEventListener('wheel', handleUserIntervention);
+        window.addEventListener('touchmove', handleUserIntervention);
+
+        return () => {
+            window.removeEventListener('wheel', handleUserIntervention);
+            window.removeEventListener('touchmove', handleUserIntervention);
+        };
+    }, []);
+
+    const resumeAutoScroll = () => {
+        setIsAutoScrollPaused(false);
+        // Immediate check to scroll back will happen on next effect cycle or we can force it?
+        // Actually effect depends on isAutoScrollPaused, so toggling it will trigger the effect immediately.
     };
 
     const copyFullText = () => {
@@ -230,56 +290,58 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                 {/* Left Column: Video & Transcription */}
                 <div className="lg:col-span-8 space-y-8">
-                    {/* Video Player Section */}
-                    <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group">
-                        {useLocalAudio ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
-                                <img
-                                    src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
-                                    alt="Thumbnail"
-                                    className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
-                                />
-                                <div className="relative z-10 p-8 flex flex-col items-center text-center">
-                                    <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
-                                        <Play className="w-8 h-8 text-white fill-current" />
-                                    </div>
-                                    <h4 className="text-xl font-bold mb-2">正在播放本地音频</h4>
-                                    <p className="text-sm text-slate-400 max-w-xs">已切换至转录音频，确保语音与字幕严格同步。</p>
-                                </div>
-                                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
-                                    <audio
-                                        ref={audioRef}
-                                        src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
-                                        controls
-                                        onTimeUpdate={handleLocalTimeUpdate}
-                                        className="w-full h-10 accent-indigo-500"
+                    {/* Video Player Section - Sticky */}
+                    <div className="sticky top-24 z-40 bg-slate-950/95 backdrop-blur-sm rounded-[2.5rem] shadow-2xl border border-white/5 ring-1 ring-white/5 overflow-hidden transition-all duration-300">
+                        <div className="relative aspect-video group">
+                            {useLocalAudio ? (
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
+                                    <img
+                                        src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
+                                        alt="Thumbnail"
+                                        className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
                                     />
+                                    <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                                        <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
+                                            <Play className="w-8 h-8 text-white fill-current" />
+                                        </div>
+                                        <h4 className="text-xl font-bold mb-2">正在播放本地音频</h4>
+                                        <p className="text-sm text-slate-400 max-w-xs">已切换至转录音频，确保语音与字幕严格同步。</p>
+                                    </div>
+                                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
+                                        <audio
+                                            ref={audioRef}
+                                            src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
+                                            controls
+                                            onTimeUpdate={handleLocalTimeUpdate}
+                                            className="w-full h-10 accent-indigo-500"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <YouTube
-                                videoId={result.youtube_id}
-                                className="w-full h-full"
-                                iframeClassName="w-full h-full"
-                                onReady={onPlayerReady}
-                                opts={{
-                                    height: '100%',
-                                    width: '100%',
-                                    playerVars: {
-                                        autoplay: 0,
-                                        hl: 'zh-CN',
-                                        // origin will be handled automatically, but explicitly disabling modestbranding etc can be nice
-                                    },
-                                }}
-                            />
-                        )}
-                        <button
-                            onClick={() => setUseLocalAudio(!useLocalAudio)}
-                            className="absolute top-6 right-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
-                        >
-                            {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
-                        </button>
+                            ) : (
+                                <YouTube
+                                    videoId={result.youtube_id}
+                                    className="w-full h-full"
+                                    iframeClassName="w-full h-full"
+                                    onReady={onPlayerReady}
+                                    opts={{
+                                        height: '100%',
+                                        width: '100%',
+                                        playerVars: {
+                                            autoplay: 0,
+                                            hl: 'zh-CN',
+                                            // origin will be handled automatically, but explicitly disabling modestbranding etc can be nice
+                                        },
+                                    }}
+                                />
+                            )}
+                            <button
+                                onClick={() => setUseLocalAudio(!useLocalAudio)}
+                                className="absolute top-6 right-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
+                            >
+                                {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
+                            </button>
 
+                        </div>
                     </div>
 
                     {/* Action Bar Below Video */}
@@ -363,6 +425,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                             return (
                                                 <span
                                                     key={sIdx}
+                                                    id={`sentence-${pIdx}-${sIdx}`}
                                                     className={cn(
                                                         "cursor-pointer rounded px-1 transition-all duration-300 inline",
                                                         isCurrent ? "text-indigo-400 bg-indigo-500/10" : "hover:text-white hover:bg-white/5"
@@ -386,6 +449,18 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             </div>
                         </div>
                     </div>
+                    {/* Resume Follow Button */}
+                    {isAutoScrollPaused && (
+                        <div className="fixed bottom-10 right-10 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <button
+                                onClick={resumeAutoScroll}
+                                className="flex items-center space-x-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-105 active:scale-95 font-bold"
+                            >
+                                <ArrowDownToLine className="w-5 h-5" />
+                                <span>同步播放进度</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Column: Discussion & Analytics Side Panel */}
