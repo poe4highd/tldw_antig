@@ -1,3 +1,5 @@
+[2026-01-18] | [Optimization/UI] | 导航集成与重定向优化 | Dashboard 侧边栏集成历史与营销页入口，优化重定向逻辑并紧凑化历史页布局 | archive/log_20260118_6.md
+[2026-01-18] | [Fix/DevOps] | 恢复公网连通性与 CORS | 手动重启 Cloudflare 隧道并修复后端重载导致的 530 错误与跨域拦截 | archive/log_20260118_5.md
 [2026-01-18] | [Fix/UI] | 修复任务启动报错 | 优化前端 API 识别逻辑并增加详细错误提示，解决移动端提交任务时的通用失败提示 | archive/log_20260118_4.md
 [2026-01-18] | [Tool] | 一键开发启动脚本 | 增加 dev.sh 脚本，支持前后端同步启动、日志合并显示及进程统一管理 | archive/log_20260118_3.md
 [2026-01-18] | [Feature] | 项目历史展示功能 | 实现 .antigravity/PROJECT_HISTORY.md 的后端解析、前端独立页面及首页集成链接 | archive/log_20260118_2.md

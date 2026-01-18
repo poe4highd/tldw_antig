@@ -14,7 +14,9 @@ import {
     FileUp,
     Share2,
     Lock,
-    ArrowRight
+    ArrowRight,
+    History,
+    Home
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -206,8 +208,16 @@ export default function DashboardPage() {
                         </div>
 
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">个人中心</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">系统与支持</p>
                             <div className="space-y-1">
+                                <Link href="/?noredirect=1" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
+                                    <Home className="w-5 h-5" />
+                                    <span>营销主页</span>
+                                </Link>
+                                <Link href="/project-history" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
+                                    <History className="w-5 h-5" />
+                                    <span>项目更新历史</span>
+                                </Link>
                                 <Link href="/settings" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
                                     <Settings className="w-5 h-5" />
                                     <span>偏好设置</span>
