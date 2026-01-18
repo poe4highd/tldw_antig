@@ -18,7 +18,11 @@ YouTube / Audio / Video Quick Reader
 
 ---
 
-## 快速开始
+### 快速启动 (推荐)
+一键启动前后端并合并日志：
+```bash
+./dev.sh
+```
 
 ### 1. 配置环境
 在 `backend/.env` 中填入您的 API Key（如果使用云端模式）：
@@ -26,21 +30,19 @@ YouTube / Audio / Video Quick Reader
 OPENAI_API_KEY=sk-xxxx
 ```
 
-### 2. 启动后端 (API)
-为了支持局域网访问（如 192.168.x.x），**必须**指定 host 为 `0.0.0.0`：
-```bash
-cd backend
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 3. 启动前端 (UI)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-访问 `http://localhost:3000` 或您的局域网 IP 即可。
+### 2. 启动分布式服务 (分步手动方式)
+1. **启动后端 (API)**:
+   ```bash
+   cd backend
+   source venv/bin/activate
+   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+2. **启动前端 (UI)**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+访问 `http://localhost:3000` 即可。
 
 ## AI 处理逻辑
 系统不仅进行语音转录，还会将结果提交给 OpenAI LLM (GPT-4o-mini) 进行二次加工。
