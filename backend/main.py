@@ -36,6 +36,7 @@ app.mount("/media", StaticFiles(directory="downloads"), name="media")
 DOWNLOADS_DIR = "downloads"
 RESULTS_DIR = "results"
 CACHE_DIR = "cache"
+DEV_DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "dev_docs")
 
 for d in [DOWNLOADS_DIR, RESULTS_DIR, CACHE_DIR]:
     if not os.path.exists(d):
@@ -382,6 +383,45 @@ async def get_history():
             "video_count": total_stats["video_count"]
         }
     }
+
+@app.get("/dev-docs")
+async def list_dev_docs():
+    docs = []
+    if os.path.exists(DEV_DOCS_DIR):
+        for f in os.listdir(DEV_DOCS_DIR):
+            if f.endswith(".md"):
+                file_path = os.path.join(DEV_DOCS_DIR, f)
+                mtime = os.path.getmtime(file_path)
+                
+                # Try to extract title from first line
+                title = f
+                try:
+                    with open(file_path, "r", encoding="utf-8") as rf:
+                        first_line = rf.readline().strip()
+                        if first_line.startswith("#"):
+                            title = first_line.lstrip("#").strip()
+                except: pass
+                
+                docs.append({
+                    "filename": f,
+                    "title": title,
+                    "mtime": mtime
+                })
+    
+    return sorted(docs, key=lambda x: x["mtime"], reverse=True)
+
+@app.get("/dev-docs/{filename}")
+async def get_dev_doc(filename: str):
+    # Security: check if it's strictly a markdown file in the dev_docs dir
+    if not filename.endswith(".md") or ".." in filename or "/" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    file_path = os.path.join(DEV_DOCS_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    with open(file_path, "r", encoding="utf-8") as f:
+        return {"content": f.read()}
 
 if __name__ == "__main__":
     import uvicorn
