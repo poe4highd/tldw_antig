@@ -292,9 +292,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             <main className="max-w-[1440px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
 
                 {/* Left Column: Video & Transcription */}
-                <div className="lg:col-span-8 lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] flex flex-col gap-6">
+                <div className="lg:col-span-8 lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)] flex flex-col gap-6">
                     {/* Fixed Header Group: Video, Actions, Info */}
-                    <div className="flex-shrink-0 space-y-6">
+                    <div className="flex-shrink-0 space-y-6 sticky top-20 lg:static z-40 bg-slate-950/95 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none py-2 lg:py-0 -mx-6 px-6 lg:mx-0 lg:px-0 transition-all">
                         {/* Video Player Section */}
                         <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group transition-all duration-300">
                             <div className="relative aspect-video group">
@@ -413,7 +413,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     </div> {/* End of Header Group */}
 
                     {/* Transcription Content - Scrollable Area */}
-                    <div className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative overflow-y-auto flex-1 min-h-0 no-scrollbar scroll-smooth">
+                    <div className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth">
                         <div className="absolute top-8 right-8 text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
                             TLDW
                         </div>
