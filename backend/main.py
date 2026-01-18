@@ -25,7 +25,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://read-tube.com",
+        "https://read-tube-git-main-poe4highds-projects.vercel.app", # Adjust if Vercel preview domain needed
+        "*" # Keep * as fallback but be careful
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
