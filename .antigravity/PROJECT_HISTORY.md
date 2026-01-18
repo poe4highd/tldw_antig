@@ -1,3 +1,4 @@
+[2026-01-18] | [Fix/Sync] | 修复页面刷新后字幕不同步 | 将 Player 实例改为 useRef 存储，解决初始化时闭包导致的轮询失效问题 | archive/log_20260118_17.md
 [2026-01-18] | [Feat/UX] | 优化字幕阅读体验 | 实现视频播放器 Sticky 吸顶，字幕居中自动滚动，支持手动滚动暂停与一键回正 | archive/log_20260118_16.md
 [2026-01-18] | [Refactor/Lib] | 重构播放器组件 | 废弃 iframe postMessage 方案，引入 react-youtube 库以彻底解决字幕同步不稳定的回归问题 | archive/log_20260118_15.md
 [2026-01-18] | [Fix/Visual] | 修复字幕同步失效 | 指定 YouTube Iframe origin 参数，恢复 postMessage 通信，解决字幕不高亮/不滚动问题 | archive/log_20260118_14.md

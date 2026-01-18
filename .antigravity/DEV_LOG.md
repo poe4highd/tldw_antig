@@ -35,6 +35,20 @@
 
 ---
 
+# 2026-01-18 开发日志 (Part 14)
+
+## 任务：修复初始化字幕同步失效 (Fix Initial Sync)
+
+### 1. 问题定位
+- **现象**：页面强制刷新后，Subtitle Sync 失效；切换到 Local Audio 再切回 YouTube 后恢复正常。
+- **根因**：使用了 `useState` 存储 YouTube Player 实例。`useEffect` 的轮询闭包在组件初次渲染时捕获了旧的 state (null)，即使后续 state 更新，定时器内的闭包变量未更新（或者依赖项未触发预期的重置）。
+
+### 2. 解决方案
+- **Refactor**：改用 `useRef` 存储 Player 实例，利用 mutable ref 特性穿透反闭包。
+- **状态分离**：分离 `isPlayerReady` 状态用于触发 UI 渲染和 Effect 启动，确保逻辑链条清晰：`onReady` -> `ref.current = player` -> `setReady(true)` -> `useEffect` start polling.
+
+---
+
 # 2026-01-18 开发日志 (Part 13)
 
 ## 任务：优化字幕阅读体验 (UX Enhancement)

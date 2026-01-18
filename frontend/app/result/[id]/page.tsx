@@ -54,7 +54,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [likeCount, setLikeCount] = useState(128);
     const [isLiked, setIsLiked] = useState(false);
     // const iframeRef = useRef<HTMLIFrameElement>(null); // Removed in favor of react-youtube
-    const [player, setPlayer] = useState<any>(null); // YouTube Player instance
+    const playerRef = useRef<any>(null); // YouTube Player instance ref
+    const [isPlayerReady, setIsPlayerReady] = useState(false); // Track readiness for UI/polling
     const audioRef = useRef<HTMLAudioElement>(null);
     const [useLocalAudio, setUseLocalAudio] = useState(false);
 
@@ -110,11 +111,11 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (!useLocalAudio && player) {
+        if (!useLocalAudio && isPlayerReady && playerRef.current) {
             interval = setInterval(() => {
                 // Ensure player is ready and has the function
-                if (player && typeof player.getCurrentTime === 'function') {
-                    const time = player.getCurrentTime();
+                if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+                    const time = playerRef.current.getCurrentTime();
                     // getCurrentTime returns a number, safeguard against undefined
                     if (typeof time === 'number') {
                         setCurrentTime(time);
@@ -123,7 +124,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             }, 200); // Poll every 200ms for smoother updates
         }
         return () => clearInterval(interval);
-    }, [useLocalAudio, player]);
+    }, [useLocalAudio, isPlayerReady]);
 
     const handleLocalTimeUpdate = () => {
         if (audioRef.current) {
@@ -135,14 +136,15 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         if (useLocalAudio && audioRef.current) {
             audioRef.current.currentTime = seconds;
             audioRef.current.play();
-        } else if (player && typeof player.seekTo === 'function') {
-            player.seekTo(seconds, true);
-            player.playVideo();
+        } else if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+            playerRef.current.seekTo(seconds, true);
+            playerRef.current.playVideo();
         }
     };
 
     const onPlayerReady: YouTubeProps['onReady'] = (event) => {
-        setPlayer(event.target);
+        playerRef.current = event.target;
+        setIsPlayerReady(true);
     };
 
     // Auto-scroll logic
