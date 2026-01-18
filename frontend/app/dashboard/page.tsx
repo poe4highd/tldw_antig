@@ -125,7 +125,9 @@ export default function DashboardPage() {
                     }
                 }
 
-                const response = await fetch(`${apiBase}/history`);
+                const { data: { session } } = await supabase.auth.getSession();
+                const user_id = session?.user?.id;
+                const response = await fetch(`${apiBase}/history${user_id ? `?user_id=${user_id}` : ''}`);
                 const data = await response.json();
 
                 if (data.history) {

@@ -45,12 +45,13 @@ for d in [DOWNLOADS_DIR, RESULTS_DIR, CACHE_DIR]:
 class ProcessRequest(BaseModel):
     url: str
     mode: str = "cloud"
+    user_id: str = None
 
 def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
 
-def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None):
+def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None, user_id=None):
     try:
         video_id = ""
         if url:
@@ -174,7 +175,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 "total_cost": round(whisper_cost + llm_cost, 6),
                 "currency": "USD"
             },
-            "raw_subtitles": raw_subtitles
+            "raw_subtitles": raw_subtitles,
+            "user_id": user_id
         }
         with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
@@ -197,6 +199,16 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 }
                 supabase.table("videos").upsert(video_data).execute()
                 print(f"Successfully saved to Supabase: {video_data['id']}")
+                
+                # 5.1 Save to submissions table
+                if user_id:
+                    submission_data = {
+                        "user_id": user_id,
+                        "video_id": video_data["id"],
+                        "task_id": task_id
+                    }
+                    supabase.table("submissions").insert(submission_data).execute()
+                    print(f"Successfully saved submission for user: {user_id}")
             except Exception as e:
                 print(f"Failed to save to Supabase: {e}")
             
@@ -210,14 +222,14 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
     task_id = str(int(time.time()))
     save_status(task_id, "queued", 0)
-    background_tasks.add_task(background_process, task_id, request.mode, url=request.url)
+    background_tasks.add_task(background_process, task_id, request.mode, url=request.url, user_id=request.user_id)
     return {"task_id": task_id}
 
 @app.post("/upload")
-async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local"):
+async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None):
     task_id = str(int(time.time()))
     
-    # 1. Save uploaded file
+    # ... (file saving logic)
     # Use content hash to avoid duplicate uploads
     content = await file.read()
     file_hash = hashlib.md5(content).hexdigest()[:11]
@@ -232,7 +244,7 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
     random_color = random.choice(colors)
     
     save_status(task_id, "queued", 0)
-    background_tasks.add_task(background_process, task_id, mode, local_file=file_path, title=file.filename, thumbnail=random_color)
+    background_tasks.add_task(background_process, task_id, mode, local_file=file_path, title=file.filename, thumbnail=random_color, user_id=user_id)
     
     return {"task_id": task_id}
 
@@ -290,7 +302,7 @@ async def get_result(task_id: str):
     raise HTTPException(status_code=404, detail="Task not found")
 
 @app.get("/history")
-async def get_history():
+async def get_history(user_id: str = None):
     history_items = []
     total_stats = {"total_duration": 0, "total_cost": 0, "video_count": 0}
     active_tasks = []
@@ -298,8 +310,16 @@ async def get_history():
     # 1. Fetch from Supabase if available
     if supabase:
         try:
-            response = supabase.table("videos").select("id, title, thumbnail, usage, created_at").order("created_at", desc=True).execute()
-            for video in response.data:
+            query = supabase.table("submissions").select("created_at, videos(id, title, thumbnail, usage)")
+            if user_id:
+                query = query.eq("user_id", user_id)
+            
+            response = query.order("created_at", desc=True).execute()
+            
+            for item in response.data:
+                video = item.get("videos")
+                if not video: continue
+                
                 usage = video.get("usage", {})
                 duration = usage.get("duration", 0)
                 cost = usage.get("total_cost", 0)
@@ -309,7 +329,7 @@ async def get_history():
                     "title": video["title"],
                     "thumbnail": video["thumbnail"],
                     "url": "N/A",
-                    "mtime": video["created_at"],
+                    "mtime": item["created_at"],
                     "total_cost": round(cost, 4)
                 })
                 total_stats["total_duration"] += duration
@@ -339,6 +359,12 @@ async def get_history():
                         unique_key = yt_id if yt_id else (url if url != "Uploaded File" else data.get("media_path"))
                         
                         usage = data.get("usage", {})
+                        item_user_id = data.get("user_id")
+                        
+                        # Filter local history by user_id if requested
+                        if user_id and item_user_id != user_id:
+                            continue
+                            
                         duration = usage.get("duration", 0)
                         cost = usage.get("total_cost", 0)
                         
@@ -376,6 +402,7 @@ async def get_history():
                 
     return {
         "items": history_items,
+        "history": history_items, # Alias for dashboard compatibility
         "active_tasks": sorted(active_tasks, key=lambda x: x["mtime"], reverse=True),
         "summary": {
             "total_duration": total_stats["total_duration"],

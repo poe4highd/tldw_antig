@@ -43,8 +43,9 @@ export default function TasksPage() {
     const router = useRouter();
 
     const fetchHistory = async (base: string) => {
+        if (!user) return;
         try {
-            const resp = await fetch(`${base}/history`);
+            const resp = await fetch(`${base}/history?user_id=${user.id}`);
             const data = await resp.json();
             setHistory(data.items || []);
             setSummary(data.summary || null);
@@ -63,7 +64,7 @@ export default function TasksPage() {
             const resp = await fetch(`${apiBase}/process`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url, mode }),
+                body: JSON.stringify({ url, mode, user_id: user?.id }),
             });
             const data = await resp.json();
             pollStatus(data.task_id);
@@ -83,6 +84,7 @@ export default function TasksPage() {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("mode", mode);
+        if (user) formData.append("user_id", user.id);
 
         try {
             const resp = await fetch(`${apiBase}/upload`, {
