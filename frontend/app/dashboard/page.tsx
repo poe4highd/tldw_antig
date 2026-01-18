@@ -21,6 +21,7 @@ import {
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from "@/utils/supabase";
+import { getApiBase } from "@/utils/api";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -120,12 +121,7 @@ export default function DashboardPage() {
             setIsLoading(true);
             try {
                 // Determine API Base
-                let apiBase = "http://localhost:8000";
-                if (typeof window !== "undefined") {
-                    if (window.location.hostname === "read-tube.com" || window.location.hostname.endsWith(".vercel.app")) {
-                        apiBase = process.env.NEXT_PUBLIC_API_BASE || "https://api.read-tube.com";
-                    }
-                }
+                const apiBase = getApiBase();
 
                 const { data: { session } } = await supabase.auth.getSession();
                 const user_id = session?.user?.id;

@@ -11,6 +11,7 @@ import {
     Clock,
     BookOpen
 } from "lucide-react";
+import { getApiBase } from "@/utils/api";
 
 export default function DevLogDetailPage() {
     const params = useParams();
@@ -23,12 +24,7 @@ export default function DevLogDetailPage() {
         const fetchContent = async () => {
             setIsLoading(true);
             try {
-                let apiBase = "http://localhost:8000";
-                if (typeof window !== "undefined") {
-                    if (window.location.hostname === "read-tube.com" || window.location.hostname.endsWith(".vercel.app")) {
-                        apiBase = process.env.NEXT_PUBLIC_API_BASE || "https://api.read-tube.com";
-                    }
-                }
+                const apiBase = getApiBase();
 
                 const response = await fetch(`${apiBase}/dev-docs/${slug}`);
                 if (!response.ok) throw new Error("无法读取文件内容");

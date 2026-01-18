@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Mail, ArrowRight, Chrome, ShieldCheck } from "lucide-react";
 import { supabase } from "@/utils/supabase";
+import { getSiteUrl } from "@/utils/api";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -16,7 +17,7 @@ export default function LoginPage() {
     };
 
     const handleGoogleLogin = async () => {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+        const siteUrl = getSiteUrl();
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -34,7 +35,7 @@ export default function LoginPage() {
         e.preventDefault();
         if (!email) return;
 
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+        const siteUrl = getSiteUrl();
 
         setLoading(true);
         setStatus(null);

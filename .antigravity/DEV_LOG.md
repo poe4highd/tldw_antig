@@ -1,3 +1,22 @@
+# 2026-01-18 开发日志 (Part 19)
+
+## 任务：实现开发与生产环境彻底分离 (Environment Isolation)
+
+### 1. 需求与现象
+- **问题**：在本地开发服务器测试时，Google Auth 登录后会自动跳转到生产域名 `read-tube.com`。
+- **原因**：认证回调地址（redirectTo）使用了配置在 `.env.local` 中的硬编码 `NEXT_PUBLIC_SITE_URL`。
+
+### 2. 解决方案
+- **动态 URL 获取**：创建 `utils/api.ts`，利用 `window.location.origin` 动态获取当前站点地址。
+- **API 统一管理**：重写了 Dashboard 和 Dev Logs 页面的 API 请求基地址判断逻辑，统一由 `getApiBase()` 接管。
+- **配置修复**：更新 `.env.local` 将默认站点地址指向本地。
+
+### 3. 回顾与经验
+- **环境隔离**：在涉及 OAuth 认证的项目中，回调地址决不能硬编码。使用 `window.location.origin` 可以完美适配本地、预览分支（Vercel）及生产环境，无需频繁手动更改环境变量。
+- **配置冗余**：代码中多处出现的 `hostname === "read-tube.com"` 判断被成功收敛，提升了代码的可维护性。
+
+---
+
 # 2026-01-18 开发日志 (Part 18)
 
 ## 任务：修复同步按钮与移动端布局遮挡 (Interaction Bugfix)
