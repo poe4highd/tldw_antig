@@ -57,22 +57,36 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [currentTime, setCurrentTime] = useState(0);
 
     const [viewCount, setViewCount] = useState(0);
+    const [comments, setComments] = useState<any[]>([]);
+    const [newComment, setNewComment] = useState("");
 
     useEffect(() => {
-        setViewCount(Math.floor(Math.random() * 5000 + 1000));
         const fetchResult = async () => {
             try {
                 const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+
+                // Fetch basic result
                 const response = await fetch(`${apiBase}/result/${id}`);
                 if (!response.ok) throw new Error("无法获取报告内容");
                 const data = await response.json();
 
                 if (data.status === "completed") {
                     setResult(data);
+                    setViewCount(data.view_count || 0);
+                    setLikeCount(data.interaction_count || 0);
+
+                    // Trigger view increment
+                    fetch(`${apiBase}/result/${id}/view`, { method: 'POST' });
+
+                    // Fetch comments
+                    const commRes = await fetch(`${apiBase}/result/${id}/comments`);
+                    if (commRes.ok) {
+                        const commData = await commRes.json();
+                        setComments(commData);
+                    }
                 } else if (data.status === "failed") {
                     setError(data.detail || "处理失败");
                 } else {
-                    // Still processing or queued
                     setError("该报告正在生成中，请稍后再试。");
                 }
             } catch (err: any) {
@@ -83,6 +97,42 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         };
         fetchResult();
     }, [id]);
+
+    useEffect(() => {
+        let interval: any;
+        if (!useLocalAudio && iframeRef.current) {
+            interval = setInterval(() => {
+                iframeRef.current?.contentWindow?.postMessage(
+                    JSON.stringify({ event: "listening", id: "current_time" }),
+                    "*"
+                );
+            }, 500);
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.event === "onStateChange" && data.info === "playing") {
+                    // Start tracking time if needed
+                }
+                if (data.info?.currentTime !== undefined) {
+                    setCurrentTime(data.info.currentTime);
+                }
+            } catch (e) { }
+        };
+
+        window.addEventListener("message", handleMessage);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener("message", handleMessage);
+        };
+    }, [useLocalAudio]);
+
+    const handleLocalTimeUpdate = () => {
+        if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+        }
+    };
 
     const seekTo = (seconds: number) => {
         if (useLocalAudio && audioRef.current) {
@@ -128,6 +178,15 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         a.href = url;
         a.download = `${result.title || "subtitle"}.srt`;
         a.click();
+    };
+
+    const handleToggleLike = async () => {
+        setIsLiked(!isLiked);
+        setLikeCount(l => isLiked ? l - 1 : l + 1);
+        try {
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+            await fetch(`${apiBase}/result/${id}/like`, { method: 'POST' });
+        } catch (err) { }
     };
 
     if (loading) {
@@ -200,6 +259,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         ref={audioRef}
                                         src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
                                         controls
+                                        onTimeUpdate={handleLocalTimeUpdate}
                                         className="w-full h-10 accent-indigo-500"
                                     />
                                 </div>
@@ -218,37 +278,64 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         >
                             {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
                         </button>
-                    </div>
 
-                    {/* Video Info & High-level Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
-                        <div>
-                            <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
-                            <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                <span>{viewCount > 0 ? viewCount.toLocaleString() : "..."} 次阅读</span>
-                                <span>自动生成于 {result.mtime ? new Date(result.mtime).toLocaleDateString('zh-CN', {
-                                    year: 'numeric',
-                                    month: '2-digit',
-                                    day: '2-digit'
-                                }).replace(/\//g, '-') : '...'}</span>
+                        {/* Floating Action Bar inside Video Area but fixed to bottom */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between pointer-events-none">
+                            <div className="flex items-center space-x-2 pointer-events-auto">
+                                <button
+                                    onClick={copyFullText}
+                                    className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-500 transition-all flex items-center space-x-2"
+                                >
+                                    {copyStatus ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                    <span>{copyStatus ? "已复制" : "复制全文"}</span>
+                                </button>
+                                <button
+                                    onClick={downloadSRT}
+                                    className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-500 transition-all flex items-center space-x-2"
+                                >
+                                    <Download className="w-3 h-3" />
+                                    <span>SRT</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!result?.paragraphs) return;
+                                        const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
+                                        const blob = new Blob([text], { type: "text/plain" });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${result.title}.txt`;
+                                        a.click();
+                                    }}
+                                    className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-500 transition-all flex items-center space-x-2"
+                                >
+                                    <Download className="w-3 h-3" />
+                                    <span>TXT</span>
+                                </button>
+                            </div>
+                            <div className="pointer-events-auto">
+                                <button
+                                    onClick={handleToggleLike}
+                                    className={cn(
+                                        "px-4 py-2 backdrop-blur-md border rounded-xl text-[10px] font-bold transition-all flex items-center space-x-2",
+                                        isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-white/10 border-white/10 text-white hover:bg-indigo-500"
+                                    )}
+                                >
+                                    <ThumbsUp className={cn("w-3 h-3", isLiked && "fill-current")} />
+                                    <span>{likeCount}</span>
+                                </button>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => { setIsLiked(!isLiked); setLikeCount(l => isLiked ? l - 1 : l + 1); }}
-                                className={cn(
-                                    "flex items-center space-x-2 px-5 py-2.5 rounded-2xl font-bold text-sm border transition-all",
-                                    isLiked ? "bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
-                                )}
-                            >
-                                <ThumbsUp className={cn("w-4 h-4", isLiked && "fill-current")} />
-                                <span>{likeCount}</span>
-                            </button>
-                            <button onClick={copyFullText} className="flex items-center space-x-2 px-5 py-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl font-bold text-sm text-slate-400 hover:text-white transition-all">
-                                {copyStatus ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                                <span>{copyStatus ? "已复制" : "复制全文"}</span>
-                            </button>
+                    {/* Video Info */}
+                    <div className="px-4">
+                        <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
+                        <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            <span>{viewCount.toLocaleString()} 次阅读</span>
+                            <span>自动生成于 {result.mtime ? new Date(result.mtime).toLocaleDateString('zh-CN', {
+                                year: 'numeric', month: '2-digit', day: '2-digit'
+                            }).replace(/\//g, '-') : '...'}</span>
                         </div>
                     </div>
 
@@ -260,16 +347,27 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                         <div className="space-y-12 relative z-10">
                             {result.paragraphs?.map((p: Paragraph, pIdx: number) => (
-                                <p key={pIdx} className="text-lg leading-[1.8] text-slate-300">
-                                    {p.sentences.map((s: Sentence, sIdx: number) => (
-                                        <span
-                                            key={sIdx}
-                                            className="cursor-pointer hover:text-white hover:bg-white/5 rounded px-1 transition-all duration-300"
-                                            onClick={() => seekTo(s.start)}
-                                        >
-                                            {s.text}
-                                        </span>
-                                    ))}
+                                <p key={pIdx} className="text-lg leading-[1.8] text-slate-400">
+                                    {p.sentences.map((s: Sentence, sIdx: number) => {
+                                        // Current sentence highlight logic
+                                        const isCurrent = currentTime >= s.start && (pIdx === result.paragraphs!.length - 1 && sIdx === p.sentences.length - 1 ? true : (
+                                            p.sentences[sIdx + 1] ? currentTime < p.sentences[sIdx + 1].start : true
+                                        ));
+
+                                        return (
+                                            <span
+                                                key={sIdx}
+                                                className={cn(
+                                                    "cursor-pointer rounded px-1 transition-all duration-300 inline",
+                                                    isCurrent ? "text-indigo-400 bg-indigo-500/10 font-medium" : "hover:text-white hover:bg-white/5"
+                                                )}
+                                                style={{ fontSize: 'inherit' }} // Force stable font size
+                                                onClick={() => seekTo(s.start)}
+                                            >
+                                                {s.text}
+                                            </span>
+                                        );
+                                    })}
                                 </p>
                             ))}
 
@@ -297,59 +395,74 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         <div className="p-8 border-b border-slate-800 flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                                 <MessageSquare className="w-5 h-5 text-indigo-400" />
-                                <h3 className="font-bold">讨论区 (32)</h3>
+                                <h3 className="font-bold">讨论区 ({comments.length})</h3>
                             </div>
                             <MoreVertical className="w-5 h-5 text-slate-600 cursor-pointer" />
                         </div>
 
                         <div className="flex-grow overflow-y-auto p-8 space-y-8 no-scrollbar">
-                            {/* Mock Comments */}
-                            <div className="flex gap-4">
-                                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center font-bold text-xs ring-2 ring-white/5">A</div>
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold">Alice_Wonder</span>
-                                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">2小时前</span>
+                            {comments.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-600 space-y-2">
+                                    <MessageSquare className="w-8 h-8 opacity-20" />
+                                    <p className="text-sm">暂无评论，快来抢沙发吧</p>
+                                </div>
+                            ) : comments.map((comment, idx) => (
+                                <div key={comment.id || idx} className="flex gap-4">
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-800 flex items-center justify-center font-bold text-xs ring-2 ring-white/5 overflow-hidden">
+                                        {comment.profiles?.avatar_url ? (
+                                            <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
+                                        ) : (
+                                            (comment.profiles?.username?.[0] || comment.user_id?.[0] || "?").toUpperCase()
+                                        )}
                                     </div>
-                                    <p className="text-sm text-slate-400 leading-relaxed">这个视频里的开车类比真的绝了，很多所谓的“专家”就是喜欢把简单的东西复杂化来收割普通人。</p>
-                                    <div className="flex items-center gap-4 pt-1">
-                                        <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
-                                            <ThumbsUp className="w-3 h-3" /> 12
-                                        </button>
-                                        <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">回复</button>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-slate-200">{comment.profiles?.username || "热心网友"}</span>
+                                            <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                                                {new Date(comment.created_at).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-slate-400 leading-relaxed">{comment.content}</p>
+                                        <div className="flex items-center gap-4 pt-1">
+                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
+                                                <ThumbsUp className="w-3 h-3" /> {comment.likes_count || 0}
+                                            </button>
+                                            <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">回复</button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex gap-4">
-                                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold text-xs ring-2 ring-white/5">K</div>
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold">Ken_Growth</span>
-                                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">5小时前</span>
-                                    </div>
-                                    <p className="text-sm text-slate-400 leading-relaxed">有没有人觉得 7:15 那段关于复利的解释有点过于理想化了？实际操作中的磨损很大性。</p>
-                                    <div className="flex items-center gap-4 pt-1">
-                                        <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
-                                            <ThumbsUp className="w-3 h-3" /> 5
-                                        </button>
-                                        <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">回复</button>
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
 
                         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
-                            <div className="relative">
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                if (!newComment.trim()) return;
+                                try {
+                                    const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+                                    const res = await fetch(`${apiBase}/result/${id}/comments`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ video_id: id, content: newComment })
+                                    });
+                                    if (res.ok) {
+                                        const data = await res.json();
+                                        setComments([data.comment, ...comments]);
+                                        setNewComment("");
+                                    }
+                                } catch (err) { }
+                            }} className="relative">
                                 <input
                                     type="text"
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
                                     placeholder="发表你的深度见解..."
                                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-700 transition-all font-medium"
                                 />
-                                <button className="absolute right-2 top-2 p-1.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors">
+                                <button type="submit" className="absolute right-2 top-2 p-1.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors">
                                     <Send className="w-4 h-4" />
                                 </button>
-                            </div>
+                            </form>
                         </div>
                     </div>
 

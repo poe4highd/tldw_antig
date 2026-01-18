@@ -53,6 +53,12 @@ class ProcessRequest(BaseModel):
     mode: str = "cloud"
     user_id: str = None
 
+class CommentRequest(BaseModel):
+    video_id: str
+    content: str
+    user_id: str = None
+    parent_id: str = None
+
 def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
@@ -272,13 +278,15 @@ async def get_result(task_id: str):
                 video = response.data[0]
                 return {
                     "title": video["title"],
-                    "url": "N/A", # Supabase schema currently doesn't store original URL in videos table, but we could add it
+                    "url": "N/A",
                     "youtube_id": video["id"] if len(video["id"]) == 11 else None,
                     "thumbnail": video["thumbnail"],
                     "media_path": video["media_path"],
                     "paragraphs": video["report_data"].get("paragraphs"),
                     "usage": video["usage"],
                     "raw_subtitles": video["report_data"].get("raw_subtitles"),
+                    "view_count": video.get("view_count", 0),
+                    "interaction_count": video.get("interaction_count", 0),
                     "status": "completed",
                     "progress": 100
                 }
@@ -464,33 +472,66 @@ async def get_dev_doc(filename: str):
     with open(file_path, "r", encoding="utf-8") as f:
         return {"content": f.read()}
 
-@app.get("/project-history")
-async def get_project_history():
-    history_file = os.path.join(os.path.dirname(__file__), "..", ".antigravity", "PROJECT_HISTORY.md")
-    if not os.path.exists(history_file):
-        return []
-    
-    history_data = []
-    try:
-        with open(history_file, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or not "|" in line:
-                    continue
-                
-                parts = [p.strip() for p in line.split("|")]
-                if len(parts) >= 5:
-                    history_data.append({
-                        "date": parts[0].strip("[]"),
-                        "category": parts[1],
-                        "task": parts[2],
-                        "description": parts[3],
-                        "log_file": parts[4]
-                    })
-    except Exception as e:
-        print(f"Error parsing project history: {e}")
-        
     return history_data
+
+@app.post("/result/{task_id}/view")
+async def add_view(task_id: str):
+    if not supabase:
+        return {"status": "ok", "message": "Local mode, no DB update"}
+    try:
+        # Get current view count
+        response = supabase.table("videos").select("view_count").eq("id", task_id).execute()
+        if response.data:
+            current_count = response.data[0].get("view_count", 0)
+            supabase.table("videos").update({"view_count": current_count + 1}).eq("id", task_id).execute()
+            return {"status": "success", "view_count": current_count + 1}
+        return {"status": "error", "message": "Video not found"}
+    except Exception as e:
+        print(f"Failed to increment view count: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/result/{task_id}/like")
+async def toggle_like(task_id: str):
+    if not supabase:
+        return {"status": "ok", "message": "Local mode"}
+    try:
+        response = supabase.table("videos").select("interaction_count").eq("id", task_id).execute()
+        if response.data:
+            current_count = response.data[0].get("interaction_count", 0)
+            # Simple increment for now
+            new_count = current_count + 1
+            supabase.table("videos").update({"interaction_count": new_count}).eq("id", task_id).execute()
+            return {"status": "success", "interaction_count": new_count}
+        return {"status": "error", "message": "Video not found"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/result/{task_id}/comments")
+async def get_comments(task_id: str):
+    if not supabase:
+        return []
+    try:
+        response = supabase.table("comments").select("*, profiles(username, avatar_url)").eq("video_id", task_id).order("created_at", desc=True).execute()
+        return response.data
+    except Exception as e:
+        print(f"Failed to fetch comments: {e}")
+        return []
+
+@app.post("/result/{task_id}/comments")
+async def post_comment(task_id: str, request: CommentRequest):
+    if not supabase:
+        return {"status": "error", "message": "Database not connected"}
+    try:
+        data = {
+            "video_id": task_id,
+            "content": request.content,
+            "user_id": request.user_id,
+            "parent_id": request.parent_id
+        }
+        response = supabase.table("comments").insert(data).execute()
+        return {"status": "success", "comment": response.data[0] if response.data else None}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
