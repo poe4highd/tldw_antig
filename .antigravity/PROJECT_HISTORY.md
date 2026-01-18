@@ -1,3 +1,8 @@
+[2026-01-18] | [Fix/Tool] | 修复 dev.sh 日志着色 | 改用 printf 定义逃逸字符，修复 macOS 下日志前缀颜色失效及原始代码外露的问题 | archive/log_20260118_11.md
+[2026-01-18] | [Docs] | 补充开发指南端口检查特性 | 在 docs/development_guide.md 中补充 dev.sh 的自动化端口冲突处理说明 | archive/log_20260118_10.md
+[2026-01-18] | [Tool] | 增强 dev.sh 端口检查 | 为启动脚本增加自动端口冲突检测与清理功能，解决“端口已占用”导致启动失败的问题 | archive/log_20260118_9.md
+[2026-01-18] | [Docs] | 编写开发启动与日志监控指南 | 创建 docs/development_guide.md 并更新 README，详细说明 ./dev.sh 与分步启动及日志排查方法 | archive/log_20260118_8.md
+[2026-01-18] | [Fix/API] | 修复报告页 404 错误 | 移除 main.py 中的冗余代码并验证 /view 和 /comments 接口注册，确保前后端数据同步 | archive/log_20260118_7.md
 [2026-01-18] | [Optimization/UI] | 导航集成与重定向优化 | Dashboard 侧边栏集成历史与营销页入口，优化重定向逻辑并紧凑化历史页布局 | archive/log_20260118_6.md
 [2026-01-18] | [Fix/DevOps] | 恢复公网连通性与 CORS | 手动重启 Cloudflare 隧道并修复后端重载导致的 530 错误与跨域拦截 | archive/log_20260118_5.md
 [2026-01-18] | [Fix/UI] | 修复任务启动报错 | 优化前端 API 识别逻辑并增加详细错误提示，解决移动端提交任务时的通用失败提示 | archive/log_20260118_4.md

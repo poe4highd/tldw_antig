@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# 定义颜色
-BLUE='\033[0;34m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+# 定义颜色 (使用 printf 保证 macOS 兼容性)
+BLUE=$(printf '\033[0;34m')
+GREEN=$(printf '\033[0;32m')
+NC=$(printf '\033[0m') # No Color
 
 # 打印带有前缀的日志函数
 log_backend() {
@@ -16,18 +16,33 @@ log_frontend() {
 
 # 停止所有进程的函数
 cleanup() {
-    echo -e "\n${NC}正在停止开发服务...${NC}"
+    printf "\n${NC}正在停止开发服务...${NC}\n"
     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
     exit
+}
+
+# 检查并清理端口函数
+check_and_kill_port() {
+    local port=$1
+    local name=$2
+    local pid=$(lsof -ti :$port)
+    if [ ! -z "$pid" ]; then
+        printf "${NC}检测到端口 $port ($name) 被占用，正在清理进程 (PID: $pid)...${NC}\n"
+        kill -9 $pid 2>/dev/null
+    fi
 }
 
 # 捕获 Ctrl+C (SIGINT)
 trap cleanup SIGINT
 
-echo -e "${NC}开始启动自动开发环境...${NC}"
+printf "${NC}开始启动自动开发环境...${NC}\n"
+
+# 0. 检查并清理冲突
+check_and_kill_port 8000 "BACKEND"
+check_and_kill_port 3000 "FRONTEND"
 
 # 1. 启动后端
-echo -e "${BLUE}启动后端服务 (FastAPI)...${NC}"
+printf "${BLUE}启动后端服务 (FastAPI)...${NC}\n"
 if [ -d "backend/venv" ]; then
     (cd backend && source venv/bin/activate && python3 main.py) 2>&1 | log_backend &
 else
@@ -36,7 +51,7 @@ fi
 BACKEND_PID=$!
 
 # 2. 启动前端
-echo -e "${GREEN}启动前端服务 (Next.js)...${NC}"
+printf "${GREEN}启动前端服务 (Next.js)...${NC}\n"
 (cd frontend && npm run dev) 2>&1 | log_frontend &
 FRONTEND_PID=$!
 

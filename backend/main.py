@@ -473,8 +473,6 @@ async def get_dev_doc(filename: str):
     with open(file_path, "r", encoding="utf-8") as f:
         return {"content": f.read()}
 
-    return history_data
-
 @app.post("/result/{task_id}/view")
 async def add_view(task_id: str):
     if not supabase:
