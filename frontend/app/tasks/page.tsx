@@ -66,10 +66,17 @@ export default function TasksPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ url, mode, user_id: user?.id }),
             });
+
+            if (!resp.ok) {
+                const errorData = await resp.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Server error: ${resp.status}`);
+            }
+
             const data = await resp.json();
             pollStatus(data.task_id);
-        } catch (e) {
-            setStatus("Error starting process");
+        } catch (e: any) {
+            console.error("Start process failed:", e);
+            setStatus(`启动失败: ${e.message || "网络连接异常"}`);
         }
     };
 
@@ -149,10 +156,23 @@ export default function TasksPage() {
 
         let base = process.env.NEXT_PUBLIC_API_BASE;
         if (!base) {
-            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")) {
+            const isLocalIp = hostname === "localhost" ||
+                hostname === "127.0.0.1" ||
+                hostname.startsWith("192.168.") ||
+                hostname.startsWith("10.") ||
+                hostname.startsWith("172.");
+
+            if (isLocalIp) {
                 base = `http://${hostname}${defaultPort}`;
             } else {
                 const isTunnel = hostname.includes("trycloudflare.com") || hostname.includes("vercel.app");
+                // If on Vercel and no API_BASE set, follow the hybrid guide pattern: api.domain.com
+                if (hostname.includes("vercel.app") && !isTunnel) {
+                    // Fallback strategy: if NEXT_PUBLIC_API_BASE is missing, we can't do much but guess
+                    // or stay on current domain. For now, try 'api' subdomain if it's a custom domain, 
+                    // but for .vercel.app it's safer to just log a warning.
+                    console.warn("NEXT_PUBLIC_API_BASE is missing on Vercel deployment.");
+                }
                 base = `${protocol}//${hostname}${isTunnel ? "" : defaultPort}`;
             }
         }
