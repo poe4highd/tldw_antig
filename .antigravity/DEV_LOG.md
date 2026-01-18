@@ -31,6 +31,7 @@
     - 计算公式：`targetScroll = container.scrollTop + elementOffset - containerHeight/2 + elementHeight/2`。
     - 使用 `container.scrollTo({ top: target, behavior: 'smooth' })` 替代全局 API。
     - **优化**：将防抖阈值从 `50px` 降低至 `10px`，确保字幕始终保持在视觉绝对中心，消除“将至未至”的漂移感。
+- **强制回正**：重构了 `resumeAutoScroll` 函数，在点击“同步播放进度”按钮时，传递 `force=true` 参数，无视防抖阈值，强制字幕立即滚动到当前播放位置。
 - **效果**：无论字幕如何变化，左侧 Video Header 纹丝不动，仅下方字幕区域平滑流转。
 
 ---

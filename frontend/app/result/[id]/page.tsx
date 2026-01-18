@@ -149,12 +149,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         setIsPlayerReady(true);
     };
 
-    // Auto-scroll logic
-    useEffect(() => {
-        if (isAutoScrollPaused) return;
-
-        // Find the active sentence based on currentTime
-        if (!result?.paragraphs) return;
+    const scrollToActive = (force = false) => {
+        if (!result?.paragraphs || !subtitleContainerRef.current) return;
 
         let activeId = "";
         for (let pIdx = 0; pIdx < result.paragraphs.length; pIdx++) {
@@ -162,7 +158,6 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             for (let sIdx = 0; sIdx < p.sentences.length; sIdx++) {
                 const s = p.sentences[sIdx];
                 const nextS = p.sentences[sIdx + 1] || result.paragraphs[pIdx + 1]?.sentences?.[0];
-                // Check if current time matching this sentence
                 if (currentTime >= s.start && (nextS ? currentTime < nextS.start : true)) {
                     activeId = `sentence-${pIdx}-${sIdx}`;
                     break;
@@ -171,18 +166,16 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             if (activeId) break;
         }
 
-        if (activeId && subtitleContainerRef.current) {
+        if (activeId) {
             const container = subtitleContainerRef.current;
             const el = document.getElementById(activeId);
             if (el) {
-                // Calculate position relative to container
                 const containerRect = container.getBoundingClientRect();
                 const elRect = el.getBoundingClientRect();
                 const offset = elRect.top - containerRect.top;
                 const targetScroll = container.scrollTop + offset - (container.clientHeight / 2) + (el.clientHeight / 2);
 
-                // Check distance to avoid micro-jitters (threshold reduced to 10px for tighter sync)
-                if (Math.abs(container.scrollTop - targetScroll) > 10) {
+                if (force || Math.abs(container.scrollTop - targetScroll) > 10) {
                     container.scrollTo({
                         top: targetScroll,
                         behavior: 'smooth'
@@ -190,28 +183,19 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 }
             }
         }
-    }, [currentTime, isAutoScrollPaused, result]);
+    };
 
-    // Detect user manual scroll
+    // Auto-scroll logic
     useEffect(() => {
-        const handleUserIntervention = () => {
-            // If the user scrolls, pause auto-scroll
-            setIsAutoScrollPaused(true);
-        };
-
-        window.addEventListener('wheel', handleUserIntervention);
-        window.addEventListener('touchmove', handleUserIntervention);
-
-        return () => {
-            window.removeEventListener('wheel', handleUserIntervention);
-            window.removeEventListener('touchmove', handleUserIntervention);
-        };
-    }, []);
+        if (!isAutoScrollPaused) {
+            scrollToActive(false);
+        }
+    }, [currentTime, isAutoScrollPaused, result]);
 
     const resumeAutoScroll = () => {
         setIsAutoScrollPaused(false);
-        // Immediate check to scroll back will happen on next effect cycle or we can force it?
-        // Actually effect depends on isAutoScrollPaused, so toggling it will trigger the effect immediately.
+        // Force immediate scroll back
+        setTimeout(() => scrollToActive(true), 0);
     };
 
     const copyFullText = () => {
