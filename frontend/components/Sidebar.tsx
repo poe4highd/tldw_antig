@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutGrid,
-    Youtube,
     FileUp,
     Settings,
     History,
@@ -38,7 +37,6 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
 
     const menuItems = [
         { name: "我的书架", icon: LayoutGrid, href: "/dashboard" },
-        { name: "YouTube 发现", icon: Youtube, href: "/discovery", disabled: true },
         { name: "任务处理中心", icon: FileUp, href: "/tasks" },
     ];
 
@@ -87,16 +85,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                             <div className="space-y-1">
                                 {menuItems.map((item) => {
                                     const isActive = pathname === item.href;
-                                    return item.disabled ? (
-                                        <button
-                                            key={item.name}
-                                            disabled
-                                            className="w-full flex items-center space-x-3 px-4 py-3 text-slate-600 rounded-xl font-medium text-sm cursor-not-allowed opacity-50 text-left"
-                                        >
-                                            <item.icon className="w-5 h-5 flex-shrink-0" />
-                                            <span>{item.name}</span>
-                                        </button>
-                                    ) : (
+                                    return (
                                         <Link
                                             key={item.name}
                                             href={item.href}

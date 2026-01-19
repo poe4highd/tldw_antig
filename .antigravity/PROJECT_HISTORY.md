@@ -1,3 +1,4 @@
+[2026-01-18 Part 27] | [UX/Refactor] | 移除侧边栏不再使用的 YouTube 发现按钮 | 移除菜单项并简化侧边栏渲染逻辑，修复因移除 disabled 属性导致的 TS 类型推导错误 | walkthrough.md
 [2026-01-18 Part 26] | [Docs/Audit] | 规范项目历史格式并同步审计规则 | 为历史记录补全 Part 编号，并将审计规范录入全局协作指南 docs/ai_agent_dev_preferences_cn.md | .antigravity/DEV_LOG.md
 [2026-01-18 Part 25] | [Optimization/Infra] | GPU 加速实测与自适应引擎上线 | mlx-whisper 解析 1138 个片段仅耗时 47s，确认 GPU 加速生效且格式兼容 | archive/log_20260118_25.md
 [2026-01-18 Part 24] | [Tool] | 重处理脚本支持参数控制 | 修改 batch_reprocess.py 支持命令行指定视频数量，默认值调优为 1 以支持快速验证 | archive/log_20260118_24.md
