@@ -1,3 +1,5 @@
+[2026-01-19 Part 14] | [FEAT/PERF] | 转录模型默认值升级 | 将系统默认模型统一改为 large-v3-turbo 并更新缓存隔离机制与代码推送 | .antigravity/DEV_LOG.md
+
 [2026-01-19 Part 13] | [FEATURE] | 字幕比较工具二期 | 实现三路对齐（引入 SRV1 地面真值）与内置登录安全 UI | .antigravity/DEV_LOG.md
 [2026-01-19 Part 12] | [FEATURE] | 开发者字幕比较工具 | 实现双模型字幕对齐比较页面，支持多模型转录结果的同步校对 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 11] | [CLEANUP] | 项目文档与验证文件深度整理 | 清理冗余验证报告，确立 docs 与 validation 目录分工，更新模型管理策略并推送代码 | walkthrough.md

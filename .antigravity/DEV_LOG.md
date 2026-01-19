@@ -1,3 +1,24 @@
+# 2026-01-19 开发日志 (Part 14)
+
+## 任务：将系统默认转录模型切换至 large-v3-turbo
+
+### 1. 变更背景
+- **目的**：利用 Whisper large-v3-turbo 模型在 Mac GPU (MLX) 下的极致性能，显著提升用户的转录等待体验。
+- **历史约束**：此前系统在不同入口（Local/Cloud）分别硬编码了 `base` 或 `large-v3`，导致性能与质量不均衡。
+
+### 2. 执行内容
+- **核心逻辑更新**：
+    - 修改 `backend/transcriber.py`，将 `get_faster_whisper_model`、`transcribe_local` 及 `transcribe_audio` 的默认 `model_size` 统一改为 `large-v3-turbo`。
+    - 在 `model_mapping` 中增加/重定向，确保请求 `medium` 或 `large-v3` 时默认由更高效的 `large-v3-turbo` 响应。
+- **缓存隔离**：
+    - 修改 `backend/main.py` 中的 `cache_key` 前缀为 `large-v3-turbo`。此举有助于区分旧版本模型生成的字幕缓存，确保用户在更新后触发全新的转录流程。
+- **源码管理**：执行代码提交并推送到 GitHub 远程仓库。
+
+### 3. 验证结果
+- **代码审计**：确认 `transcriber.py` 内部所有关键工厂函数的默认值均已对齐。
+- **缓存确认**：后端 `main.py` 逻辑已能根据新 Key 生成 `cache/` 文件。
+
+---
 # 2026-01-19 开发日志 (Part 13)
 
 ## 任务：字幕比较工具二期：三路对齐与安全升级
