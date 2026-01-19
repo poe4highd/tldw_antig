@@ -38,7 +38,12 @@ export default function ProjectHistoryPage() {
             try {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/project-history`);
                 const data = await res.json();
-                setHistory(data);
+                if (Array.isArray(data)) {
+                    setHistory(data);
+                } else {
+                    console.error("Project history data is not an array:", data);
+                    setHistory([]);
+                }
             } catch (err) {
                 console.error("Failed to fetch project history:", err);
             } finally {

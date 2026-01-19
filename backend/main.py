@@ -436,6 +436,32 @@ async def get_history(user_id: str = None):
         }
     }
 
+@app.get("/project-history")
+async def get_project_history():
+    history_path = os.path.join(os.path.dirname(__file__), "..", ".antigravity", "PROJECT_HISTORY.md")
+    if not os.path.exists(history_path):
+        return []
+    
+    items = []
+    try:
+        with open(history_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            for line in lines:
+                if "|" in line:
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 5:
+                        items.append({
+                            "date": parts[0].strip("[]"),
+                            "category": parts[1].strip("[]"),
+                            "task": parts[2],
+                            "description": parts[3],
+                            "log_file": parts[4]
+                        })
+    except Exception as e:
+        print(f"Error parsing project history: {e}")
+        
+    return items
+
 @app.get("/dev-docs")
 async def list_dev_docs():
     docs = []
