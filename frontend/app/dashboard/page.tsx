@@ -209,8 +209,8 @@ export default function DashboardPage() {
                 {/* Header Section */}
                 <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">见地</h1>
-                        <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您最近的知识处理记录。</p>
+                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">我的书架</h1>
+                        <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您的核心知识库。</p>
                     </div>
                     <Link href="/tasks" className="flex items-center justify-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
                         <Plus className="w-5 h-5" />
@@ -262,12 +262,16 @@ export default function DashboardPage() {
                         <div className="h-4 w-48 bg-slate-900 rounded" />
                     </div>
                 ) : videos.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-900/20 border border-dashed border-slate-800 rounded-3xl">
-                        <p className="text-slate-500 font-medium">暂无处理记录</p>
-                        <button className="mt-4 text-indigo-400 text-sm font-bold flex items-center justify-center mx-auto space-x-2">
-                            <Plus className="w-4 h-4" />
-                            <span>立即开始第一次阅读</span>
-                        </button>
+                    <div className="text-center py-20 bg-slate-900/10 border border-dashed border-slate-800 rounded-[2.5rem] flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-4 text-slate-700">
+                            <Plus className="w-8 h-8" />
+                        </div>
+                        <p className="text-slate-400 font-bold text-lg mb-2">书架空空如也</p>
+                        <p className="text-slate-600 text-sm mb-8 font-medium">立即添加第一个视频或音频，开启深度学习之旅。</p>
+                        <Link href="/tasks" className="flex items-center justify-center space-x-2 px-8 py-3.5 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:scale-[1.05] transition-all shadow-xl shadow-indigo-500/20 active:scale-95 leading-none">
+                            <Plus className="w-5 h-5" />
+                            <span>立即添加处理任务</span>
+                        </Link>
                     </div>
                 ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">

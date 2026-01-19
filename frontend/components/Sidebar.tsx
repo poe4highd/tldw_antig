@@ -37,7 +37,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
 
     const menuItems = [
-        { name: "见地", icon: LayoutGrid, href: "/dashboard" },
+        { name: "我的书架", icon: LayoutGrid, href: "/dashboard" },
         { name: "YouTube 发现", icon: Youtube, href: "/discovery", disabled: true },
         { name: "任务处理中心", icon: FileUp, href: "/tasks" },
     ];

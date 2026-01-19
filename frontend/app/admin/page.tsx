@@ -34,7 +34,7 @@ export default function AdminInsightPage() {
                 <div>
                     <Link href="/dashboard" className="inline-flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 text-xs font-bold uppercase tracking-widest mb-4 group transition-colors">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span>返回见地</span>
+                        <span>返回书架</span>
                     </Link>
                     <h1 className="text-4xl font-black tracking-tight mb-2">管理数据驾驶舱</h1>
                     <p className="text-slate-500 text-sm font-medium">全站运营热度与用户行为深度透视 (Mock Presentation)</p>

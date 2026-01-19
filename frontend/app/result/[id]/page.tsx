@@ -263,7 +263,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
                 <h1 className="text-2xl font-bold text-slate-200 mb-4">糟糕！出错了</h1>
                 <p className="text-slate-400 mb-8">{error || "找不到该报告"}</p>
-                <Link href="/dashboard" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">返回见地</Link>
+                <Link href="/dashboard" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">返回书架</Link>
             </div>
         );
     }
