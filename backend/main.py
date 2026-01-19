@@ -162,7 +162,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
 
         # 2. Transcribe
         # Include model size and prompt in cache key to allow re-processing with improvements
-        cache_key = f"{video_id}_{mode}_large-v3"
+        cache_key = f"{video_id}_{mode}_large-v3-turbo"
         cache_sub_path = f"{CACHE_DIR}/{cache_key}_raw.json"
         
         if os.path.exists(cache_sub_path):

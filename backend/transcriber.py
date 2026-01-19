@@ -18,7 +18,7 @@ def is_apple_silicon():
     """检测是否为 Apple Silicon (Mac M1/M2/M3)"""
     return sys.platform == "darwin" and platform.machine() == "arm64"
 
-def get_faster_whisper_model(model_size="base"):
+def get_faster_whisper_model(model_size="large-v3-turbo"):
     from faster_whisper import WhisperModel
     if f"faster_{model_size}" not in _model_cache:
         print(f"--- Loading faster-whisper model ({model_size}) on CPU... ---")
@@ -200,13 +200,13 @@ def transcribe_funasr(file_path: str, model_name="iic/SenseVoiceSmall"):
     
     return results
 
-def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str = "large-v3"):
+def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str = "large-v3-turbo"):
     # Map friendly names to actual model paths
     model_mapping = {
         "large-v3-turbo": "large-v3-turbo", # mlx-whisper uses direct names
         "turbo": "large-v3-turbo",
-        "medium": "medium",
-        "large-v3": "large-v3"
+        "medium": "large-v3-turbo",
+        "large-v3": "large-v3-turbo"
     }
     
     actual_model = model_mapping.get(model_size, model_size)
@@ -289,7 +289,7 @@ def transcribe_cloud(file_path: str, initial_prompt: str = None):
         })
     return results
 
-def transcribe_audio(file_path: str, mode: str = "cloud", initial_prompt: str = None, model_size: str = "large-v3"):
+def transcribe_audio(file_path: str, mode: str = "cloud", initial_prompt: str = None, model_size: str = "large-v3-turbo"):
     if mode == "local":
         # Check if it's a FunASR model
         if model_size in ["paraformer", "sensevoice", "Paraformer-zh", "SenseVoiceSmall"]:
