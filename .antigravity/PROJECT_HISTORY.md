@@ -1,4 +1,7 @@
-[2026-01-18] | [Refactor/Brand] | 品牌再升级：“见地”更名为“我的书架” | 进一步优化仪表盘（Dashboard）文案为“我的书架”，并强化新用户添加任务的引导体验 | archive/log_20260118_21.md
+[2026-01-18] | [Optimization/Infra] | GPU 加速实测与自适应引擎上线 | mlx-whisper 解析 1138 个片段仅耗时 47s，确认 GPU 加速生效且格式兼容 | archive/log_20260118_25.md
+[2026-01-18] | [Tool] | 重处理脚本支持参数控制 | 修改 batch_reprocess.py 支持命令行指定视频数量，默认值调优为 1 以支持快速验证 | archive/log_20260118_24.md
+[2026-01-18] | [Planning/Infra] | 多用户并发支持评估 | 完成 task_id 冲突、资源争用、文件 IO 竞争的深度诊断，并制定 UUID 与任务队列优化方案 | implementation_plan.md
+[2026-01-18] | [Optimization/LLM] | 强化标题关键词权重提示词 | 针对纠错失败案例，引入“标题权重优先”与“拼音模糊匹配”指令，强制修正与标题不一致的同音异义词 | archive/log_20260118_23.md
 [2026-01-18] | [UX/UI] | 手机布局优化 | 完成全站侧边栏组件化与移动端响应式适配，优化结果页粘性布局。 | walkthrough.md
 [2026-01-18] | [Fix/Infra] | 实现开发与生产环境彻底分离 | 创建 utils/api.ts 实现环境感知 URL，修复 Google Auth 登录后跳转生产域名的隔离问题 | walkthrough.md
 [2026-01-18] | [Feature/Auth] | 实现神奇登录链接 (Magic Link) | 通过 Supabase 实现无密码邮件登录，包含前端 handleEmailLogin 逻辑与 Loading/反馈 UI | walkthrough.md

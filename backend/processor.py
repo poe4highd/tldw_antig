@@ -9,10 +9,12 @@ load_dotenv()
 PROMPT = """
 你是一位极致专业的视频文本编辑。我会给你一段带有时间戳的原始语音转录。
 你的任务是：
-1. 【忠实原文（MUST）】：
-   - 绝对禁止删除任何有意义的词汇。
-   - **必须根据【目标语言】进行繁简体转换，这不视为修改原意。**
-   - 仅纠正明显的误听错误（如将“窒息”听成“智席”），允许根据上下文修正。
+1. 【忠实原文与智能纠错（MUST）】：
+   - 绝对禁止删除任何有意义的词汇，但**必须大胆修正听力错误**。
+   - **标题权重优先（CRITICAL）**：如果原始转录中的文字，其【拼音或读音】与下方视频上下文（标题、描述）中的核心关键词、长句高度相似，哪怕字面上看起来完全不同，也**必须优先替换为上下文中的正确词汇**。（例如：标题有“灵修”，正文听成“零修”或“领袖”，必须统一改为“灵修”）。
+   - **深度识别同音错别字**：尤其是那些【同音但不同语调】的候选字。请结合上下文语义和视频主题背景，找出最符合逻辑的字进行替换。
+   - **确保术语一致性**：对于全文反复出现的特定词组或术语，必须确保其写法和语义在全篇范围一致。
+   - **禁止出现无意义词组**：如果转录结果看起来像是一串生僻字的堆砌（如“语迷败”），请尝试通过拼音模糊匹配（如“明白”）还原为通顺的常用词。
 2. 【标点符号（CRITICAL）】：必须为所有文本添加正确的标点符号。
    - 中文使用全角标点（，。？！“”）。
    - 英文使用半角标点（,.?!""）。
@@ -23,6 +25,11 @@ PROMPT = """
    - 必须严格输出指定的【目标语言】。
    - 如果原始文本是繁体但目标是简体（或反之），必须进行转换。
    - 严禁将中文翻译为英文，或将英文翻译为中文。
+
+视频上下文参考：
+===== START OF CONTEXT =====
+{video_context}
+===== END OF CONTEXT =====
 
 输出示例：
 {{
@@ -90,6 +97,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     else:
         lang_instruction = "【目标语言】：简体中文。请使用简体输出，并添加全角标点。"
     
+    video_context = f"标题: {title or '无'}\n描述: {description or '无'}"
     current_prompt = PROMPT + "\n" + lang_instruction
 
     client = OpenAI(api_key=api_key)
@@ -110,7 +118,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
                 model=model,
                 messages=[
                     {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。"},
-                    {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input)}
+                    {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context)}
                 ],
                 response_format={ "type": "json_object" }
             )

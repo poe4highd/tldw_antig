@@ -12,7 +12,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), '../results')
 
-def get_recent_files(n=5):
+def get_recent_files(n=1):
     files = glob.glob(os.path.join(RESULTS_DIR, "*.json"))
     # Exclude status and error files
     files = [f for f in files if not f.endswith("_status.json") and not f.endswith("_error.json")]
@@ -55,7 +55,15 @@ def reprocess(file_path):
     print("Success.")
 
 if __name__ == "__main__":
-    recent_files = get_recent_files(5)
+    num_to_reprocess = 1
+    if len(sys.argv) > 1:
+        try:
+            num_to_reprocess = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid argument: {sys.argv[1]}. Using default of 1.")
+            print("Usage: python tests/batch_reprocess.py [number_of_files]")
+    
+    recent_files = get_recent_files(num_to_reprocess)
     print(f"Found {len(recent_files)} recent files to reprocess.")
     for f in recent_files:
         reprocess(f)
