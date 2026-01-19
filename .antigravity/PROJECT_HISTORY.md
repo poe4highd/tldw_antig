@@ -1,3 +1,4 @@
+[2026-01-19 Part 2] | [TOOL] | 字幕对比评估系统 | 实现 compare_subs.py 脚本计算 CER 并统计错误词频，完善量化评估文档 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 1] | [TOOL] | YouTube 字幕下载脚本 | 开发独立的字幕下载 CLI 工具并完善文档 | log_20260119.md
 [2026-01-18 Part 27] | [UX/Refactor] | 移除侧边栏不再使用的 YouTube 发现按钮 | 移除菜单项并简化侧边栏渲染逻辑，修复因移除 disabled 属性导致的 TS 类型推导错误 | walkthrough.md
 [2026-01-18 Part 26] | [Docs/Audit] | 规范项目历史格式并同步审计规则 | 为历史记录补全 Part 编号，并将审计规范录入全局协作指南 docs/ai_agent_dev_preferences_cn.md | .antigravity/DEV_LOG.md

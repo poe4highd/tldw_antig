@@ -38,3 +38,22 @@ python3 backend/scripts/download_subs.py dQw4w9WgXcQ --outdir ./mylab
 
 ## 开发者说明
 该脚本主要用于收集真实视频的字幕作为测试用例，配合 `backend/tests/` 下的其他测试脚本使用。
+
+## 字幕对比评估
+
+该脚本用于量化 AI 转录结果与 YouTube 官方字幕（基准）之间的差异。
+
+### 使用方法
+```bash
+python3 backend/scripts/compare_subs.py \
+  --gt backend/tests/data/QVBpiuph3rM.zh-CN.srv1 \
+  --pred backend/results/1768792953.json
+```
+
+### 核心指标
+- **CER (Character Error Rate)**：字符错误率。计算方法为 `(替换+遗漏+插入) / 基准总字数`。
+- **准确率**：即 `1 - CER`。
+- **Top N 错误词频**：自动统计最频繁出现的漏填或错填字，直观展现 AI 的薄弱项（如同音字错误）。
+
+### 开发者建议
+- 在调整 AI 提示词（Prompt）或更换模型后，应运行此脚本进行回归测试，确保 CER 指标呈下降趋势。
