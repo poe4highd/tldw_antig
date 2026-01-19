@@ -1,3 +1,8 @@
+[2026-01-19 Part 10] | [FIX/PERF] | SenseVoice 性能突破 | 集成 sherpa-onnx + VAD, 37分钟音频推理从 3h+ 缩短至 55s (提升约 200 倍)，资源占用降低 80% | .antigravity/DEV_LOG.md
+[2026-01-19 Part 9] | [FAIL] | SenseVoice 性能验证 | 确认为不可用 (Aborted after 3h): Mac CPU 推理效率极低 (<0.2x RTF)，彻底放弃 FunASR 本地集成计划 | .antigravity/DEV_LOG.md
+[2026-01-19 Part 8] | [PERF] | SenseVoice 性能调优 | 解除了 ncpu 单核限制并将 batch_size_s 从 1 提升至 60，CPU 利用率从 14% 提升至 200%+ | .antigravity/DEV_LOG.md
+[2026-01-19 Part 7] | [SUPPORT] | SenseVoice 模型加载疑难排查 | 解释了 FunASR 模型首次运行时约 900MB 的下载行为，澄清了磁盘占用与内存占用的区别 | .antigravity/DEV_LOG.md
+[2026-01-19 Part 6] | [VERIFICATION] | 字幕准确度多模型横向对标 | 引入 Whisper-Turbo/Medium 验证，Turbo 表现惊艳 (CER 11.27%)，确认 FunASR 系列在本地 Mac 环境的 OOM 限制 | walkthrough.md
 [2026-01-19 Part 5] | [TOOL] | 评估系统精准化 | 集成 zhconv 实现全量简繁对齐与代词归一化，CER 指标显著净化 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 4] | [TOOL] | 评估系统完善 | 实现报告自动持久化，重命名 docs/subtitle_utils.md 并完善工具集文档 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 3] | [TOOL] | 评估系统优化 | 实现数字归一化与 Whisper 原始缓存解析支持，引入基础简繁对齐逻辑 | .antigravity/DEV_LOG.md

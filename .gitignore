@@ -6,6 +6,8 @@ __pycache__/
 backend/results/
 backend/downloads/
 backend/cache/
+backend/models/
+!backend/models/README.md
 backend/.env
 
 # Node

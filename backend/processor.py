@@ -29,6 +29,10 @@ PROMPT = """
 视频上下文参考：
 ===== START OF CONTEXT =====
 {video_context}
+核心关键词（必须优先匹配）：{keywords}
+-----
+上一段上下文参考（跨块一致性）：
+{context_last_chunk}
 ===== END OF CONTEXT =====
 
 输出示例：
@@ -77,6 +81,24 @@ def detect_language_preference(title, description):
     
     return "simplified"
 
+def extract_keywords(title, description=""):
+    """
+    一个简单的关键词提取逻辑。
+    目前主要从标题中提取长于2个字符的词，或者预定义的领域关键词。
+    """
+    if not title:
+        return ""
+    
+    # 移除简单助词（示例）
+    stop_words = ["如何", "怎么", "一个", "这种", "关于", "我们可以", "之", "与", "或"]
+    
+    # 使用正则提取可能的名词或术语 (简单启发式：非助词的长词)
+    # 这里可以根据需要接入更复杂的 NLP
+    words = re.findall(r'[\u4e00-\u9fa5]{2,}', title)
+    keywords = [w for w in words if w not in stop_words]
+    
+    return ", ".join(keywords)
+
 def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-mini"):
     """
     使用 LLM 将原始碎片段合并为自然段落。支持超长文本分段处理。
@@ -98,6 +120,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
         lang_instruction = "【目标语言】：简体中文。请使用简体输出，并添加全角标点。"
     
     video_context = f"标题: {title or '无'}\n描述: {description or '无'}"
+    keywords = extract_keywords(title, description)
     current_prompt = PROMPT + "\n" + lang_instruction
 
     client = OpenAI(api_key=api_key)
@@ -108,6 +131,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     
     all_paragraphs = []
     total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    last_context = "无（这是第一段）"
 
     print(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks ---")
 
@@ -118,7 +142,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
                 model=model,
                 messages=[
                     {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。"},
-                    {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context)}
+                    {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context, keywords=keywords, context_last_chunk=last_context)}
                 ],
                 response_format={ "type": "json_object" }
             )
@@ -163,13 +187,22 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
                  print(f"Warning: No paragraphs found in chunk {idx+1} JSON. Keys: {list(data.keys())}")
 
             # 结构化
+            chunk_results_text = []
             for p in chunk_paras:
                 if isinstance(p, dict) and "sentences" in p:
                     all_paragraphs.append(p)
+                    for s in p["sentences"]: chunk_results_text.append(s.get("text", ""))
                 elif isinstance(p, dict) and "text" in p:
                     all_paragraphs.append({"sentences": [{"start": p.get("start", 0), "text": p["text"]}]})
+                    chunk_results_text.append(p["text"])
                 elif isinstance(p, str):
                     all_paragraphs.append({"sentences": [{"start": 0, "text": p}]})
+                    chunk_results_text.append(p)
+            
+            # 更新上下文给下一块
+            if chunk_results_text:
+                full_text = "".join(chunk_results_text)
+                last_context = "..." + full_text[-200:] # 取最后 200 字作为下文参考
             
             print(f"Chunk {idx+1}/{len(chunks)} structured.")
 

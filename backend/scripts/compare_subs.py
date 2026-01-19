@@ -153,8 +153,15 @@ def main():
     # 路径处理
     script_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.dirname(script_dir)
+    
+    # 如果 args.outdir 是 'validation' 且 backend_dir 结尾已经是 'backend'
+    # 逻辑简化：如果不是绝对路径，则相对于 backend_dir
     val_dir = args.outdir if os.path.isabs(args.outdir) else os.path.join(backend_dir, args.outdir)
     
+    # 额外检查：防止 backend/backend 的嵌套路径 (如果 args.outdir 里已经带了 backend)
+    if "backend/validation" in val_dir and val_dir.count("backend") > 1:
+        val_dir = val_dir.replace("backend/backend", "backend")
+
     if not os.path.exists(val_dir):
         os.makedirs(val_dir)
         

@@ -161,15 +161,18 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     print(f"Failed to remove original video: {e}")
 
         # 2. Transcribe
-        cache_sub_path = f"{CACHE_DIR}/{video_id}_{mode}_raw.json"
+        # Include model size and prompt in cache key to allow re-processing with improvements
+        cache_key = f"{video_id}_{mode}_large-v3"
+        cache_sub_path = f"{CACHE_DIR}/{cache_key}_raw.json"
+        
         if os.path.exists(cache_sub_path):
             save_status(task_id, "检测到转录缓存，正在加载报告...", 50, eta=5)
             with open(cache_sub_path, "r", encoding="utf-8") as rf:
                 raw_subtitles = json.load(rf)
         else:
             save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == 'cloud' else 120)
-            print(f"--- Starting transcription for: {os.path.basename(transcription_source_path)} ---")
-            raw_subtitles = transcribe_audio(transcription_source_path, mode=mode)
+            print(f"--- Starting transcription for: {os.path.basename(transcription_source_path)} with prompt: {title} ---")
+            raw_subtitles = transcribe_audio(transcription_source_path, mode=mode, initial_prompt=title)
             with open(cache_sub_path, "w", encoding="utf-8") as wf:
                 json.dump(raw_subtitles, wf, ensure_ascii=False)
 
