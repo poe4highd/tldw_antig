@@ -563,6 +563,78 @@ async def post_comment(task_id: str, request: CommentRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/dev/compare/{video_id}")
+async def dev_compare_subtitles(video_id: str):
+    # Try to get basic video info
+    title = "Unknown"
+    thumbnail = ""
+    youtube_id = video_id if len(video_id) == 11 else None
+    media_path = ""
+    
+    try:
+        # Re-use existing get_result logic to find metadata
+        res = await get_result(video_id)
+        if res:
+            title = res.get("title", "Unknown")
+            thumbnail = res.get("thumbnail", "")
+            youtube_id = res.get("youtube_id")
+            media_path = res.get("media_path", "")
+    except Exception as e:
+        print(f"Metadata fetch failed for compare: {e}")
+
+    # Scan cache for multiple models
+    models_data = {}
+    
+    # 1. Look for Ground Truth (Reference) in tests/data
+    ref_filename = f"{video_id}.zh-CN.srv1"
+    ref_path = os.path.join("tests", "data", ref_filename)
+    if os.path.exists(ref_path):
+        try:
+            import xml.etree.ElementTree as ET
+            tree = ET.parse(ref_path)
+            root = tree.getroot()
+            ref_subs = []
+            for text_node in root.findall('text'):
+                start = float(text_node.get('start', 0))
+                dur = float(text_node.get('dur', 0))
+                ref_subs.append({
+                    "start": start,
+                    "end": start + dur,
+                    "text": text_node.text or ""
+                })
+            if ref_subs:
+                models_data["reference"] = ref_subs
+        except Exception as e:
+            print(f"Failed to parse SRV1 reference: {e}")
+
+    # 2. Look for cached models
+    if os.path.exists(CACHE_DIR):
+        for f in os.listdir(CACHE_DIR):
+            if f.startswith(video_id) and f.endswith("_raw.json"):
+                # Pattern: {video_id}_{mode}_{model}_raw.json or {video_id}_{mode}_raw.json
+                filename = f.replace("_raw.json", "")
+                parts = filename.split("_")
+                
+                # QVBpiuph3rM_local_sensevoice_raw.json -> sensevoice (index 2)
+                # QVBpiuph3rM_local_raw.json -> default
+                if len(parts) > 2:
+                    model_name = parts[2]
+                else:
+                    model_name = "default"
+                
+                try:
+                    with open(os.path.join(CACHE_DIR, f), "r", encoding="utf-8") as rf:
+                        models_data[model_name] = json.load(rf)
+                except: continue
+
+    return {
+        "title": title,
+        "thumbnail": thumbnail,
+        "youtube_id": youtube_id,
+        "media_path": media_path,
+        "models": models_data
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
