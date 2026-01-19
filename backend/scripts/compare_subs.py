@@ -155,8 +155,23 @@ def main():
     parser.add_argument("--gt", required=True, help="基准字幕路径 (.srv1 或文本)")
     parser.add_argument("--pred", required=True, help="AI 转录结果路径 (.json 或文本)")
     parser.add_argument("--top", type=int, default=10, help="显示 Top N 错误词频")
+    parser.add_argument("--outdir", default="validation", help="报告保存目录 (默认 backend/scripts/../validation)")
     
     args = parser.parse_args()
+    
+    # 路径处理
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    backend_dir = os.path.dirname(script_dir)
+    val_dir = args.outdir if os.path.isabs(args.outdir) else os.path.join(backend_dir, args.outdir)
+    
+    if not os.path.exists(val_dir):
+        os.makedirs(val_dir)
+        
+    # 推断视频 ID 和 类型
+    video_id = os.path.basename(args.gt).split('.')[0]
+    pred_basename = os.path.basename(args.pred).lower()
+    comp_type = "raw" if "raw" in pred_basename or "cache" in args.pred else "llm"
+    timestamp = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # 加载文本
     if args.gt.endswith(".srv1"):
@@ -178,35 +193,46 @@ def main():
     # 计算 CER
     cer, ops = calculate_cer(gt_text, pred_text)
     
-    print("="*40)
-    print(" 字幕评估报告")
-    print("="*40)
-    print(f"基准文件: {os.path.basename(args.gt)}")
-    print(f"预测文件: {os.path.basename(args.pred)}")
-    print(f"基准总字数: {len(clean_text(gt_text))}")
-    print(f"预测总字数: {len(clean_text(pred_text))}")
-    print("-" * 20)
-    print(f"错误率 (CER): {cer:.2%}")
-    print(f"准确率: {1-cer:.2%}")
-    print("-" * 20)
+    report = []
+    report.append("="*40)
+    report.append(" 字幕评估报告")
+    report.append("="*40)
+    report.append(f"基准文件: {os.path.basename(args.gt)}")
+    report.append(f"预测文件: {os.path.basename(args.pred)}")
+    report.append(f"基准总字数: {len(clean_text(gt_text))}")
+    report.append(f"预测总字数: {len(clean_text(pred_text))}")
+    report.append("-" * 20)
+    report.append(f"错误率 (CER): {cer:.2%}")
+    report.append(f"准确率: {1-cer:.2%}")
+    report.append("-" * 20)
     
     # 统计错误词频 (Substitution 仅限)
     substitutions = [f"{o[1]} -> {o[2]}" for o in ops if o[0] == 'S']
     counter = Counter(substitutions)
     
-    print(f"Top {args.top} 常见错字替换:")
+    report.append(f"Top {args.top} 常见错字替换:")
     for pair, count in counter.most_common(args.top):
-        print(f"  {pair}: {count} 次")
+        report.append(f"  {pair}: {count} 次")
         
     # 统计遗漏和插入
     deletions = [o[1] for o in ops if o[0] == 'D']
     insertions = [o[2] for o in ops if o[0] == 'I']
     
     if deletions:
-        print(f"\n常见遗漏字 (Top 5): {Counter(deletions).most_common(5)}")
+        report.append(f"\n常见遗漏字 (Top 5): {Counter(deletions).most_common(5)}")
     if insertions:
-        print(f"常见插入字 (Top 5): {Counter(insertions).most_common(5)}")
-    print("="*40)
+        report.append(f"常见插入字 (Top 5): {Counter(insertions).most_common(5)}")
+    report.append("="*40)
+
+    # 打印报告
+    report_content = "\n".join(report)
+    print(report_content)
+    
+    # 保存报告
+    out_file = os.path.join(val_dir, f"{video_id}_{comp_type}_{timestamp}.txt")
+    with open(out_file, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+    print(f"\n报告已保存至: {out_file}")
 
 if __name__ == "__main__":
     main()
