@@ -8,24 +8,26 @@ import {
     List,
     Plus,
     Search,
-    Settings,
-    LogOut,
     Youtube,
     FileUp,
     Share2,
     Lock,
     ArrowRight,
-    History,
-    Home
+    Menu
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from "@/utils/supabase";
 import { getApiBase } from "@/utils/api";
+import { Sidebar } from "@/components/Sidebar";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
+
+// Mock Data
+// ... (omitted if possible, but replace_file_content needs contiguous block)
+// I'll replace from the imports down to the return statement start.
 
 // Mock Data
 const MOCK_VIDEOS = [
@@ -88,9 +90,17 @@ const MOCK_VIDEOS = [
 export default function DashboardPage() {
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [searchQuery, setSearchQuery] = useState("");
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<{
+        id: string;
+        email?: string;
+        user_metadata?: {
+            full_name?: string;
+            avatar_url?: string;
+        };
+    } | null>(null);
     const [videos, setVideos] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const router = useRouter();
 
     // 1. 初始化时从 localStorage 读取偏好
@@ -172,91 +182,37 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
-            {/* Sidebar */}
-            <aside className="w-64 flex-shrink-0 border-r border-slate-900 bg-slate-950 flex flex-col z-20 sticky top-0 h-screen overflow-y-auto">
-                <div className="p-8">
-                    <Link href="/?noredirect=1" className="flex items-center space-x-3 group mb-12">
-                        <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300">
-                            <img src="/icon.png" alt="Read-Tube Logo" className="w-6 h-6" />
-                        </div>
-                        <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                            Read-Tube
-                        </span>
-                    </Link>
-
-                    <nav className="space-y-6">
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">主菜单</p>
-                            <div className="space-y-1">
-                                <button className="w-full flex items-center space-x-3 px-4 py-3 bg-indigo-500/10 text-indigo-400 rounded-xl font-bold text-sm">
-                                    <LayoutGrid className="w-5 h-5" />
-                                    <span>见地</span>
-                                </button>
-                                <button className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
-                                    <Youtube className="w-5 h-5" />
-                                    <span>YouTube 发现</span>
-                                </button>
-                                <Link href="/tasks" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
-                                    <FileUp className="w-5 h-5" />
-                                    <span>任务处理中心</span>
-                                </Link>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">系统与支持</p>
-                            <div className="space-y-1">
-
-                                <Link href="/project-history" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
-                                    <History className="w-5 h-5" />
-                                    <span>项目更新历史</span>
-                                </Link>
-                                <Link href="/settings" className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl font-medium text-sm transition-all">
-                                    <Settings className="w-5 h-5" />
-                                    <span>偏好设置</span>
-                                </Link>
-                            </div>
-                        </div>
-                    </nav>
-                </div>
-
-                <div className="mt-auto p-6 border-t border-slate-900">
-                    <div className="flex items-center space-x-3 mb-6 px-2">
-                        {user?.user_metadata?.avatar_url ? (
-                            <img
-                                src={user.user_metadata.avatar_url}
-                                alt="Avatar"
-                                className="w-10 h-10 rounded-full border-2 border-white/10 shadow-lg shadow-indigo-500/20"
-                            />
-                        ) : (
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold border-2 border-white/10 shadow-lg shadow-indigo-500/20">
-                                {user?.email?.[0].toUpperCase() || "U"}
-                            </div>
-                        )}
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-bold truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || "加载中..."}</p>
-                            <p className="text-[10px] text-slate-500 truncate">{user?.email || "已登录"}</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        <span>退出登录</span>
-                    </button>
-                </div>
-            </aside>
+            <Sidebar
+                user={user}
+                onSignOut={handleSignOut}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
 
             {/* Main Content */}
-            <main className="flex-grow min-w-0 p-10 bg-slate-950 relative">
+            <main className="flex-grow min-w-0 p-4 md:p-10 bg-slate-950 relative">
+                {/* Mobile Header */}
+                <header className="flex items-center justify-between mb-8 md:hidden">
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-2 -ml-2 text-slate-400 hover:text-white"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+                    <div className="flex items-center space-x-2">
+                        <img src="/icon.png" alt="Logo" className="w-6 h-6" />
+                        <span className="font-black tracking-tighter">Read-Tube</span>
+                    </div>
+                    <div className="w-10"></div>
+                </header>
+
                 {/* Header Section */}
-                <header className="flex items-center justify-between mb-12">
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
-                        <h1 className="text-4xl font-black tracking-tight mb-2">见地</h1>
+                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">见地</h1>
                         <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您最近的知识处理记录。</p>
                     </div>
-                    <Link href="/tasks" className="flex items-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
+                    <Link href="/tasks" className="flex items-center justify-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
                         <Plus className="w-5 h-5" />
                         <span>新建处理任务</span>
                     </Link>

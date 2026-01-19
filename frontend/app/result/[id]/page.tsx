@@ -300,9 +300,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 {/* Left Column: Video & Transcription */}
                 <div className="lg:col-span-8 lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)] flex flex-col gap-6">
                     {/* Fixed Header Group: Video, Actions, Info */}
-                    <div className="flex-shrink-0 space-y-6 sticky top-[68px] lg:static z-50 bg-slate-950 lg:bg-slate-950 py-2 lg:py-0 -mx-6 px-6 lg:mx-0 lg:px-0 transition-all lg:rounded-none shadow-xl lg:shadow-none border-b border-white/5 lg:border-none">
+                    <div className="flex-shrink-0 space-y-4 md:space-y-6 sticky top-[68px] lg:static z-40 bg-slate-950/95 backdrop-blur-md lg:backdrop-blur-none lg:bg-slate-950 py-2 md:py-0 -mx-6 px-4 md:px-0 lg:mx-0 lg:px-0 transition-all lg:rounded-none shadow-xl lg:shadow-none border-b border-white/5 lg:border-none">
                         {/* Video Player Section */}
-                        <div className="relative aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group transition-all duration-300">
+                        <div className="relative aspect-video bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group transition-all duration-300">
                             <div className="relative aspect-video group">
                                 {useLocalAudio ? (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
@@ -347,9 +347,13 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 )}
                                 <button
                                     onClick={() => setUseLocalAudio(!useLocalAudio)}
-                                    className="absolute top-6 right-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
+                                    className="absolute top-4 md:top-6 right-4 md:right-6 z-20 px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
                                 >
-                                    {useLocalAudio ? "返回 YouTube 视频" : "切换为同步音频"}
+                                    {useLocalAudio ? (
+                                        <span className="flex items-center gap-2"><Play className="w-3 h-3" /> YouTube</span>
+                                    ) : (
+                                        <span className="flex items-center gap-2"><ArrowDownToLine className="w-3 h-3" /> 同步音频</span>
+                                    )}
                                 </button>
 
                             </div>
@@ -357,19 +361,19 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                         {/* Action Bar Below Video */}
                         <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-2xl backdrop-blur-sm">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1.5 md:space-x-2">
                                 <button
                                     onClick={copyFullText}
-                                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                                    className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group"
                                 >
-                                    {copyStatus ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400 group-hover:text-white" />}
+                                    {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
                                     <span>{copyStatus ? "已复制" : "复制全文"}</span>
                                 </button>
                                 <button
                                     onClick={downloadSRT}
-                                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                                    className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group"
                                 >
-                                    <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
                                     <span>SRT</span>
                                 </button>
                                 <button
@@ -383,9 +387,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         a.download = `${result.title}.txt`;
                                         a.click();
                                     }}
-                                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-2 group"
+                                    className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
                                 >
-                                    <Download className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
                                     <span>TXT</span>
                                 </button>
                             </div>
@@ -393,26 +397,26 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 <button
                                     onClick={handleToggleLike}
                                     className={cn(
-                                        "px-5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-sm",
+                                        "px-4 md:px-5 py-2 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
                                         isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-indigo-500 hover:border-indigo-500"
                                     )}
                                 >
-                                    <ThumbsUp className={cn("w-4 h-4", isLiked && "fill-current")} />
+                                    <ThumbsUp className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
                                     <span>{likeCount}</span>
                                 </button>
                             </div>
                         </div>
 
                         {/* Video Info */}
-                        <div className="px-4">
-                            <h2 className="text-2xl font-black mb-2 tracking-tight">{result.title}</h2>
-                            <div className="flex items-center space-x-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                <span>{viewCount.toLocaleString()} 次阅读</span>
-                                <span>自动生成于 {(() => {
+                        <div className="px-4 md:px-0">
+                            <h2 className="text-xl md:text-2xl font-black mb-1 md:mb-2 tracking-tight line-clamp-2 md:line-clamp-none leading-tight">{result.title}</h2>
+                            <div className="flex items-center space-x-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest">
+                                <span>{viewCount.toLocaleString()} VIEWS</span>
+                                <span>DATE: {(() => {
                                     const date = result.mtime ? new Date(result.mtime) : new Date();
                                     return date.toLocaleDateString('zh-CN', {
                                         year: 'numeric', month: '2-digit', day: '2-digit'
-                                    }).replace(/\//g, '-');
+                                    }).replace(/\//g, '.');
                                 })()}</span>
                             </div>
                         </div>
@@ -425,11 +429,11 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         data-testid="subtitle-container"
                         className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth"
                     >
-                        <div className="absolute top-8 right-8 text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
+                        <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
                             TLDW
                         </div>
 
-                        <div className="space-y-12 relative z-10">
+                        <div className="space-y-8 md:space-y-12 relative z-10">
                             {(() => {
                                 const allSentences = result.paragraphs?.flatMap(p => p.sentences) || [];
                                 return result.paragraphs?.map((p: Paragraph, pIdx: number) => (
@@ -468,12 +472,12 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     </div>
                     {/* Resume Follow Button */}
                     {isAutoScrollPaused && (
-                        <div className="fixed bottom-10 right-10 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="fixed bottom-6 md:bottom-10 right-6 md:right-10 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <button
                                 onClick={resumeAutoScroll}
-                                className="flex items-center space-x-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-105 active:scale-95 font-bold"
+                                className="flex items-center space-x-2 px-5 md:px-6 py-2.5 md:py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-500/50 transition-all transform hover:scale-105 active:scale-95 font-black text-xs md:text-sm"
                             >
-                                <ArrowDownToLine className="w-5 h-5" />
+                                <ArrowDownToLine className="w-4 h-4 md:w-5 h-5" />
                                 <span>同步播放进度</span>
                             </button>
                         </div>

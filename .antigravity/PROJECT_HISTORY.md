@@ -1,3 +1,4 @@
+[2026-01-18] | [UX/UI] | 手机布局优化 | 完成全站侧边栏组件化与移动端响应式适配，优化结果页粘性布局。 | walkthrough.md
 [2026-01-18] | [Fix/Infra] | 实现开发与生产环境彻底分离 | 创建 utils/api.ts 实现环境感知 URL，修复 Google Auth 登录后跳转生产域名的隔离问题 | walkthrough.md
 [2026-01-18] | [Feature/Auth] | 实现神奇登录链接 (Magic Link) | 通过 Supabase 实现无密码邮件登录，包含前端 handleEmailLogin 逻辑与 Loading/反馈 UI | walkthrough.md
 [2026-01-18] | [Fix/UX] | 修复同步按钮与移动端遮挡 | 补全滚动监听事件触发同步按钮显示，优化吸顶布局消除字幕“钻入”感 | walkthrough.md

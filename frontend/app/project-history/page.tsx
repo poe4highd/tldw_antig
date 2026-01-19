@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ArrowLeft, History, FileText, Tag, Calendar, Menu } from "lucide-react";
 import Link from "next/link";
-import { ArrowLeft, History, FileText, Tag, Calendar } from "lucide-react";
+import { Sidebar } from "@/components/Sidebar";
+import { supabase } from "@/utils/supabase";
+import { useRouter } from "next/navigation";
 
 interface HistoryItem {
     date: string;
@@ -15,9 +18,23 @@ interface HistoryItem {
 export default function ProjectHistoryPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const router = useRouter();
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        router.push("/");
+    };
 
     useEffect(() => {
-        const fetchHistory = async () => {
+        const fetchUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setUser(session?.user || null);
+        };
+        fetchUser();
+
+        const fetchHistoryItems = async () => {
             try {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/project-history`);
                 const data = await res.json();
@@ -28,83 +45,101 @@ export default function ProjectHistoryPage() {
                 setLoading(false);
             }
         };
-        fetchHistory();
+        fetchHistoryItems();
     }, []);
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
-            {/* Header */}
-            <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
-                            <ArrowLeft className="w-5 h-5 text-slate-500" />
-                        </Link>
-                        <div className="flex items-center gap-2">
-                            <History className="w-5 h-5 text-blue-500" />
-                            <h1 className="text-lg font-bold text-slate-900 dark:text-white">项目更新历史</h1>
+        <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
+            <Sidebar
+                user={user}
+                onSignOut={handleSignOut}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+
+            <main className="flex-grow min-w-0 bg-slate-950 text-slate-50 font-sans pb-20 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-950 to-slate-950">
+                <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
+                    {/* Mobile Header */}
+                    <header className="flex items-center justify-between mb-8 md:hidden">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-2 -ml-2 text-slate-400 hover:text-white"
+                        >
+                            <Menu className="w-6 h-6" />
+                        </button>
+                        <div className="flex items-center space-x-2">
+                            <img src="/icon.png" alt="Logo" className="w-6 h-6" />
+                            <span className="font-black tracking-tighter text-lg">Read-Tube</span>
                         </div>
-                    </div>
-                    <div className="text-sm text-slate-400 font-mono">
-                        .antigravity/PROJECT_HISTORY.md
-                    </div>
-                </div>
-            </div>
+                        <div className="w-10"></div>
+                    </header>
 
-            <div className="max-w-4xl mx-auto px-6 pt-6">
-                {loading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="h-32 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-xl" />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="relative space-y-4">
-                        {/* Timeline Line */}
-                        <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" />
+                    <header className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <Link href="/dashboard" className="p-3 bg-slate-900 border border-slate-800 rounded-2xl hover:border-indigo-500/50 transition-all group hidden md:block">
+                                <ArrowLeft className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" />
+                            </Link>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-black tracking-tight">项目更新历史</h1>
+                                <p className="text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">记录成长的每一步 · .antigravity/PROJECT_HISTORY.md</p>
+                            </div>
+                        </div>
+                    </header>
 
-                        {history.map((item, idx) => (
-                            <div key={idx} className="relative md:pl-12 group">
-                                {/* Timeline Dot */}
-                                <div className="absolute left-5.5 top-5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-4 ring-white dark:ring-slate-900 hidden md:block group-hover:scale-125 transition-transform" />
+                    {loading ? (
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="h-32 bg-slate-900/40 border border-slate-800/50 animate-pulse rounded-3xl" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="relative space-y-6">
+                            {/* Timeline Line */}
+                            <div className="absolute left-[26px] top-0 bottom-0 w-px bg-slate-800/50 hidden md:block" />
 
-                                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                                        <div className="flex items-center gap-3">
-                                            <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded-full uppercase tracking-wider">
-                                                {item.category}
-                                            </span>
-                                            <h2 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors">
-                                                {item.task}
-                                            </h2>
+                            {history.map((item, idx) => (
+                                <div key={idx} className="relative md:pl-16 group">
+                                    {/* Timeline Dot */}
+                                    <div className="absolute left-[22px] top-8 w-2 h-2 rounded-full bg-indigo-500 ring-8 ring-slate-950 hidden md:block group-hover:scale-125 transition-all duration-300" />
+
+                                    <div className="bg-slate-900/40 border border-slate-800/50 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-xl hover:border-indigo-500/30 transition-all duration-300 group-hover:-translate-y-1">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-indigo-500/20">
+                                                    {item.category}
+                                                </span>
+                                                <h2 className="text-lg md:text-xl font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">
+                                                    {item.task}
+                                                </h2>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="w-4 h-4 text-slate-600" />
+                                                    {item.date}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                                            <div className="flex items-center gap-1.5">
-                                                <Calendar className="w-3.5 h-3.5" />
-                                                {item.date}
+
+                                        <p className="text-slate-400 leading-relaxed mb-6 font-medium">
+                                            {item.description}
+                                        </p>
+
+                                        <div className="flex items-center justify-between border-t border-slate-800/50 pt-4 mt-auto">
+                                            <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-600 uppercase tracking-tighter">
+                                                <FileText className="w-3.5 h-3.5" />
+                                                {item.log_file}
+                                            </div>
+                                            <div className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                                # RECORD {history.length - idx}
                                             </div>
                                         </div>
                                     </div>
-
-                                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-snug mb-3">
-                                        {item.description}
-                                    </p>
-
-                                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3 mt-auto">
-                                        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-                                            <FileText className="w-3 h-3" />
-                                            {item.log_file}
-                                        </div>
-                                        <div className="text-[10px] text-slate-300 dark:text-slate-600 italic">
-                                            # Record {history.length - idx}
-                                        </div>
-                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </main>
         </div>
     );
 }
