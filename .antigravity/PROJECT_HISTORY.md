@@ -1,3 +1,4 @@
+[2026-01-19 Part 11] | [CLEANUP] | 项目文档与验证文件深度整理 | 清理冗余验证报告，确立 docs 与 validation 目录分工，更新模型管理策略并推送代码 | walkthrough.md
 [2026-01-19 Part 10] | [FIX/PERF] | SenseVoice 性能突破 | 集成 sherpa-onnx + VAD, 37分钟音频推理从 3h+ 缩短至 55s (提升约 200 倍)，资源占用降低 80% | .antigravity/DEV_LOG.md
 [2026-01-19 Part 9] | [FAIL] | SenseVoice 性能验证 | 确认为不可用 (Aborted after 3h): Mac CPU 推理效率极低 (<0.2x RTF)，彻底放弃 FunASR 本地集成计划 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 8] | [PERF] | SenseVoice 性能调优 | 解除了 ncpu 单核限制并将 batch_size_s 从 1 提升至 60，CPU 利用率从 14% 提升至 200%+ | .antigravity/DEV_LOG.md

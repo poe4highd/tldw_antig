@@ -1,3 +1,21 @@
+# 2026-01-19 开发日志 (Part 11)
+
+## 任务：项目文档与验证文件深度清理 (Audit & Cleanup)
+
+### 1. 目录结构规范化
+- **`backend/validation/`**: 统一存放详细的验证报告 (`.txt`) 和 `subtitle_improvement_comparison.md`（技术细节大表）。
+- **`docs/`**: 存放 `subtitle_improvement_walkthrough.md`（开发路径记录）和 `subtitle_improvement_results.md`（修改后的精华性能总结）。
+- **清理动作**：删除了 `docs/` 下的 `.txt` 冗余报告和冗余的对比文档。
+
+### 2. 模型管理策略确立
+- **README 建立**：在 `backend/models/README.md` 中记录了 SenseVoice ONNX 和 Silero VAD 的下载来源及路径规范。
+- **Git 策略**：更新 `.gitignore`，严格禁止大模型文件入库，仅保留 `README.md` 作为文档指引。
+
+### 3. 最终代码同步
+- 已执行全量 Git 提交与推送，标志着 SenseVoice 高效集成后的首个稳定版本完成归档。
+
+---
+
 # 2026-01-19 开发日志 (Part 10)
 
 ## 任务：SenseVoice 浴火重生 - Sherpa-ONNX + VAD 集成 (Breakthrough)
