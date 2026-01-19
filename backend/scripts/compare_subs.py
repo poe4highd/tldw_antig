@@ -7,49 +7,40 @@ import argparse
 import xml.etree.ElementTree as ET
 from collections import Counter
 
-def simple_t2s(text):
-    """
-    极简繁转简逻辑，涵盖 Whisper 常出的高频繁体字。
-    """
-    t2s_map = {
-        '個': '个', '這': '这', '麼': '么', '見': '见', '為': '为',
-        '學': '学', '裡': '里', '們': '们', '樣': '样', '說': '说',
-        '義': '义', '會': '会', '過': '过', '開': '开', '對': '对',
-        '來': '来', '將': '将', '與': '与', '樹': '树', '災': '栽',
-        '後': '后', '結': '结', '葉': '叶', '乾': '干', '盡': '尽',
-        '課': '课', '調': '调', '整': '整', '內': '内', '與': '与',
-        '習': '习', '維': '维', '區': '区', '別': '别', '點': '点'
-    }
-    for t, s in t2s_map.items():
-        text = text.replace(t, s)
-    return text
+import zhconv
 
 def clean_text(text):
     """
-    清洗文本：移除标点符号、空格，统一转为小写。
-    新增：数字归一化、繁简转换（针对比较原始缓存场景）。
+    清理文本：
+    1. 统一转为简体 (使用 zhconv)
+    2. 移除所有非中文字符、数字和字母
+    3. 人称代词归一化: 祂、它 -> 他
+    4. 移除空格和常见标点
     """
     if not text:
         return ""
     
-    # 执行简繁转换（优先）
-    text = simple_t2s(text)
+    # 1. 工业级简繁转换
+    text = zhconv.convert(text, 'zh-hans')
     
-    # 数字映射表
+    # 2. 数字归一化 (2 -> 二)
     num_map = {
         '0': '零', '1': '一', '2': '二', '3': '三', '4': '四',
         '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'
     }
-    
-    # 移除标点符号和空格
-    text = re.sub(r'[^\w\u4e00-\u9fa5]', '', text)
-    text = text.lower()
-    
-    # 执行数字归一化
     for k, v in num_map.items():
         text = text.replace(k, v)
         
-    return text
+    # 3. 人称代词归一化 (样式对齐)
+    # 将 祂、它 统一替换为 他，避免因宗教背景或指代选择导致的 CER 误差
+    pronoun_map = {'祂': '他', '它': '他'}
+    for k, v in pronoun_map.items():
+        text = text.replace(k, v)
+
+    # 4. 移除标点、空格、特殊字符
+    text = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', text)
+    
+    return text.lower()
 
 def srv1_to_text(srv1_path):
     """

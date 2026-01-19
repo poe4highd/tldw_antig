@@ -1,3 +1,4 @@
+[2026-01-19 Part 5] | [TOOL] | 评估系统精准化 | 集成 zhconv 实现全量简繁对齐与代词归一化，CER 指标显著净化 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 4] | [TOOL] | 评估系统完善 | 实现报告自动持久化，重命名 docs/subtitle_utils.md 并完善工具集文档 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 3] | [TOOL] | 评估系统优化 | 实现数字归一化与 Whisper 原始缓存解析支持，引入基础简繁对齐逻辑 | .antigravity/DEV_LOG.md
 [2026-01-19 Part 2] | [TOOL] | 字幕对比评估系统 | 实现 compare_subs.py 脚本计算 CER 并统计错误词频，完善量化评估文档 | .antigravity/DEV_LOG.md
