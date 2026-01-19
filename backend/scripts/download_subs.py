@@ -27,7 +27,7 @@ def download_subtitles(video_input, output_dir="backend/tests/data"):
         "--write-sub",
         "--write-auto-sub",
         "--sub-format", "srv1/vtt/ttml",
-        "--sub-langs", "zh-Hans,zh,en",
+        "--sub-langs", "zh-Hans,zh,zh-CN,zh-TW,en",
         "--output", f"{output_dir}/%(id)s.%(ext)s",
         video_input
     ]
@@ -39,14 +39,17 @@ def download_subtitles(video_input, output_dir="backend/tests/data"):
         print("下载完成！")
         print(result.stdout)
         
-        # 检查下载的文件
-        # 由于 yt-dlp 可能会下载多个语言或格式，这里列出结果
+        # 提取 ID 进行匹配检查
+        import re
+        id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", video_input)
+        video_id = id_match.group(1) if id_match else video_input
+        
         files = os.listdir(output_dir)
-        downloaded = [f for f in files if video_input in f or (len(video_input) == 11 and video_input in f)]
+        downloaded = [f for f in files if video_id in f]
         if downloaded:
-            print(f"已下载文件: {downloaded}")
+            print(f"已下载文件: {', '.join(downloaded)}")
         else:
-            print("未发现匹配的字幕文件。请检查该视频是否有字幕。")
+            print(f"未在 {output_dir} 中发现包含 {video_id} 的字幕文件。")
             
     except subprocess.CalledProcessError as e:
         print(f"执行出错: {e}")
@@ -60,6 +63,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    # 如果 input 是 URL 且包含 v= 参数，尝试提取 ID 以简化后续检查
-    # 但传给 yt-dlp 时直接传原始 input 即可
-    download_subtitles(args.input, args.outdir)
+    # 路径纠偏：如果用户直接在 backend 目录下运行，避免生成 backend/backend/...
+    outdir = args.outdir
+    cwd = os.getcwd()
+    if cwd.endswith("backend") and outdir.startswith("backend/"):
+        outdir = outdir.replace("backend/", "", 1)
+        
+    download_subtitles(args.input, outdir)
