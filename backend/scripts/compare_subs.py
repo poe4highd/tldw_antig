@@ -7,15 +7,49 @@ import argparse
 import xml.etree.ElementTree as ET
 from collections import Counter
 
+def simple_t2s(text):
+    """
+    极简繁转简逻辑，涵盖 Whisper 常出的高频繁体字。
+    """
+    t2s_map = {
+        '個': '个', '這': '这', '麼': '么', '見': '见', '為': '为',
+        '學': '学', '裡': '里', '們': '们', '樣': '样', '說': '说',
+        '義': '义', '會': '会', '過': '过', '開': '开', '對': '对',
+        '來': '来', '將': '将', '與': '与', '樹': '树', '災': '栽',
+        '後': '后', '結': '结', '葉': '叶', '乾': '干', '盡': '尽',
+        '課': '课', '調': '调', '整': '整', '內': '内', '與': '与',
+        '習': '习', '維': '维', '區': '区', '別': '别', '點': '点'
+    }
+    for t, s in t2s_map.items():
+        text = text.replace(t, s)
+    return text
+
 def clean_text(text):
     """
     清洗文本：移除标点符号、空格，统一转为小写。
+    新增：数字归一化、繁简转换（针对比较原始缓存场景）。
     """
     if not text:
         return ""
+    
+    # 执行简繁转换（优先）
+    text = simple_t2s(text)
+    
+    # 数字映射表
+    num_map = {
+        '0': '零', '1': '一', '2': '二', '3': '三', '4': '四',
+        '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'
+    }
+    
     # 移除标点符号和空格
     text = re.sub(r'[^\w\u4e00-\u9fa5]', '', text)
-    return text.lower()
+    text = text.lower()
+    
+    # 执行数字归一化
+    for k, v in num_map.items():
+        text = text.replace(k, v)
+        
+    return text
 
 def srv1_to_text(srv1_path):
     """
@@ -32,22 +66,34 @@ def srv1_to_text(srv1_path):
 
 def ai_json_to_text(json_path):
     """
-    从 AI 转录 JSON 中提取纯文本。
+    从 AI 转录 JSON 或 Whisper 原始缓存中提取纯文本。
+    支持格式：
+    1. 结构化 JSON: {"paragraphs": [{"sentences": [{"text": "..."}]}]}
+    2. Whisper 原始缓存: [{"start": 0, "end": 1, "text": "..."}]
     """
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         texts = []
-        paragraphs = data.get("paragraphs", [])
-        for p in paragraphs:
-            sentences = p.get("sentences", [])
-            for s in sentences:
-                texts.append(s.get("text", ""))
+        
+        # 模式 1: 结构化 JSON (后端处理后的结果)
+        if isinstance(data, dict) and "paragraphs" in data:
+            paragraphs = data.get("paragraphs", [])
+            for p in paragraphs:
+                sentences = p.get("sentences", [])
+                for s in sentences:
+                    texts.append(s.get("text", ""))
+        
+        # 模式 2: Whisper 原始缓存 (List 格式)
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and "text" in item:
+                    texts.append(item.get("text", ""))
         
         return " ".join(texts)
     except Exception as e:
-        print(f"解析 AI JSON 出错: {e}")
+        print(f"解析 JSON 出错: {e}")
         return ""
 
 def levenshtein_distance(s1, s2):
