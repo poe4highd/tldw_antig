@@ -41,9 +41,6 @@ export default function MarketingPage() {
           </span>
         </Link>
         <div className="flex items-center space-x-6">
-          <Link href="/tasks" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">
-            开发测试
-          </Link>
           <Link href="/login" className="px-5 py-2.5 bg-white text-slate-950 rounded-full text-sm font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-lg shadow-white/5">
             立即登录
           </Link>
@@ -147,7 +144,6 @@ export default function MarketingPage() {
         <p>© 2026 Read-Tube. All rights reserved.</p>
         <div className="mt-4 flex items-center justify-center space-x-6">
           <Link href="/project-history" className="hover:text-white transition-colors">项目更新历史</Link>
-          <Link href="/tasks" className="hover:text-white transition-colors">开发者入口</Link>
           <a href="#" className="hover:text-white transition-colors">服务条款</a>
           <a href="#" className="hover:text-white transition-colors">隐私政策</a>
         </div>
