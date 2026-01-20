@@ -39,3 +39,6 @@ dev_logs/
 frontend/playwright-report/
 frontend/test-results/
 downloads/
+backend/data/
+batch_reprocess.sh
+batch_reprocess.log
