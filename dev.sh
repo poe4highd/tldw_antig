@@ -46,13 +46,18 @@ check_and_kill_port 3000 "FRONTEND"
 # 0.5 检查 Cloudflare 隧道状态
 if ! pgrep -x "cloudflared" > /dev/null; then
     printf "${YELLOW}[WARN] 未检测到 Cloudflare 隧道进程 (cloudflared)。${NC}\n"
-    printf "${YELLOW}若需公网访问，请运行: ${NC}cloudflared tunnel run mac-read-tube\n"
+    printf "${YELLOW}建议运行: ${NC}nohup cloudflared tunnel run mac-read-tube > .cloudflared/tunnel.log 2>&1 &\n"
 else
+    # 检查是否是正确的隧道在运行 (可选增加更多检查)
     printf "${GREEN}[INFO] Cloudflare 隧道进程运行中。${NC}\n"
 fi
 
 # 1. 启动后端
 printf "${BLUE}启动后端服务 (FastAPI)...${NC}\n"
+export KMP_DUPLICATE_LIB_OK=TRUE
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export KMP_BLOCKTIME=0
 if [ -d "backend/venv" ]; then
     (cd backend && source venv/bin/activate && python3 main.py) 2>&1 | log_backend &
 else

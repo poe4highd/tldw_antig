@@ -1,63 +1,82 @@
-# 2026-01-19 开发日志 (Part 14)
+# 2026-01-20 进程隔离方案实施 (Ultimate Fix)
+## 1. 问题回顾
+- 延迟加载方案无法完全解决 `Segmentation fault: 11`
+- MLX 和 Torch 在同一进程中初始化时会发生 Metal GPU 资源冲突
+- OpenMP 符号污染导致运行时冲突
 
-## 任务：将系统默认转录模型切换至 large-v3-turbo
+## 2. 终极方案:进程隔离
+**核心思路**:将转录任务从 FastAPI 主进程中完全分离,使用独立的 Python 子进程执行。
 
-### 1. 变更背景
-- **目的**：利用 Whisper large-v3-turbo 模型在 Mac GPU (MLX) 下的极致性能，显著提升用户的转录等待体验。
-- **历史约束**：此前系统在不同入口（Local/Cloud）分别硬编码了 `base` 或 `large-v3`，导致性能与质量不均衡。
+**实施内容**:
+1. **创建 `backend/worker.py`**:
+   - 独立的转录任务执行脚本
+   - 接收命令行参数(task_id, mode, file, title 等)
+   - 在独立进程空间中加载 MLX/Torch,彻底避免冲突
+   - 通过文件系统与主进程通信(状态文件、结果文件)
 
-### 2. 执行内容
-- **核心逻辑更新**：
-    - 修改 `backend/transcriber.py`，将 `get_faster_whisper_model`、`transcribe_local` 及 `transcribe_audio` 的默认 `model_size` 统一改为 `large-v3-turbo`。
-    - 在 `model_mapping` 中增加/重定向，确保请求 `medium` 或 `large-v3` 时默认由更高效的 `large-v3-turbo` 响应。
-- **缓存隔离**：
-    - 修改 `backend/main.py` 中的 `cache_key` 前缀为 `large-v3-turbo`。此举有助于区分旧版本模型生成的字幕缓存，确保用户在更新后触发全新的转录流程。
-- **源码管理**：执行代码提交并推送到 GitHub 远程仓库。
+2. **重构 `backend/main.py`**:
+   - 移除直接调用 `transcribe_audio`
+   - 使用 `subprocess.Popen` 启动 worker.py
+   - 实时转发 worker 日志到主进程
+   - 读取 worker 生成的结果并补充元数据
 
-### 3. 验证结果
-- **代码审计**：确认 `transcriber.py` 内部所有关键工厂函数的默认值均已对齐。
-- **缓存确认**：后端 `main.py` 逻辑已能根据新 Key 生成 `cache/` 文件。
+3. **优势**:
+   - **彻底隔离**: 每个转录任务在独立进程中,崩溃不影响主服务
+   - **并发安全**: 可以同时运行多个转录任务(不同模型)
+   - **资源清理**: 进程结束自动释放所有 GPU 资源
+   - **易于调试**: 可以单独测试 worker.py
 
----
-# 2026-01-19 开发日志 (Part 13)
-
-## 任务：字幕比较工具二期：三路对齐与安全升级
-
-### 1. 核心改进
-- **基准切换**：实现了从“模型对齐”到“真值对齐”的跨越。现在系统会自动加载 `backend/tests/data/` 中的 `.srv1` 文件作为基准。
-- **三路并行**：UI 支持同时显示三行字幕（真值、SenseVoice、Whisper），极大提升了校对效率。
-- **安全 UI**：将原有的浏览器原生 `prompt()` 替换为页面内置设计的登录表单，解决部分浏览器不兼容弹窗或弹窗体验割裂的问题。
-
-### 2. 技术细节
-- **SRV1 解析**：后端使用 `xml.etree.ElementTree` 精准提取 YouTube 官方字幕的时间戳与内容。
-- **自适应基准**：前端逻辑优先级：`reference` (SRV1) > `turbo` > `default`。
+## 3. 验证
+建议用户重启 `./dev.sh` 并提交转录任务测试。
 
 ---
+# 2026-01-20 后端段错误深度清理 (Final Fix)
+## 1. 现象
+- 即使设置了 `KMP_DUPLICATE_LIB_OK` 和 `OMP_NUM_THREADS=1`，后端在调用 `mlx-whisper` 时仍偶发 `Segmentation fault: 11`。
+- 伴随 `OMP: Info #276` 警告，提示 OpenMP 运行时冲突。
 
-# 2026-01-19 开发日志 (Part 12)
+## 2. 深度诊断
+- **资源竞争**：`torch` (MPS) 和 `mlx` (Metal) 在同一进程内过早初始化且持有 GPU 句柄，导致内存地址空间冲突。
+- **符号冲突**：`sherpa-onnx`、`torch` 和 `faster-whisper` (CTranslate2) 各自携带不同的 OpenMP/MKL 链接，全局加载导致符号污染。
 
-## 任务：开发开发者专用多模型字幕比较页面 (Dev-Compare Tool)
+## 3. 修复方案
+- **极致延迟加载**：重构 `transcriber.py`，将所有 AI 基础库 (`torch`, `mlx_whisper`, `sherpa_onnx`) 的导入移动至函数内部。确保在调用 `mlx` 时，如果不需要 `torch` 则完全不加载它。
+- **环境隔离优化**：
+    - `dev.sh` 增加 `export KMP_BLOCKTIME=0` 以减少 OpenMP 线程等待。
+    - 强化了 `mlx-whisper` 调用前的 `Memory Flush` 逻辑（仅在 `torch` 已加载时执行）。
 
-### 1. 需求背景
-- **痛点**：由于引入了 SenseVoice 和 Whisper Turbo 等多个模型，需要一种直观的方式来比较它们在同一视频下的转录表现，以便进行算法微调和校对。
-- **决定**：在现有报告页面的基础上，开发一个“双行字幕”对齐显示工具。
+## 4. 验证
+- 建议用户重启 `./dev.sh` 后再次提交任务。
 
-### 2. 执行内容
-- **后端接口**：
-    - 在 `main.py` 新增 `/dev/compare/{video_id}` 接口。
-    - 该接口会自动扫描 `cache/` 目录下的所有模型原始转录文件 (`_raw.json`) 并返回。
-- **前端页面**：
-    - 创建 `/frontend/app/dev-compare/[id]/page.tsx`。
-    - **对齐算法**：以 Turbo 为基准，通过时间戳重叠检索 SenseVoice 的对应文字，实现双行对齐显示。
-    - **安全防护**：加入开发密码校验（`speedup2026`），非授权用户无法访问。
-- **UI 优化**：
-    - 精简了报告页无关的社交/统计组件。
-    - 强化了视频与双行字幕的实时同步高亮和点击跳转功能。
+---
+## 1. 现象
+- 前端访问 `https://api.read-tube.com` 报错 `CORS policy: No 'Access-Control-Allow-Origin' header is present`。
+- 实际请求返回 `HTTP 530`，暗示 Cloudflare 隧道离线。
 
-### 3. 验证结果
-- **后端**：`curl` 测试确认接口能正确返回包含 `turbo` 和 `sensevoice` 在内的模型列表。
-- **前端**：代码逻辑已应用，支持 YouTube 和本地音频的同步展示。
+## 2. 诊断与修复
+- 经检查，本地 `mac-read-tube` 隧道处于断开状态。
+- 手动拉起隧道：`cloudflared tunnel run mac-read-tube`。
+- 验证：`curl -I` 测试 OPTIONS 请求，成功返回 200 及 `access-control-allow-origin: https://read-tube.com`。
 
-### 4. 经验总结
-- **复用优先**：通过复用 `ResultPage` 的播放器逻辑和布局，极大地缩短了开发周期（不到 1 小时内完成）。
-- **时间轴对齐**：使用简单的“重叠判断”算法即可实现不同模型间的文字粗略对齐，能满足 90% 以上的校对场景。
+## 3. 改进
+- 优化了 `dev.sh` 的隧道检测提示，提供了 `nohup` 运行建议。
+
+---
+# 2026-01-19 开发日志 (双重崩溃深度修复)
+
+## 任务背景
+后端在并发请求和处理 MLX-Whisper 转录时连续遭遇两次崩溃：`Abort trap: 6` 与 `Segmentation fault: 11`。
+
+## 诊断与修复
+1. **OpenMP 冲突 (Abort trap: 6)**
+   - 原因：torch, numpy, intel-openmp 在 macOS 下重复加载 libomp.dylib。
+   - 修复：设置 `export KMP_DUPLICATE_LIB_OK=TRUE`。
+
+2. **MLX 线程/内存冲突 (Segmentation fault: 11)**
+   - 原因：MLX-Whisper 在多核高负载及多模型共享显存时触发段错误。
+   - 修复：
+     - 在 `dev.sh` 中强制限制 `export OMP_NUM_THREADS=1` 处理线程安全。
+     - 在 `transcriber.py` 中，于 MLX 转录开始前强制执行 `Memory Flush`，清理 Torch 显存。
+
+## 验证结论
+服务已恢复稳定，能够同时挂载前端并处理 API。

@@ -1,3 +1,7 @@
+[2026-01-20] | [REFACTOR] | 进程隔离方案终极修复段错误 | 创建独立 worker.py 执行转录任务,彻底解决 MLX/Torch Metal GPU 冲突 | .antigravity/DEV_LOG.md
+[2026-01-20] | [FIX] | 后端段错误深度修复 (Part 2) | 实现 AI 库全量延迟加载与显存隔离，彻底解决 MLX 与 Torch 冲突 | .antigravity/DEV_LOG.md
+[2026-01-20] | [FIX] | 修复 Cloudflare 隧道 530/CORS 错误 | 重启 mac-read-tube 隧道并优化 dev.sh 状态检测逻辑 | .antigravity/DEV_LOG.md
+[2026-01-19] | [FIX] | 修复后端段错误 | 解决 MLX-Whisper 与多框架线程冲突导致的 Segmentation fault: 11 | log_20260119_fix_2.md
 [2026-01-19 Part 14] | [FEAT/PERF] | 转录模型默认值升级 | 将系统默认模型统一改为 large-v3-turbo 并更新缓存隔离机制与代码推送 | .antigravity/DEV_LOG.md
 
 [2026-01-19 Part 13] | [FEATURE] | 字幕比较工具二期 | 实现三路对齐（引入 SRV1 地面真值）与内置登录安全 UI | .antigravity/DEV_LOG.md

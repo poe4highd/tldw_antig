@@ -1,18 +1,9 @@
 import os
 import sys
 import platform
-import torch
-import gc
-import time
-from openai import OpenAI
 from dotenv import load_dotenv
-import sherpa_onnx
-from sherpa_utils import load_audio_for_sherpa
 
 load_dotenv()
-
-# Global model cache to avoid re-loading
-_model_cache = {}
 
 def is_apple_silicon():
     """检测是否为 Apple Silicon (Mac M1/M2/M3)"""
@@ -26,12 +17,14 @@ def get_faster_whisper_model(model_size="large-v3-turbo"):
         print(f"--- faster-whisper {model_size} loaded successfully! ---")
     return _model_cache[f"faster_{model_size}"]
 
-# Global model cache for FunASR - Use sparingly on 16GB RAM
+# Global model cache to avoid re-loading
+_model_cache = {}
 _funasr_cache = {}
 _sherpa_cache = {}
 
 def get_funasr_model(model_name="iic/SenseVoiceSmall"):
-    from funasr import AutoModel
+    import torch
+    import gc
     
     # 零驻留策略：加载新模型前清空所有模型缓存（包括 Whisper）
     if len(_funasr_cache) > 0 or len(_model_cache) > 0:
@@ -61,6 +54,7 @@ def get_sensevoice_onnx_model():
     Load SenseVoice ONNX model using sherpa-onnx.
     Optimized for Mac (MPS/Apple Silicon).
     """
+    import sherpa_onnx
     if "sensevoice_onnx" not in _sherpa_cache:
         print("--- Loading SenseVoice ONNX model (sherpa-onnx)... ---")
         model_dir = "backend/models/sensevoice-onnx"
@@ -90,6 +84,7 @@ def get_silero_vad_config():
     if not os.path.exists(vad_model_path):
          raise FileNotFoundError(f"VAD model not found at {vad_model_path}. Please ensure it is downloaded.")
          
+    import sherpa_onnx
     silero_config = sherpa_onnx.SileroVadModelConfig(
         model=vad_model_path,
         min_silence_duration=0.5,
@@ -107,6 +102,9 @@ def transcribe_sensevoice_onnx(file_path: str):
     Transcribe audio using SenseVoice ONNX via sherpa-onnx + Silero VAD.
     Robust for long files and provides incremental progress.
     """
+    import sherpa_onnx
+    import time
+    from sherpa_utils import load_audio_for_sherpa
     recognizer = get_sensevoice_onnx_model()
     # Create a fresh VAD instance for each file to ensure clean state
     vad_config = get_silero_vad_config()
@@ -192,6 +190,8 @@ def transcribe_funasr(file_path: str, model_name="iic/SenseVoiceSmall"):
     
     print(f"--- FunASR 转录完成 ---")
     
+    import torch
+    import gc
     # Resource Cleanup (especially for Mac/MPS)
     # Global cache is maintained, but we can trigger collection
     if torch.backends.mps.is_available():
@@ -213,6 +213,18 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
     
     # 1. 尝试使用 mlx-whisper (仅限 Mac Apple Silicon)
     if is_apple_silicon():
+        # [Memory Flush] 只有当其他模型已加载时才清理,避免无谓导入 torch
+        if len(_funasr_cache) > 0 or len(_model_cache) > 0 or len(_sherpa_cache) > 0:
+            import torch
+            import gc
+            print("--- [Memory Flush] 清理模型缓存 (Torch/Sherpa) 以释放 GPU 给 MLX ---")
+            _funasr_cache.clear()
+            _model_cache.clear()
+            _sherpa_cache.clear()
+            gc.collect()
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+
         try:
             import mlx_whisper
             # large-v3-turbo typically doesn't have -mlx in the repo name on mlx-community
@@ -266,6 +278,7 @@ def transcribe_cloud(file_path: str, initial_prompt: str = None):
     if file_size > 25 * 1024 * 1024:
         raise Exception(f"音频文件过大 ({file_size / 1024 / 1024:.2f}MB)，超过限额。")
 
+    from openai import OpenAI
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
     with open(file_path, "rb") as audio_file:

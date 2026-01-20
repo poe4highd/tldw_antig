@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import asyncio
@@ -15,7 +16,6 @@ import hashlib
 import random
 
 from downloader import download_audio
-from transcriber import transcribe_audio
 from processor import split_into_paragraphs, get_youtube_thumbnail_url
 from db import get_db
 
@@ -74,8 +74,6 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
             else:
                 video_id = hashlib.md5(url.encode()).hexdigest()[:11]
         elif local_file:
-            # For local files, we use the hash of the filename + size or just filename as ID 
-            # or pre-calculated hash from upload
             video_id = os.path.splitext(os.path.basename(local_file))[0]
 
         # 1. Media Retrieval
@@ -110,9 +108,6 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR, progress_callback=on_download_progress)
         
         # 1.5 Audio Extraction (for uploaded videos)
-        # We need to transcribe a pure audio file, especially for cloud mode size limits.
-        # But we keep 'media_path' pointing to the ORIGINAL video for frontend playback.
-        
         transcription_source_path = file_path
         ext = os.path.splitext(file_path)[1].lower()
         if ext in [".mp4", ".mov", ".avi", ".webm", ".mkv"]:
@@ -141,7 +136,6 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 print(f"--- Extracting thumbnail from {file_path} to {extracted_thumb_path} ---")
                 import subprocess
                 try:
-                    # Capture at 1 second mark
                     subprocess.run(
                         ["ffmpeg", "-i", file_path, "-ss", "00:00:01", "-vframes", "1", extracted_thumb_path, "-y"],
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
@@ -160,64 +154,73 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 except Exception as e:
                     print(f"Failed to remove original video: {e}")
 
-        # 2. Transcribe
-        # Include model size and prompt in cache key to allow re-processing with improvements
-        cache_key = f"{video_id}_{mode}_large-v3-turbo"
-        cache_sub_path = f"{CACHE_DIR}/{cache_key}_raw.json"
+        # 2. 启动独立的 Worker 进程执行转录
+        import subprocess
+        worker_script = os.path.join(os.path.dirname(__file__), "worker.py")
         
-        if os.path.exists(cache_sub_path):
-            save_status(task_id, "检测到转录缓存，正在加载报告...", 50, eta=5)
-            with open(cache_sub_path, "r", encoding="utf-8") as rf:
-                raw_subtitles = json.load(rf)
-        else:
-            save_status(task_id, f"正在进行 AI 语音转录 ({'云端模式' if mode == 'cloud' else '本地精调模式'})...", 60, eta=25 if mode == 'cloud' else 120)
-            print(f"--- Starting transcription for: {os.path.basename(transcription_source_path)} with prompt: {title} ---")
-            raw_subtitles = transcribe_audio(transcription_source_path, mode=mode, initial_prompt=title)
-            with open(cache_sub_path, "w", encoding="utf-8") as wf:
-                json.dump(raw_subtitles, wf, ensure_ascii=False)
-
-        # 3. LLM Processing
-        duration = raw_subtitles[-1]["end"] if raw_subtitles else 0
-        save_status(task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
-        paragraphs, llm_usage = split_into_paragraphs(raw_subtitles, title=title, description=description)
-
-        # 4. Save Final Result
-        whisper_cost = (duration / 60.0) * 0.006 if mode == "cloud" else 0
-        llm_cost = (llm_usage["prompt_tokens"] / 1000000.0 * 0.15) + (llm_usage["completion_tokens"] / 1000000.0 * 0.6)
+        cmd = [
+            "python3", worker_script,
+            task_id, mode,
+            "--file", transcription_source_path,
+            "--title", title or "Unknown",
+            "--description", description,
+            "--model", "large-v3-turbo"
+        ]
         
-        result = {
-            "title": title,
-            "url": url or "Uploaded File",
-            "youtube_id": video_id if url else None,
-            "thumbnail": thumbnail,
-            "media_path": os.path.basename(file_path),
-            "paragraphs": paragraphs,
-            "usage": {
-                "duration": round(duration, 2),
-                "whisper_cost": round(whisper_cost, 6),
-                "llm_tokens": llm_usage,
-                "llm_cost": round(llm_cost, 6),
-                "total_cost": round(whisper_cost + llm_cost, 6),
-                "currency": "USD"
-            },
-            "raw_subtitles": raw_subtitles,
-            "user_id": user_id
-        }
-        with open(f"{RESULTS_DIR}/{task_id}.json", "w", encoding="utf-8") as f:
+        if video_id:
+            cmd.extend(["--video-id", video_id])
+        
+        print(f"--- 启动 Worker 进程: {' '.join(cmd)} ---")
+        
+        # 启动 worker 并等待完成
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=os.path.dirname(__file__)
+        )
+        
+        # 实时输出日志
+        for line in process.stdout:
+            print(f"[Worker] {line.rstrip()}")
+        
+        # 等待进程结束
+        return_code = process.wait()
+        
+        if return_code != 0:
+            stderr_output = process.stderr.read()
+            print(f"[Worker] 错误输出:\n{stderr_output}", file=sys.stderr)
+            raise Exception(f"Worker 进程失败 (exit code: {return_code})")
+        
+        print(f"--- Worker 进程成功完成 ---")
+        
+        # 3. 读取 Worker 生成的结果并补充元数据
+        result_file = f"{RESULTS_DIR}/{task_id}.json"
+        with open(result_file, "r", encoding="utf-8") as f:
+            result = json.load(f)
+        
+        # 补充主进程才有的信息
+        result["url"] = url or "Uploaded File"
+        result["thumbnail"] = thumbnail
+        result["media_path"] = os.path.basename(file_path)
+        result["user_id"] = user_id
+        
+        # 重新保存
+        with open(result_file, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
             
-        # 5. Save to Supabase
+        # 4. Save to Supabase
         if supabase:
             try:
-                # Prepare data for 'videos' table
                 video_data = {
                     "id": video_id if url else task_id,
-                    "title": title,
+                    "title": result["title"],
                     "thumbnail": thumbnail,
                     "media_path": os.path.basename(file_path),
                     "report_data": {
-                        "paragraphs": paragraphs,
-                        "raw_subtitles": raw_subtitles
+                        "paragraphs": result["paragraphs"],
+                        "raw_subtitles": result["raw_subtitles"]
                     },
                     "usage": result["usage"],
                     "status": "completed"
@@ -225,7 +228,6 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 supabase.table("videos").upsert(video_data).execute()
                 print(f"Successfully saved to Supabase: {video_data['id']}")
                 
-                # 5.1 Save to submissions table
                 if user_id:
                     submission_data = {
                         "user_id": user_id,
