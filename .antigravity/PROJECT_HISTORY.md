@@ -1,3 +1,4 @@
+[2026-01-20] | [FIX] | 修复登录重定向环境隔离问题 | 解决 Google Auth 登录后跳回生产环境的问题，协助配置 Supabase 白名单并优化 URL 解析逻辑。 | walkthrough.md
 [2026-01-20] | [FIX] | Unify API Base URL | 统一前端 API 地址获取逻辑，修复生产环境本地网络访问弹窗。 | walkthrough.md
 [2026-01-20] | [UX/BRAND] | 产品预览图设计与“书架”品牌同步 | 生成 Hero Mockup 并更新侧边栏图标 (Library) 与 SEO 元数据 | walkthrough.md
 [2026-01-20] | [OPTIMIZATION] | 模型与中间文件路径规范化 | 将系统缓存与临时文件迁移至项目本地 backend/models 与 backend/data/temp | .antigravity/DEV_LOG.md

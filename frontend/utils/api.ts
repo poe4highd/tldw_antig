@@ -22,10 +22,16 @@ export const getApiBase = (): string => {
 };
 
 export const getSiteUrl = (): string => {
-    if (typeof window === "undefined") {
-        return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    }
+    // Priority: 1. Current Origin (window.location.origin)
+    //           2. Environment Variable (NEXT_PUBLIC_SITE_URL)
+    //           3. Default fallback (http://localhost:3000)
 
-    // Always prioritize the current origin for redirects to maintain environment isolation
-    return window.location.origin;
+    let url = typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
+
+    // Remove trailing slash to ensure consistency with Supabase white-list
+    url = url.replace(/\/$/, "");
+
+    return url;
 };

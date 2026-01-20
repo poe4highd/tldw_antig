@@ -40,5 +40,8 @@ frontend/playwright-report/
 frontend/test-results/
 downloads/
 backend/data/
+# Batch Reprocess
 batch_reprocess.sh
+batch_reprocess_remaining.sh
 batch_reprocess.log
+batch_reprocess_pid.txt
