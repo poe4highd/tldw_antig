@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
+import { getApiBase } from "@/utils/api";
 
 interface HistoryItem {
     date: string;
@@ -36,7 +37,8 @@ export default function ProjectHistoryPage() {
 
         const fetchHistoryItems = async () => {
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/project-history`);
+                const apiBase = getApiBase();
+                const res = await fetch(`${apiBase}/project-history`);
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     setHistory(data);

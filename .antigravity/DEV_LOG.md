@@ -1,3 +1,33 @@
+# 2026-01-20 统一 API 地址获取逻辑与环境隔离修复
+
+## 任务背景
+修复生产环境用户访问部分页面（如项目历史、结果详情）时触发“本地网络访问”弹窗的问题。根源在于代码中存在硬编码的 `localhost:8000` 作为 Fallback 逻辑。
+
+## 实施内容
+1.  **统一工具函数集成**：将所有页面的 API 请求逻辑从硬编码或手动推导修改为统一调用 `@/utils/api` 中的 `getApiBase()`。
+2.  **严格环境隔离**：
+    *   在 `getApiBase` 中强化逻辑：只有 `hostname` 为 `localhost` 或类本地 IP 时才返回本地地址。
+    *   在生产域名（`read-tube.com`）下强制返回生产 API 地址。
+3.  **受影响页面重构**：
+    *   `frontend/app/project-history/page.tsx`
+    *   `frontend/app/result/[id]/page.tsx`
+    *   `frontend/app/tasks/page.tsx` (化简了复杂的推导逻辑)
+    *   `frontend/app/dev-result/[id]/page.tsx`
+    *   `frontend/app/dev-compare/[id]/page.tsx`
+
+## 验证结果
+- **隔离性**：本地开发环境依然正确连接本地后端，生产环境不再尝试连接本地网络。
+- **稳定性**：各页面数据加载恢复正常，无跨域或地址错误。
+
+## 关联文件
+- `frontend/app/project-history/page.tsx`
+- `frontend/app/result/[id]/page.tsx`
+- `frontend/app/tasks/page.tsx`
+- `frontend/app/dev-result/[id]/page.tsx`
+- `frontend/app/dev-compare/[id]/page.tsx`
+
+---
+
 # 2026-01-20 产品预览图设计与“我的书架”品牌同步
 
 ## 任务背景

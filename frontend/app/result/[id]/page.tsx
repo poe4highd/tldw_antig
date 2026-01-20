@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 import YouTube, { YouTubeProps } from 'react-youtube';
+import { getApiBase } from "@/utils/api";
 
 import {
     ArrowLeft,
@@ -77,7 +78,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     useEffect(() => {
         const fetchResult = async () => {
             try {
-                const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+                const apiBase = getApiBase();
 
                 // Fetch basic result
                 const response = await fetch(`${apiBase}/result/${id}`);
@@ -245,7 +246,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         setIsLiked(!isLiked);
         setLikeCount(l => isLiked ? l - 1 : l + 1);
         try {
-            const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+            const apiBase = getApiBase();
             await fetch(`${apiBase}/result/${id}/like`, { method: 'POST' });
         } catch (err) { }
     };
@@ -307,7 +308,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 {useLocalAudio ? (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
                                         <img
-                                            src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
+                                            src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${getApiBase()}/media/${result.thumbnail}`}
                                             alt="Thumbnail"
                                             className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
                                         />
@@ -321,7 +322,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
                                             <audio
                                                 ref={audioRef}
-                                                src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
+                                                src={`${getApiBase()}/media/${result.media_path}`}
                                                 controls
                                                 onTimeUpdate={handleLocalTimeUpdate}
                                                 className="w-full h-10 accent-indigo-500"
@@ -535,7 +536,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 e.preventDefault();
                                 if (!newComment.trim()) return;
                                 try {
-                                    const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+                                    const apiBase = getApiBase();
                                     const res = await fetch(`${apiBase}/result/${id}/comments`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 import YouTube, { YouTubeProps } from 'react-youtube';
+import { getApiBase } from "@/utils/api";
 
 import {
     ArrowLeft,
@@ -95,7 +96,7 @@ export default function DevComparePage({ params }: { params: Promise<{ id: strin
 
         const fetchCompareData = async () => {
             try {
-                const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+                const apiBase = getApiBase();
                 const response = await fetch(`${apiBase}/dev/compare/${id}`);
                 if (!response.ok) throw new Error("无法获取对比数据");
                 const data = await response.json();
@@ -369,13 +370,13 @@ export default function DevComparePage({ params }: { params: Promise<{ id: strin
                         {useLocalAudio ? (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
                                 <img
-                                    src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.thumbnail}`}
+                                    src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${getApiBase()}/media/${result.thumbnail}`}
                                     alt="Thumbnail"
                                     className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
                                 />
                                 <audio
                                     ref={audioRef}
-                                    src={`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/media/${result.media_path}`}
+                                    src={`${getApiBase()}/media/${result.media_path}`}
                                     controls
                                     onTimeUpdate={handleLocalTimeUpdate}
                                     className="relative z-10 w-[80%] h-10 accent-indigo-500"

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/utils/supabase";
 import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
+import { getApiBase } from "@/utils/api";
 
 interface HistoryItem {
     id: string;
@@ -36,7 +37,6 @@ export default function TasksPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [activeTasks, setActiveTasks] = useState<ActiveTask[]>([]);
     const [summary, setSummary] = useState<Summary | null>(null);
-    const [apiBase, setApiBase] = useState("");
     const [user, setUser] = useState<{
         id: string;
         email?: string;
@@ -51,10 +51,11 @@ export default function TasksPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    const fetchHistory = async (base: string) => {
+    const fetchHistory = async () => {
         if (!user) return;
         try {
-            const resp = await fetch(`${base}/history?user_id=${user.id}`);
+            const apiBase = getApiBase();
+            const resp = await fetch(`${apiBase}/history?user_id=${user.id}`);
             const data = await resp.json();
             setHistory(data.items || []);
             setSummary(data.summary || null);
@@ -70,6 +71,7 @@ export default function TasksPage() {
         setProgress(0);
         setEta(null);
         try {
+            const apiBase = getApiBase();
             const resp = await fetch(`${apiBase}/process`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -104,6 +106,7 @@ export default function TasksPage() {
         if (user) formData.append("user_id", user.id);
 
         try {
+            const apiBase = getApiBase();
             const resp = await fetch(`${apiBase}/upload`, {
                 method: "POST",
                 body: formData,
@@ -118,6 +121,7 @@ export default function TasksPage() {
     const pollStatus = (taskId: string) => {
         const interval = setInterval(async () => {
             try {
+                const apiBase = getApiBase();
                 const resp = await fetch(`${apiBase}/result/${taskId}`);
                 const data = await resp.json();
                 setProgress(data.progress || 0);
@@ -164,44 +168,15 @@ export default function TasksPage() {
             }
         });
 
-        // Determine API Base
-        const hostname = window.location.hostname;
-        const protocol = window.location.protocol;
-        const defaultPort = ":8000";
+        fetchHistory();
 
-        let base = process.env.NEXT_PUBLIC_API_BASE;
-        if (!base) {
-            const isLocalIp = hostname === "localhost" ||
-                hostname === "127.0.0.1" ||
-                hostname.startsWith("192.168.") ||
-                hostname.startsWith("10.") ||
-                hostname.startsWith("172.");
-
-            if (isLocalIp) {
-                base = `http://${hostname}${defaultPort}`;
-            } else {
-                const isTunnel = hostname.includes("trycloudflare.com") || hostname.includes("vercel.app");
-                // If on Vercel and no API_BASE set, follow the hybrid guide pattern: api.domain.com
-                if (hostname.includes("vercel.app") && !isTunnel) {
-                    // Fallback strategy: if NEXT_PUBLIC_API_BASE is missing, we can't do much but guess
-                    // or stay on current domain. For now, try 'api' subdomain if it's a custom domain, 
-                    // but for .vercel.app it's safer to just log a warning.
-                    console.warn("NEXT_PUBLIC_API_BASE is missing on Vercel deployment.");
-                }
-                base = `${protocol}//${hostname}${isTunnel ? "" : defaultPort}`;
-            }
-        }
-
-        setApiBase(base);
-        fetchHistory(base);
-
-        const interval = setInterval(() => fetchHistory(base), 15000);
+        const interval = setInterval(() => fetchHistory(), 15000);
         return () => {
             subscription.unsubscribe();
             clearInterval(interval);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [router]);
+    }, [router, user]);
 
     useEffect(() => {
         if (eta !== null && eta > 0) {
@@ -419,7 +394,7 @@ export default function TasksPage() {
                                                 </div>
                                             ) : (
                                                 <img
-                                                    src={item.thumbnail?.startsWith("http") ? item.thumbnail : (item.thumbnail ? `${apiBase}/media/${item.thumbnail}` : "https://images.unsplash.com/photo-1611162617474-5b21e879e113")}
+                                                    src={item.thumbnail?.startsWith("http") ? item.thumbnail : (item.thumbnail ? `${getApiBase()}/media/${item.thumbnail}` : "https://images.unsplash.com/photo-1611162617474-5b21e879e113")}
                                                     alt={item.title}
                                                     className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
                                                 />
