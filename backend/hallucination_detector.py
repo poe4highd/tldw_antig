@@ -38,27 +38,58 @@ def detect_hallucination_patterns(text: str) -> List[str]:
     return patterns
 
 
+def detect_gaps_and_density(subtitles: List[Dict[str, Any]], gap_threshold: float = 3.0, min_cps: float = 1.2) -> List[int]:
+    """
+    通过时间戳间隙和文字密度检测可能的漏词区域
+    """
+    suspicious_indices = []
+    normal_cps = 3.5
+    
+    for i in range(1, len(subtitles)):
+        curr = subtitles[i]
+        prev = subtitles[i-1]
+        
+        # 1. 检测间隙
+        gap = curr.get("start", 0) - prev.get("end", 0)
+        if gap > gap_threshold:
+            suspicious_indices.append(i)
+            curr.setdefault("_quality_issues", []).append(f"gap_{gap:.1f}s")
+            
+        # 2. 检测密度
+        duration = curr.get("end", 0) - curr.get("start", 0)
+        text_len = len(curr.get("text", "").strip())
+        if duration > 4.0 and text_len > 0:
+            cps = text_len / duration
+            if cps < min_cps:
+                suspicious_indices.append(i)
+                curr.setdefault("_quality_issues", []).append(f"low_density_{cps:.1f}cps")
+                
+    return suspicious_indices
+
+
 def detect_hallucinations(subtitles: List[Dict[str, Any]]) -> List[Tuple[int, int, float, float]]:
     """
-    检测幻觉区域，返回需要重转录的片段范围。
-    
-    返回格式: [(start_idx, end_idx, start_time, end_time), ...]
-    每个范围包含幻觉片段及其前后各1个片段（用于上下文）
+    检测幻觉区域和间隙区域，返回需要重转录的片段范围。
     """
-    hallucination_indices = []
+    issue_indices = []
     
+    # 模式匹配检测 (幻觉)
     for i, seg in enumerate(subtitles):
         text = seg.get("text", "")
         patterns = detect_hallucination_patterns(text)
         if patterns:
-            hallucination_indices.append(i)
+            issue_indices.append(i)
             seg["_hallucination_patterns"] = patterns
+            seg["_quality_issues"] = seg.get("_quality_issues", []) + patterns
+
+    # 间隙与密度检测 (漏词)
+    issue_indices.extend(detect_gaps_and_density(subtitles))
     
-    if not hallucination_indices:
+    if not issue_indices:
         return []
     
     # 合并连续索引并扩展前后1个片段
-    ranges = merge_and_expand_ranges(hallucination_indices, len(subtitles))
+    ranges = merge_and_expand_ranges(issue_indices, len(subtitles))
     
     # 转换为带时间戳的范围
     result = []
@@ -145,46 +176,51 @@ def extract_audio_segment(audio_path: str, start_sec: float, end_sec: float) -> 
 def retranscribe_with_alternative_model(
     audio_path: str,
     subtitles: List[Dict[str, Any]],
-    hallucination_ranges: List[Tuple[int, int, float, float]],
-    alt_model_size: str = "base"
+    issue_ranges: List[Tuple[int, int, float, float]],
+    primary_alt_model: str = "base",
+    gap_alt_model: str = "small"
 ) -> List[Dict[str, Any]]:
     """
-    对幻觉区域使用备选模型重新转录
+    对质量有问题的区域使用备选模型重新转录
     
     Args:
-        audio_path: 原始音频文件路径
-        subtitles: 原始字幕列表
-        hallucination_ranges: 幻觉区域范围
-        alt_model_size: 备选模型大小 (base/small)
-    
-    Returns:
-        标记了备选字幕的字幕列表
+        primary_alt_model: 幻觉区域使用的模型 (默认 base)
+        gap_alt_model: 间隙/漏词区域使用的模型 (默认 small)
     """
     from transcriber import transcribe_local
     
-    for start_idx, end_idx, start_time, end_time in hallucination_ranges:
-        print(f"--- [幻觉检测] 重转录区域: {start_time:.1f}s - {end_time:.1f}s (片段 {start_idx}-{end_idx}) ---")
+    for start_idx, end_idx, start_time, end_time in issue_ranges:
+        # 判断该区域的主要问题
+        region_issues = []
+        for i in range(start_idx, end_idx + 1):
+            region_issues.extend(subtitles[i].get("_quality_issues", []))
+            
+        # 如果涉及 gap 或 low_density，使用更强大的 small 模型
+        is_gap_issue = any("gap" in iss or "density" in iss for iss in region_issues)
+        model_size = gap_alt_model if is_gap_issue else primary_alt_model
+        
+        print(f"--- [质量修复] 重转录区域 ({model_size}): {start_time:.1f}s - {end_time:.1f}s (片段 {start_idx}-{end_idx}) ---")
+        print(f"    涉及问题: {list(set(region_issues))}")
         
         try:
             # 提取音频片段
             temp_audio = extract_audio_segment(audio_path, start_time, end_time)
             
-            # 使用备选模型重转录
-            alt_subtitles = transcribe_local(temp_audio, model_size=alt_model_size)
+            # 使用指定模型重转录
+            alt_subtitles = transcribe_local(temp_audio, model_size=model_size)
             
-            # 调整时间戳（相对时间 → 绝对时间）
+            # 调整时间戳
             time_offset = max(0, start_time - 0.5)
             for seg in alt_subtitles:
                 seg["start"] = seg.get("start", 0) + time_offset
                 seg["end"] = seg.get("end", 0) + time_offset
             
-            # 标记备选字幕到原始字幕
+            # 标记结果
             for idx in range(start_idx, end_idx + 1):
                 if idx < len(subtitles):
                     subtitles[idx]["_alternative_subtitles"] = alt_subtitles
-                    subtitles[idx]["_hallucination_flag"] = True
+                    subtitles[idx]["_hallucination_flag"] = True # LLM 处理逻辑通用
             
-            # 清理临时文件
             os.unlink(temp_audio)
             
         except Exception as e:
@@ -199,39 +235,29 @@ def retranscribe_with_alternative_model(
 
 def process_with_hallucination_detection(
     audio_path: str,
-    subtitles: List[Dict[str, Any]],
-    alt_model_size: str = "base"
+    subtitles: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
-    主入口：检测幻觉并进行二次转录
-    
-    Args:
-        audio_path: 音频文件路径
-        subtitles: 原始转录字幕
-        alt_model_size: 备选模型大小
-    
-    Returns:
-        处理后的字幕列表（可能包含备选字幕）
+    主入口：检测幻觉与间隙并进行二次转录
     """
-    print(f"--- [幻觉检测] 开始扫描 {len(subtitles)} 个片段 ---")
+    print(f"--- [质量检测] 开始扫描 {len(subtitles)} 个片段 ---")
     
-    # 检测幻觉区域
-    hallucination_ranges = detect_hallucinations(subtitles)
+    # 检测问题区域
+    issue_ranges = detect_hallucinations(subtitles)
     
-    if not hallucination_ranges:
-        print("--- [幻觉检测] 未发现幻觉区域 ---")
+    if not issue_ranges:
+        print("--- [质量检测] 未发现质量问题 ---")
         return subtitles
     
-    print(f"--- [幻觉检测] 发现 {len(hallucination_ranges)} 个幻觉区域 ---")
+    print(f"--- [质量检测] 发现 {len(issue_ranges)} 个问题区域 ---")
     
-    # 检查音频文件是否存在
     if not os.path.exists(audio_path):
-        print(f"--- [警告] 音频文件不存在: {audio_path}，跳过二次转录 ---")
+        print(f"--- [警告] 音频文件不存在，跳过二次转录 ---")
         return subtitles
     
-    # 二次转录
+    # 执行修复
     subtitles = retranscribe_with_alternative_model(
-        audio_path, subtitles, hallucination_ranges, alt_model_size
+        audio_path, subtitles, issue_ranges
     )
     
     return subtitles

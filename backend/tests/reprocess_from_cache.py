@@ -114,9 +114,9 @@ def reprocess_from_cache(video_id: str, title: str = "", detect_hallucination: b
         if audio_file:
             print(f"找到音频: {audio_file}")
             raw_subtitles = process_with_hallucination_detection(
-                audio_file, raw_subtitles, alt_model_size="base"
+                audio_file, raw_subtitles
             )
-            # 格式化字幕以包含幻觉标记
+            # 格式化字幕以包含幻觉/补漏标记
             raw_subtitles = format_subtitles_for_llm(raw_subtitles)
         else:
             print("警告: 未找到音频文件，跳过二次转录")
