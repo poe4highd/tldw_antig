@@ -267,14 +267,15 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
 
 @app.post("/upload")
 async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None):
-    task_id = str(int(time.time()))
-    
-    # ... (file saving logic)
-    # Use content hash to avoid duplicate uploads
+    # 使用文件内容 hash 生成唯一 ID
     content = await file.read()
-    file_hash = hashlib.md5(content).hexdigest()[:11]
+    file_hash = hashlib.md5(content).hexdigest()[:8]
+    
+    # 使用 'up_' 前缀区分上传文件与 YouTube 视频
+    task_id = f"up_{file_hash}"
+    
     ext = os.path.splitext(file.filename)[1] or ".mp3"
-    file_path = os.path.join(DOWNLOADS_DIR, f"{file_hash}{ext}")
+    file_path = os.path.join(DOWNLOADS_DIR, f"{task_id}{ext}")
     
     with open(file_path, "wb") as f:
         f.write(content)
