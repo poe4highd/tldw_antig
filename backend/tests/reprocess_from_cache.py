@@ -132,11 +132,28 @@ def reprocess_from_cache(video_id: str, title: str = "", detect_hallucination: b
     supabase = get_db()
     if supabase and paragraphs:
         try:
-            supabase.table("videos").update({
-                "paragraphs": paragraphs,
-                "usage": {"llm_tokens": usage}
-            }).eq("id", video_id).execute()
-            print("✅ 已更新数据库")
+            # 先获取现有的 report_data
+            res = supabase.table("videos").select("report_data, usage").eq("id", video_id).execute()
+            if res.data:
+                existing_report = res.data[0].get("report_data") or {}
+                existing_usage = res.data[0].get("usage") or {}
+                
+                # 更新内部字段
+                existing_report["paragraphs"] = paragraphs
+                
+                # 更新 usage
+                if isinstance(usage, dict):
+                    if "llm_tokens" not in existing_usage:
+                        existing_usage["llm_tokens"] = {}
+                    existing_usage["llm_tokens"] = usage
+                
+                supabase.table("videos").update({
+                    "report_data": existing_report,
+                    "usage": existing_usage
+                }).eq("id", video_id).execute()
+                print("✅ 已更新数据库 (report_data.paragraphs)")
+            else:
+                print(f"错误: 数据库中找不到 ID 为 {video_id} 的视频")
         except Exception as e:
             print(f"更新数据库失败: {e}")
     
