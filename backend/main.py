@@ -247,7 +247,20 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
 
 @app.post("/process")
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
-    task_id = str(int(time.time()))
+    # 优先使用 YouTube ID 作为 task_id
+    url = request.url
+    task_id = None
+    
+    if url:
+        # 尝试提取 YouTube ID (11位字符)
+        id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
+        if id_match:
+            task_id = id_match.group(1)
+    
+    # 如果无法提取 YouTube ID,使用时间戳
+    if not task_id:
+        task_id = str(int(time.time()))
+    
     save_status(task_id, "queued", 0)
     background_tasks.add_task(background_process, task_id, request.mode, url=request.url, user_id=request.user_id)
     return {"task_id": task_id}
