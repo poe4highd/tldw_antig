@@ -1,3 +1,4 @@
+[2026-01-20] | [OPTIM/LLM] | 提示词字数守恒优化 | 修改 processor.py PROMPT，强调输出字数高度接近输入，禁止删除/合并，只做1:1同音字替换 | .antigravity/DEV_LOG.md
 [2026-01-20] | [REFACTOR] | 统一视频 ID 命名规范 | YouTube 视频使用 unique ID (11位),上传文件使用 'up_' 前缀 + 8位 hash | .antigravity/DEV_LOG.md
 [2026-01-20] | [REFACTOR] | 进程隔离方案终极修复段错误 | 创建独立 worker.py 执行转录任务,彻底解决 MLX/Torch Metal GPU 冲突 | .antigravity/DEV_LOG.md
 [2026-01-20] | [FIX] | 后端段错误深度修复 (Part 2) | 实现 AI 库全量延迟加载与显存隔离，彻底解决 MLX 与 Torch 冲突 | .antigravity/DEV_LOG.md
