@@ -360,9 +360,11 @@ async def get_history(user_id: str = None):
             
             response = query.order("created_at", desc=True).execute()
             
+            seen_video_ids = set()
             for item in response.data:
                 video = item.get("videos")
-                if not video: continue
+                if not video or video["id"] in seen_video_ids: continue
+                seen_video_ids.add(video["id"])
                 
                 usage = video.get("usage", {})
                 duration = usage.get("duration", 0)

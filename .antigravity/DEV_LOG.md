@@ -1,3 +1,18 @@
+# 2026-01-20 修复 DashboardPage 重复 Key 错误
+
+## 任务背景
+前端 `DashboardPage` 渲染视频列表时出现 `Encountered two children with the same key` 警告。原因是后端 `get_history` API 在从 Supabase 获取数据时，由于 `submissions` 表中存在同一视频的多次提交记录，导致 API 返回了包含重复视频 ID 的数组。
+
+## 实施内容
+1. **后端去重逻辑**：在 `backend/main.py` 的 `get_history` 接口中，针对从 Supabase 获取的数据流添加了 `seen_video_ids` 过滤逻辑。
+2. **策略**：确保每个独特的视频 ID 仅保留最新的处理条目，从而保证返回给前端的 ID 是唯一的。
+
+## 验证结果
+- 逻辑层面已确保 ID 唯一性，从源头上消除了 React 渲染冲突。
+- [walkthrough.md](file:///Users/bu/.gemini/antigravity/brain/65f1a9fa-21a7-40de-b773-51ec1c234c85/walkthrough.md) 已记录详细改动。
+
+---
+
 # 2026-01-20 登录重定向隔离问题修复
 
 ## 任务背景
