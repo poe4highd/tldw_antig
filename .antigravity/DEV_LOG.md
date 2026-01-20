@@ -1,3 +1,22 @@
+# 2026-01-20 路径规范化与模型存储优化
+
+## 任务背景
+解决中间文件散落在系统目录（/var/folders）以及大模型文件占用系统缓存（~/.cache）的问题，确保项目自包含。
+
+## 实施内容
+1. **环境锁定**：在 `transcriber.py` 中设置 `HF_HOME` 和 `MODELSCOPE_CACHE` 指向 `backend/models`。
+2. **临时目录同步**：创建 `backend/data/temp` 并修改 `hallucination_detector.py` 的音频切片生成逻辑。
+3. **模型迁移与清理**：
+   - 迁移核心模型：`large-v3-turbo`, `small-mlx`, `SenseVoice`。
+   - 清理冗余模型：删除 `medium-mlx`, `large-v3-mlx`, `base-mlx` 及过期 2 个月的旧模型。
+
+## 关联文件
+- `backend/transcriber.py`
+- `backend/hallucination_detector.py`
+- `backend/.env`
+
+---
+
 # 2026-01-20 处理转录幻觉：双模型校验方案
 
 ## 问题分析

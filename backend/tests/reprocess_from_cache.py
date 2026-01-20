@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-从缓存重新处理LLM校正（支持幻觉检测与二次转录）。
+从缓存重新处理LLM校正（支持多轮迭代质量修复与 SenseVoice/Whisper 混合补漏）。
 
 用法: 
-  python reprocess_from_cache.py <video_id> [title] [--detect-hallucination]
+  python reprocess_from_cache.py <video_id> [title] [--detect-hallucination] [--iterations 2]
 
 示例: 
-  python reprocess_from_cache.py 0_zgry0AGqU "灵修与明白神的旨意" --detect-hallucination
+  python reprocess_from_cache.py 0_zgry0AGqU "灵修与明白神的旨意" --detect-hallucination --iterations 2
 """
 
 import json
@@ -42,7 +42,7 @@ def find_audio_file(video_id: str) -> str:
 
 def format_subtitles_for_llm(subtitles: list) -> list:
     """
-    格式化字幕，将幻觉区域和备选字幕标记出来供LLM处理
+    格式化字幕，将幻觉区域和多模型备选字幕标记出来供LLM处理
     """
     formatted = []
     for seg in subtitles:
@@ -52,7 +52,12 @@ def format_subtitles_for_llm(subtitles: list) -> list:
         if seg.get("_hallucination_flag"):
             # 标记幻觉区域
             alt_subs = seg.get("_alternative_subtitles", [])
-            alt_text = " ".join([s.get("text", "") for s in alt_subs]) if alt_subs else ""
+            
+            # 分组显示不同模型的备选（支持多轮迭代多模型）
+            model_alts = {}
+            for s in alt_subs:
+                m = s.get("_source_model", "unknown")
+                model_alts.setdefault(m, []).append(s.get("text", ""))
             
             formatted.append({
                 "start": start,
@@ -60,12 +65,13 @@ def format_subtitles_for_llm(subtitles: list) -> list:
                 "words": seg.get("words", [])
             })
             
-            if alt_text:
-                # 添加备选字幕（使用备选的时间戳）
-                alt_start = alt_subs[0].get("start", start) if alt_subs else start
+            for model_name, texts in model_alts.items():
+                alt_text = " ".join(texts)
+                # 添加备选字幕，包含模型类型标记
+                tag = "ALT_SV" if "sensevoice" in model_name.lower() else "ALT_W"
                 formatted.append({
-                    "start": alt_start,
-                    "text": f"[ALT:] {alt_text}",
+                    "start": start,
+                    "text": f"[{tag}:] {alt_text}",
                     "words": []
                 })
         else:
@@ -77,7 +83,7 @@ def format_subtitles_for_llm(subtitles: list) -> list:
     
     return formatted
 
-def reprocess_from_cache(video_id: str, title: str = "", detect_hallucination: bool = False):
+def reprocess_from_cache(video_id: str, title: str = "", detect_hallucination: bool = False, iterations: int = 1):
     """从缓存重新处理LLM校正"""
     cache_file = find_cache_file(video_id)
     if not cache_file:
@@ -105,16 +111,16 @@ def reprocess_from_cache(video_id: str, title: str = "", detect_hallucination: b
     
     print(f"使用标题: {title or '(无)'}")
     
-    # 幻觉检测与二次转录
+    # 质量探测与迭代修复
     if detect_hallucination:
-        print("--- 启用幻觉检测模式 ---")
+        print(f"--- 启用质量修复模式 (迭代: {iterations}) ---")
         from hallucination_detector import process_with_hallucination_detection
         
         audio_file = find_audio_file(video_id)
         if audio_file:
             print(f"找到音频: {audio_file}")
             raw_subtitles = process_with_hallucination_detection(
-                audio_file, raw_subtitles
+                audio_file, raw_subtitles, iterations=iterations
             )
             # 格式化字幕以包含幻觉/补漏标记
             raw_subtitles = format_subtitles_for_llm(raw_subtitles)
@@ -170,8 +176,10 @@ if __name__ == "__main__":
     parser.add_argument("video_id", help="视频ID")
     parser.add_argument("title", nargs="?", default="", help="视频标题（可选）")
     parser.add_argument("--detect-hallucination", "-d", action="store_true",
-                        help="启用幻觉检测与二次转录")
+                        help="启用质量修复模式")
+    parser.add_argument("--iterations", "-i", type=int, default=1,
+                        help="修复迭代次数 (默认1，设置为2以启用分级模型补救)")
     
     args = parser.parse_args()
     
-    reprocess_from_cache(args.video_id, args.title, args.detect_hallucination)
+    reprocess_from_cache(args.video_id, args.title, args.detect_hallucination, args.iterations)

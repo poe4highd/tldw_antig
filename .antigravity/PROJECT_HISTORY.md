@@ -1,3 +1,4 @@
+[2026-01-20] | [OPTIMIZATION] | 模型与中间文件路径规范化 | 将系统缓存与临时文件迁移至项目本地 backend/models 与 backend/data/temp | .antigravity/DEV_LOG.md
 [2026-01-20] | [FEATURE] | 双模型幻觉校验系统 | 实现基于 Whisper base 的动态重转录校验机制，修复单字循环与字义断层幻觉 | .antigravity/DEV_LOG.md
 [2026-01-20] | [OPTIM/LLM] | 提示词字数守恒优化 | 修改 processor.py PROMPT，强调输出字数高度接近输入，禁止删除/合并，只做1:1同音字替换 | .antigravity/DEV_LOG.md
 [2026-01-20] | [REFACTOR] | 统一视频 ID 命名规范 | YouTube 视频使用 unique ID (11位),上传文件使用 'up_' 前缀 + 8位 hash | .antigravity/DEV_LOG.md

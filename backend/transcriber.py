@@ -5,6 +5,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Use absolute paths for models to avoid ambiguity in different execution contexts
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+os.environ["HF_HOME"] = os.path.join(BASE_DIR, "models/huggingface")
+os.environ["MODELSCOPE_CACHE"] = os.path.join(BASE_DIR, "models/modelscope")
+os.environ["TEMP_DIR"] = os.path.join(BASE_DIR, "data/temp")
+
 def is_apple_silicon():
     """检测是否为 Apple Silicon (Mac M1/M2/M3)"""
     return sys.platform == "darwin" and platform.machine() == "arm64"
@@ -57,7 +63,7 @@ def get_sensevoice_onnx_model():
     import sherpa_onnx
     if "sensevoice_onnx" not in _sherpa_cache:
         print("--- Loading SenseVoice ONNX model (sherpa-onnx)... ---")
-        model_dir = "backend/models/sensevoice-onnx"
+        model_dir = os.path.join(BASE_DIR, "models/sensevoice-onnx")
         model_path = os.path.join(model_dir, "model.int8.onnx")
         tokens_path = os.path.join(model_dir, "tokens.txt")
         
@@ -80,7 +86,7 @@ def get_sensevoice_onnx_model():
 
 def get_silero_vad_config():
     """Load Silero VAD model config for segmenting long audio."""
-    vad_model_path = "backend/models/silero_vad/silero_vad.onnx"
+    vad_model_path = os.path.join(BASE_DIR, "models/silero_vad/silero_vad.onnx")
     if not os.path.exists(vad_model_path):
          raise FileNotFoundError(f"VAD model not found at {vad_model_path}. Please ensure it is downloaded.")
          

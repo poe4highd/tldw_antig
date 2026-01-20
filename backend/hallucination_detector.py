@@ -167,7 +167,12 @@ def extract_audio_segment(audio_path: str, start_sec: float, end_sec: float) -> 
     segment = audio[start_ms:end_ms]
     
     # 导出到临时文件
-    temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_dir = os.environ.get("TEMP_DIR", os.path.join(base_dir, "data/temp"))
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir, exist_ok=True)
+        
+    temp_file = tempfile.NamedTemporaryFile(suffix=".wav", dir=temp_dir, delete=False)
     segment.export(temp_file.name, format="wav")
     
     return temp_file.name
@@ -178,28 +183,29 @@ def retranscribe_with_alternative_model(
     subtitles: List[Dict[str, Any]],
     issue_ranges: List[Tuple[int, int, float, float]],
     primary_alt_model: str = "base",
-    gap_alt_model: str = "small"
+    gap_alt_model: str = "sensevoice"  # V2: 默认优先使用 SenseVoice 补漏
 ) -> List[Dict[str, Any]]:
     """
     对质量有问题的区域使用备选模型重新转录
     
     Args:
         primary_alt_model: 幻觉区域使用的模型 (默认 base)
-        gap_alt_model: 间隙/漏词区域使用的模型 (默认 small)
+        gap_alt_model: 间隙/漏词区域使用的模型 (默认 sensevoice)
     """
-    from transcriber import transcribe_local
+    from transcriber import transcribe_local, transcribe_sensevoice_onnx
     
     for start_idx, end_idx, start_time, end_time in issue_ranges:
         # 判断该区域的主要问题
         region_issues = []
         for i in range(start_idx, end_idx + 1):
-            region_issues.extend(subtitles[i].get("_quality_issues", []))
+            if i < len(subtitles):
+                region_issues.extend(subtitles[i].get("_quality_issues", []))
             
-        # 如果涉及 gap 或 low_density，使用更强大的 small 模型
+        # 如果涉及 gap 或 low_density，优先使用 sensevoice
         is_gap_issue = any("gap" in iss or "density" in iss for iss in region_issues)
-        model_size = gap_alt_model if is_gap_issue else primary_alt_model
+        model_name = gap_alt_model if is_gap_issue else primary_alt_model
         
-        print(f"--- [质量修复] 重转录区域 ({model_size}): {start_time:.1f}s - {end_time:.1f}s (片段 {start_idx}-{end_idx}) ---")
+        print(f"--- [质量修复] 重转录区域 ({model_name}): {start_time:.1f}s - {end_time:.1f}s (片段 {start_idx}-{end_idx}) ---")
         print(f"    涉及问题: {list(set(region_issues))}")
         
         try:
@@ -207,7 +213,10 @@ def retranscribe_with_alternative_model(
             temp_audio = extract_audio_segment(audio_path, start_time, end_time)
             
             # 使用指定模型重转录
-            alt_subtitles = transcribe_local(temp_audio, model_size=model_size)
+            if model_name == "sensevoice":
+                alt_subtitles = transcribe_sensevoice_onnx(temp_audio)
+            else:
+                alt_subtitles = transcribe_local(temp_audio, model_size=model_name)
             
             # 调整时间戳
             time_offset = max(0, start_time - 0.5)
@@ -218,13 +227,22 @@ def retranscribe_with_alternative_model(
             # 标记结果
             for idx in range(start_idx, end_idx + 1):
                 if idx < len(subtitles):
-                    subtitles[idx]["_alternative_subtitles"] = alt_subtitles
-                    subtitles[idx]["_hallucination_flag"] = True # LLM 处理逻辑通用
+                    # 如果已有备选，则追加（支持多路备选）
+                    if "_alternative_subtitles" not in subtitles[idx]:
+                        subtitles[idx]["_alternative_subtitles"] = []
+                    
+                    # 避免重复内容
+                    subtitles[idx]["_alternative_subtitles"].extend(alt_subtitles)
+                    subtitles[idx]["_hallucination_flag"] = True
+                    # 标记来源模型
+                    for s in alt_subtitles:
+                        s["_source_model"] = model_name
             
-            os.unlink(temp_audio)
+            if os.path.exists(temp_audio):
+                os.unlink(temp_audio)
             
         except Exception as e:
-            print(f"--- [警告] 重转录失败: {e} ---")
+            print(f"--- [警告] 重转录失败 ({model_name}): {e} ---")
             for idx in range(start_idx, end_idx + 1):
                 if idx < len(subtitles):
                     subtitles[idx]["_hallucination_flag"] = True
@@ -235,29 +253,44 @@ def retranscribe_with_alternative_model(
 
 def process_with_hallucination_detection(
     audio_path: str,
-    subtitles: List[Dict[str, Any]]
+    subtitles: List[Dict[str, Any]],
+    iterations: int = 1
 ) -> List[Dict[str, Any]]:
     """
-    主入口：检测幻觉与间隙并进行二次转录
+    主入口：检测幻觉与间隙并进行多轮迭代修复
     """
-    print(f"--- [质量检测] 开始扫描 {len(subtitles)} 个片段 ---")
-    
-    # 检测问题区域
-    issue_ranges = detect_hallucinations(subtitles)
-    
-    if not issue_ranges:
-        print("--- [质量检测] 未发现质量问题 ---")
-        return subtitles
-    
-    print(f"--- [质量检测] 发现 {len(issue_ranges)} 个问题区域 ---")
-    
-    if not os.path.exists(audio_path):
-        print(f"--- [警告] 音频文件不存在，跳过二次转录 ---")
-        return subtitles
-    
-    # 执行修复
-    subtitles = retranscribe_with_alternative_model(
-        audio_path, subtitles, issue_ranges
-    )
-    
+    for i in range(iterations):
+        iter_num = i + 1
+        print(f"--- [质量检测] 第 {iter_num} 轮扫描 (总计 {iterations} 轮) ---")
+        
+        # 检测问题区域
+        issue_ranges = detect_hallucinations(subtitles)
+        
+        if not issue_ranges:
+            print(f"--- [质量检测] 第 {iter_num} 轮未发现质量问题 ---")
+            if i == 0: return subtitles
+            break
+        
+        print(f"--- [质量检测] 第 {iter_num} 轮发现 {len(issue_ranges)} 个问题区域 ---")
+        
+        if not os.path.exists(audio_path):
+            print(f"--- [警告] 音频文件不存在，跳过二次转录 ---")
+            return subtitles
+        
+        # 模型策略：第一轮优先 SenseVoice，第二轮针对剩余间隙使用 Small 模型进行精度补偿
+        primary_model = "base"
+        gap_model = "sensevoice" if iter_num == 1 else "small"
+        
+        # 执行修复
+        subtitles = retranscribe_with_alternative_model(
+            audio_path, subtitles, issue_ranges,
+            primary_alt_model=primary_model,
+            gap_alt_model=gap_model
+        )
+        
+        # 清理标记，准备下一轮扫描（如果还有迭代）
+        if iter_num < iterations:
+            for s in subtitles:
+                if "_quality_issues" in s: del s["_quality_issues"]
+
     return subtitles
