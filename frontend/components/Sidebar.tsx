@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutGrid,
+    Library,
     FileUp,
     Settings,
     History,
@@ -36,7 +37,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
 
     const menuItems = [
-        { name: "我的书架", icon: LayoutGrid, href: "/dashboard" },
+        { name: "我的书架", icon: Library, href: "/dashboard" },
         { name: "任务处理中心", icon: FileUp, href: "/tasks" },
     ];
 

@@ -68,8 +68,8 @@ export default function MarketingPage() {
         </h1>
 
         <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-          Read-Tube 利用最先进的 AI 技术，为您提供 YouTube、视频及音频内容的极速转化。
-          不仅仅是转录，更是深度的知识提炼与沉浸式阅读。
+          Read-Tube 利用 AI 技术将 YouTube 与音视频转化为结构化文档。
+          不仅仅是转录，更是为您构建一个可沉淀、可复读的个人数字书架。
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -81,16 +81,23 @@ export default function MarketingPage() {
           </button>
         </div>
 
-        {/* Floating Abstract Elements */}
+        {/* Product Preview Section */}
         <div className="mt-24 relative max-w-5xl mx-auto aspect-[16/9] rounded-3xl border border-slate-800 bg-slate-900/50 backdrop-blur-md overflow-hidden shadow-2xl group">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-50" />
-          <div className="flex h-full items-center justify-center">
-            <div className="text-slate-600 font-mono text-sm group-hover:text-slate-500 transition-colors">
-              [ 产品预览图占位符 ]
-            </div>
-          </div>
+          <img
+            src="/images/hero_mockup.png"
+            alt="Read-Tube Product Interface"
+            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-700"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-40" />
+
           {/* Glossy overlay */}
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+          {/* Floating badge for AI status */}
+          <div className="absolute bottom-6 left-6 px-4 py-2 bg-indigo-500/20 backdrop-blur-xl border border-indigo-500/30 rounded-2xl flex items-center space-x-2 animate-pulse">
+            <div className="w-2 h-2 bg-indigo-400 rounded-full" />
+            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">AI 正在深度重读中...</span>
+          </div>
         </div>
       </section>
 

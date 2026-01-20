@@ -3,8 +3,12 @@
 检测转录结果中的幻觉区域，使用备选模型重新转录
 """
 
-import re
 import os
+import sys
+import re
+
+# 解决苹果芯片上 OpenMP 多重初始化导致的冲突 (mlx-whisper 与 sherpa-onnx 冲突)
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import tempfile
 from typing import List, Tuple, Dict, Any
 

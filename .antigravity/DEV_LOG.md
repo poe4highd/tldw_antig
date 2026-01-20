@@ -1,3 +1,23 @@
+# 2026-01-20 产品预览图设计与“我的书架”品牌同步
+
+## 任务背景
+统一产品核心术语，将“见地”更名为“我的书架”，并配套高质感的产品预览图以提升第一眼视觉冲击力。
+
+## 实施内容
+1. **视觉资产生成**：使用 AI 生成 Hero Mockup 并在营销页集成，替换占位符。
+2. **术语与图标同步**：
+   - 侧边栏图标更新：`LayoutGrid` → `Library`。
+   - 系统元数据更新：`description` 强化“音视频书架”概念。
+   - 营销页文案微调：强调构建“个人数字书架”。
+
+## 关联文件
+- `frontend/components/Sidebar.tsx`
+- `frontend/app/layout.tsx`
+- `frontend/app/page.tsx`
+- `frontend/public/images/hero_mockup.png`
+
+---
+
 # 2026-01-20 路径规范化与模型存储优化
 
 ## 任务背景
