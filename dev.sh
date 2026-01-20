@@ -52,16 +52,16 @@ else
     printf "${GREEN}[INFO] Cloudflare 隧道进程运行中。${NC}\n"
 fi
 
-# 1. 启动后端
-printf "${BLUE}启动后端服务 (FastAPI)...${NC}\n"
+# 1. 启动后端 (使用 uvicorn --reload 支持热重载)
+printf "${BLUE}启动后端服务 (FastAPI + 热重载)...${NC}\n"
 export KMP_DUPLICATE_LIB_OK=TRUE
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export KMP_BLOCKTIME=0
 if [ -d "backend/venv" ]; then
-    (cd backend && source venv/bin/activate && python3 main.py) 2>&1 | log_backend &
+    (cd backend && source venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload) 2>&1 | log_backend &
 else
-    (cd backend && python3 main.py) 2>&1 | log_backend &
+    (cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload) 2>&1 | log_backend &
 fi
 BACKEND_PID=$!
 
