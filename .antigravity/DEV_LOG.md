@@ -1,3 +1,23 @@
+# 2026-01-20 处理转录幻觉：双模型校验方案
+
+## 问题分析
+识别到转录模型在低信号区会出现“单字循环”幻觉，以及“罗布/萝卜”这类字义断层。
+
+## 解决方案
+1.  **实现 `hallucination_detector.py`**：使用正则匹配循环模式（如 `(.{1,4})\1{2,}`）。
+2.  **双模型工作流**：检测到幻觉后，动态切片音频，使用 `whisper base` 模型重转录作为备选。
+3.  **提示词升级**：新增规则 5 (幻觉处理) 和 规则 6 (删除例外)，赋予 LLM 处理 `[HALLUCINATION]` 和 `[ALT:]` 标记的能力。
+
+## 验证结果
+视频 `0_zgry0AGqU` 重处理成功，“罗布”精确修正为“萝卜”，乱码循环被剔除，最终文本不含任何 AI 标记。
+
+## 关联文件
+- [processor.py](file:///Users/bu/Projects/Lijing/AppDev/tldw/tldw_antig/backend/processor.py)
+- [hallucination_detector.py](file:///Users/bu/Projects/Lijing/AppDev/tldw/tldw_antig/backend/hallucination_detector.py)
+- [reprocess_from_cache.py](file:///Users/bu/Projects/Lijing/AppDev/tldw/tldw_antig/backend/tests/reprocess_from_cache.py)
+
+---
+
 # 2026-01-20 LLM校正提示词优化（字数守恒）
 
 ## 问题

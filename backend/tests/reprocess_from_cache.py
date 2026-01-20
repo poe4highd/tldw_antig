@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
-从缓存重新处理LLM校正。
-用法: python reprocess_from_cache.py <video_id> [title]
-示例: python reprocess_from_cache.py 0_zgry0AGqU "灵修与明白神的旨意"
+从缓存重新处理LLM校正（支持幻觉检测与二次转录）。
+
+用法: 
+  python reprocess_from_cache.py <video_id> [title] [--detect-hallucination]
+
+示例: 
+  python reprocess_from_cache.py 0_zgry0AGqU "灵修与明白神的旨意" --detect-hallucination
 """
 
 import json
 import sys
 import os
 import glob
+import argparse
 from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -26,7 +31,53 @@ def find_cache_file(video_id: str) -> str:
         return matches[0]
     return None
 
-def reprocess_from_cache(video_id: str, title: str = ""):
+def find_audio_file(video_id: str) -> str:
+    """查找视频对应的音频文件"""
+    downloads_dir = os.path.join(os.path.dirname(__file__), '../downloads')
+    for ext in ['.m4a', '.mp3', '.wav', '.webm']:
+        path = os.path.join(downloads_dir, f"{video_id}{ext}")
+        if os.path.exists(path):
+            return path
+    return None
+
+def format_subtitles_for_llm(subtitles: list) -> list:
+    """
+    格式化字幕，将幻觉区域和备选字幕标记出来供LLM处理
+    """
+    formatted = []
+    for seg in subtitles:
+        text = seg.get("text", "")
+        start = seg.get("start", 0)
+        
+        if seg.get("_hallucination_flag"):
+            # 标记幻觉区域
+            alt_subs = seg.get("_alternative_subtitles", [])
+            alt_text = " ".join([s.get("text", "") for s in alt_subs]) if alt_subs else ""
+            
+            formatted.append({
+                "start": start,
+                "text": f"[HALLUCINATION] {text}",
+                "words": seg.get("words", [])
+            })
+            
+            if alt_text:
+                # 添加备选字幕（使用备选的时间戳）
+                alt_start = alt_subs[0].get("start", start) if alt_subs else start
+                formatted.append({
+                    "start": alt_start,
+                    "text": f"[ALT:] {alt_text}",
+                    "words": []
+                })
+        else:
+            formatted.append({
+                "start": start,
+                "text": text,
+                "words": seg.get("words", [])
+            })
+    
+    return formatted
+
+def reprocess_from_cache(video_id: str, title: str = "", detect_hallucination: bool = False):
     """从缓存重新处理LLM校正"""
     cache_file = find_cache_file(video_id)
     if not cache_file:
@@ -53,6 +104,23 @@ def reprocess_from_cache(video_id: str, title: str = ""):
                 print(f"获取标题失败: {e}")
     
     print(f"使用标题: {title or '(无)'}")
+    
+    # 幻觉检测与二次转录
+    if detect_hallucination:
+        print("--- 启用幻觉检测模式 ---")
+        from hallucination_detector import process_with_hallucination_detection
+        
+        audio_file = find_audio_file(video_id)
+        if audio_file:
+            print(f"找到音频: {audio_file}")
+            raw_subtitles = process_with_hallucination_detection(
+                audio_file, raw_subtitles, alt_model_size="base"
+            )
+            # 格式化字幕以包含幻觉标记
+            raw_subtitles = format_subtitles_for_llm(raw_subtitles)
+        else:
+            print("警告: 未找到音频文件，跳过二次转录")
+    
     print("开始LLM校正...")
     
     paragraphs, usage = split_into_paragraphs(raw_subtitles, title=title)
@@ -81,12 +149,12 @@ def reprocess_from_cache(video_id: str, title: str = ""):
     return True
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("用法: python reprocess_from_cache.py <video_id> [title]")
-        print("示例: python reprocess_from_cache.py 0_zgry0AGqU \"灵修与明白神的旨意\"")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="从缓存重新处理LLM校正")
+    parser.add_argument("video_id", help="视频ID")
+    parser.add_argument("title", nargs="?", default="", help="视频标题（可选）")
+    parser.add_argument("--detect-hallucination", "-d", action="store_true",
+                        help="启用幻觉检测与二次转录")
     
-    video_id = sys.argv[1]
-    title = sys.argv[2] if len(sys.argv) > 2 else ""
+    args = parser.parse_args()
     
-    reprocess_from_cache(video_id, title)
+    reprocess_from_cache(args.video_id, args.title, args.detect_hallucination)
