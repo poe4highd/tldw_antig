@@ -4,13 +4,16 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
+import { useTranslation } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function MarketingPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   useEffect(() => {
     // 监听状态变化（处理挂载时的初始检查及 OAuth 回调后的状态切换）
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       // 检查当前 URL 缓存或实时获取，避免异步竞争
       const urlParams = new URLSearchParams(window.location.search);
       const isNoRedirect = urlParams.get("noredirect") === "1";
@@ -37,12 +40,13 @@ export default function MarketingPage() {
             <img src="/icon.png" alt="Read-Tube Logo" className="w-8 h-8" />
           </div>
           <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            Read-Tube
+            {t("marketing.title")}
           </span>
         </Link>
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4 md:space-x-6">
+          <LanguageSwitcher />
           <Link href="/login" className="px-5 py-2.5 bg-white text-slate-950 rounded-full text-sm font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-lg shadow-white/5">
-            立即登录
+            {t("common.login")}
           </Link>
         </div>
       </nav>
@@ -54,27 +58,26 @@ export default function MarketingPage() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
           </span>
-          AI 驱动的阅读革命
+          {t("marketing.tagline")}
         </div>
 
         <h1 className="text-6xl md:text-8xl font-black tracking-tight mb-8 max-w-4xl mx-auto leading-[1.1]">
-          将视频转化为
+          {t("marketing.heroTitle1")}
           <span className="block bg-gradient-to-r from-indigo-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent italic">
-            深度阅读体验
+            {t("marketing.heroTitle2")}
           </span>
         </h1>
 
         <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-          Read-Tube 利用 AI 技术将 YouTube 与音视频转化为结构化文档。
-          不仅仅是转录，更是为您构建一个可沉淀、可复读的个人数字书架。
+          {t("marketing.description")}
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/login" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-bold text-lg hover:shadow-[0_0_40px_rgba(79,70,229,0.4)] transition-all active:scale-95 text-center">
-            开始免费阅读
+            {t("marketing.ctaStart")}
           </Link>
           <button className="w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white rounded-2xl font-bold text-lg hover:bg-slate-800/50 transition-all">
-            了解功能详情
+            {t("marketing.ctaLearnMore")}
           </button>
         </div>
 
@@ -93,7 +96,9 @@ export default function MarketingPage() {
           {/* Floating badge for AI status */}
           <div className="absolute bottom-6 left-6 px-4 py-2 bg-indigo-500/20 backdrop-blur-xl border border-indigo-500/30 rounded-2xl flex items-center space-x-2 animate-pulse">
             <div className="w-2 h-2 bg-indigo-400 rounded-full" />
-            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">AI 正在深度重读中...</span>
+            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
+              {t("marketing.aiReading")}
+            </span>
           </div>
         </div>
       </section>
@@ -107,9 +112,9 @@ export default function MarketingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold mb-4">视频转速读</h3>
+            <h3 className="text-xl font-bold mb-4">{t("marketing.feature1Title")}</h3>
             <p className="text-slate-400 leading-relaxed">
-              将冗长的视频演讲自动整理为结构化的精美文档，让您用传统阅读的效率吸收动态影像信息。
+              {t("marketing.feature1Desc")}
             </p>
           </div>
 
@@ -119,9 +124,9 @@ export default function MarketingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold mb-4">AI 智能总结</h3>
+            <h3 className="text-xl font-bold mb-4">{t("marketing.feature2Title")}</h3>
             <p className="text-slate-400 leading-relaxed">
-              基于最新的大语言模型，自动提炼视频中的核心观点、金句和思维导图，精准捕捉每一处精彩。
+              {t("marketing.feature2Desc")}
             </p>
           </div>
 
@@ -131,9 +136,9 @@ export default function MarketingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold mb-4">全格式支持</h3>
+            <h3 className="text-xl font-bold mb-4">{t("marketing.feature3Title")}</h3>
             <p className="text-slate-400 leading-relaxed">
-              无论是 YouTube 链接、PODCAST 音频还是本地录像文件，Read-Tube 都能为您提供一致的优质体验。
+              {t("marketing.feature3Desc")}
             </p>
           </div>
         </div>
@@ -143,9 +148,9 @@ export default function MarketingPage() {
       <footer className="relative z-10 max-w-7xl mx-auto px-6 py-12 border-t border-slate-900 text-center text-slate-500 text-sm">
         <p>© 2026 Read-Tube. All rights reserved.</p>
         <div className="mt-4 flex items-center justify-center space-x-6">
-          <Link href="/project-history" className="hover:text-white transition-colors">项目更新历史</Link>
-          <a href="#" className="hover:text-white transition-colors">服务条款</a>
-          <a href="#" className="hover:text-white transition-colors">隐私政策</a>
+          <Link href="/project-history" className="hover:text-white transition-colors">{t("nav.projectHistory")}</Link>
+          <a href="#" className="hover:text-white transition-colors">{t("nav.terms")}</a>
+          <a href="#" className="hover:text-white transition-colors">{t("nav.privacy")}</a>
         </div>
       </footer>
     </main>

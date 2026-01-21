@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { getApiBase } from "@/utils/api";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 import {
     ArrowLeft,
@@ -48,6 +49,7 @@ interface Result {
 }
 
 export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
+    const { t, language } = useTranslation();
     const { id } = use(params);
     const [result, setResult] = useState<Result | null>(null);
     const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                 // Fetch basic result
                 const response = await fetch(`${apiBase}/result/${id}`);
-                if (!response.ok) throw new Error("无法获取报告内容");
+                if (!response.ok) throw new Error(t("result.fetchError"));
                 const data = await response.json();
 
                 if (data.status === "completed") {
@@ -100,9 +102,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         setComments(commData);
                     }
                 } else if (data.status === "failed") {
-                    setError(data.detail || "处理失败");
+                    setError(data.detail || t("result.processFailed"));
                 } else {
-                    setError("该报告正在生成中，请稍后再试。");
+                    setError(t("result.generating"));
                 }
             } catch (err: any) {
                 setError(err.message);
@@ -262,9 +264,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     if (error || !result) {
         return (
             <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-                <h1 className="text-2xl font-bold text-slate-200 mb-4">糟糕！出错了</h1>
-                <p className="text-slate-400 mb-8">{error || "找不到该报告"}</p>
-                <Link href="/dashboard" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">返回书架</Link>
+                <h1 className="text-2xl font-bold text-slate-200 mb-4">{t("result.errorTitle")}</h1>
+                <p className="text-slate-400 mb-8">{error || t("result.notFound")}</p>
+                <Link href="/dashboard" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">{t("result.backButton")}</Link>
             </div>
         );
     }
@@ -288,7 +290,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 <div className="flex items-center space-x-3">
                     <button className="flex items-center space-x-2 px-4 py-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">
                         <Share2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">共享报告</span>
+                        <span className="hidden sm:inline">{t("result.shareReport")}</span>
                     </button>
                     <button className="p-2 bg-indigo-500 text-white rounded-full hover:scale-105 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 md:hidden">
                         <Download className="w-5 h-5" />
@@ -316,8 +318,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                             <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
                                                 <Play className="w-8 h-8 text-white fill-current" />
                                             </div>
-                                            <h4 className="text-xl font-bold mb-2">正在播放本地音频</h4>
-                                            <p className="text-sm text-slate-400 max-w-xs">已切换至转录音频，确保语音与字幕严格同步。</p>
+                                            <h4 className="text-xl font-bold mb-2">{t("result.localAudioTitle")}</h4>
+                                            <p className="text-sm text-slate-400 max-w-xs">{t("result.localAudioDesc")}</p>
                                         </div>
                                         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
                                             <audio
@@ -353,7 +355,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     {useLocalAudio ? (
                                         <span className="flex items-center gap-2"><Play className="w-3 h-3" /> YouTube</span>
                                     ) : (
-                                        <span className="flex items-center gap-2"><ArrowDownToLine className="w-3 h-3" /> 同步音频</span>
+                                        <span className="flex items-center gap-2"><ArrowDownToLine className="w-3 h-3" /> {t("result.syncAudio")}</span>
                                     )}
                                 </button>
 
@@ -368,7 +370,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group"
                                 >
                                     {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
-                                    <span>{copyStatus ? "已复制" : "复制全文"}</span>
+                                    <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
                                 </button>
                                 <button
                                     onClick={downloadSRT}
@@ -412,10 +414,10 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         <div className="px-4 md:px-0">
                             <h2 className="text-xl md:text-2xl font-black mb-1 md:mb-2 tracking-tight line-clamp-2 md:line-clamp-none leading-tight">{result.title}</h2>
                             <div className="flex items-center space-x-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest">
-                                <span>{viewCount.toLocaleString()} VIEWS</span>
-                                <span>DATE: {(() => {
+                                <span>{viewCount.toLocaleString()} {t("result.views")}</span>
+                                <span>{t("result.date")}: {(() => {
                                     const date = result.mtime ? new Date(result.mtime) : new Date();
-                                    return date.toLocaleDateString('zh-CN', {
+                                    return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
                                         year: 'numeric', month: '2-digit', day: '2-digit'
                                     }).replace(/\//g, '.');
                                 })()}</span>
@@ -465,8 +467,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                             <div className="pt-8 border-t border-slate-800 flex items-center justify-between">
                                 <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-relaxed">
-                                    生成消耗: ${result.usage?.total_cost || "0.01"} <br />
-                                    AI 模型: Claude 3.5 Sonnet
+                                    {t("result.usageCost")}: ${result.usage?.total_cost || "0.01"} <br />
+                                    {t("result.aiModel")}: Claude 3.5 Sonnet
                                 </p>
                             </div>
                         </div>
@@ -479,7 +481,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 className="flex items-center space-x-2 px-5 md:px-6 py-2.5 md:py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-500/50 transition-all transform hover:scale-105 active:scale-95 font-black text-xs md:text-sm"
                             >
                                 <ArrowDownToLine className="w-4 h-4 md:w-5 h-5" />
-                                <span>同步播放进度</span>
+                                <span>{t("result.syncProgress")}</span>
                             </button>
                         </div>
                     )}
@@ -492,7 +494,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         <div className="p-8 border-b border-slate-800 flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                                 <MessageSquare className="w-5 h-5 text-indigo-400" />
-                                <h3 className="font-bold">讨论区 ({comments.length})</h3>
+                                <h3 className="font-bold">{t("result.discussion")} ({comments.length})</h3>
                             </div>
                             <MoreVertical className="w-5 h-5 text-slate-600 cursor-pointer" />
                         </div>
@@ -501,7 +503,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             {comments.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-slate-600 space-y-2">
                                     <MessageSquare className="w-8 h-8 opacity-20" />
-                                    <p className="text-sm">暂无评论，快来抢沙发吧</p>
+                                    <p className="text-sm">{t("result.noComments")}</p>
                                 </div>
                             ) : comments.map((comment, idx) => (
                                 <div key={comment.id || idx} className="flex gap-4">
@@ -514,7 +516,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-slate-200">{comment.profiles?.username || "热心网友"}</span>
+                                            <span className="text-sm font-bold text-slate-200">{comment.profiles?.username || t("result.anonymousUser")}</span>
                                             <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
                                                 {new Date(comment.created_at).toLocaleDateString()}
                                             </span>
@@ -524,7 +526,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                             <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
                                                 <ThumbsUp className="w-3 h-3" /> {comment.likes_count || 0}
                                             </button>
-                                            <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">回复</button>
+                                            <button className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">{t("result.reply")}</button>
                                         </div>
                                     </div>
                                 </div>
@@ -553,7 +555,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     type="text"
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
-                                    placeholder="发表你的深度见解..."
+                                    placeholder={t("result.commentPlaceholder")}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-700 transition-all font-medium"
                                 />
                                 <button type="submit" className="absolute right-2 top-2 p-1.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors">
@@ -566,8 +568,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     {/* User Interest Heatmap Placeholder */}
                     <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-bold">关注热度统计</h3>
-                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">实时</span>
+                            <h3 className="font-bold">{t("result.analytics")}</h3>
+                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">{t("result.live")}</span>
                         </div>
                         <div className="space-y-4">
                             <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
@@ -577,12 +579,12 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             </div>
                             <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                                 <span>00:00</span>
-                                <span>重点关注区域</span>
+                                <span>{t("result.keyInterest")}</span>
                                 <span>12:45</span>
                             </div>
                         </div>
                         <p className="mt-6 text-xs text-slate-500 leading-relaxed font-medium">
-                            本视频的 **4:12 - 6:30** 区域互动量最高，建议重点阅读。
+                            {t("result.analyticsAdvice").replace("{start}", "4:12").replace("{end}", "6:30")}
                         </p>
                     </div>
                 </div>

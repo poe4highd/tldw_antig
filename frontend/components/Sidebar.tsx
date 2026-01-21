@@ -33,17 +33,21 @@ interface SidebarProps {
     onClose: () => void;
 }
 
+import { useTranslation } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+
 export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const { t } = useTranslation();
 
     const menuItems = [
-        { name: "我的书架", icon: Library, href: "/dashboard" },
-        { name: "任务处理中心", icon: FileUp, href: "/tasks" },
+        { name: t("nav.bookshelf"), icon: Library, href: "/dashboard" },
+        { name: t("nav.tasks"), icon: FileUp, href: "/tasks" },
     ];
 
     const systemItems = [
-        { name: "项目更新历史", icon: History, href: "/project-history" },
-        { name: "偏好设置", icon: Settings, href: "/settings" },
+        { name: t("nav.projectHistory"), icon: History, href: "/project-history" },
+        { name: t("common.settings"), icon: Settings, href: "/settings" },
     ];
 
     return (
@@ -64,12 +68,12 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
             >
                 <div className="p-8 flex flex-col h-full overflow-y-auto">
                     <div className="flex items-center justify-between mb-12">
-                        <Link href="/?noredirect=1" className="flex items-center space-x-3 group">
+                        <Link href="/?noredirect=1" className="flex items-center space-x-3 group text-left">
                             <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300">
                                 <img src="/icon.png" alt="Read-Tube Logo" className="w-6 h-6" />
                             </div>
                             <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                                Read-Tube
+                                {t("marketing.title")}
                             </span>
                         </Link>
                         <button
@@ -82,13 +86,15 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
 
                     <nav className="space-y-8 flex-1">
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">主菜单</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">
+                                {t("sidebar.mainMenu")}
+                            </p>
                             <div className="space-y-1">
                                 {menuItems.map((item) => {
                                     const isActive = pathname === item.href;
                                     return (
                                         <Link
-                                            key={item.name}
+                                            key={item.href}
                                             href={item.href}
                                             onClick={onClose}
                                             className={cn(
@@ -107,13 +113,15 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                         </div>
 
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">系统与支持</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">
+                                {t("sidebar.systemSupport")}
+                            </p>
                             <div className="space-y-1">
                                 {systemItems.map((item) => {
                                     const isActive = pathname === item.href;
                                     return (
                                         <Link
-                                            key={item.name}
+                                            key={item.href}
                                             href={item.href}
                                             onClick={onClose}
                                             className={cn(
@@ -132,8 +140,8 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                         </div>
                     </nav>
 
-                    <div className="mt-auto pt-6 border-t border-slate-900">
-                        <div className="flex items-center space-x-3 mb-6 px-2">
+                    <div className="mt-auto pt-6 border-t border-slate-900 flex flex-col gap-6">
+                        <div className="flex items-center space-x-3 px-2">
                             {user?.user_metadata?.avatar_url ? (
                                 <img
                                     src={user.user_metadata.avatar_url}
@@ -146,20 +154,26 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                                 </div>
                             )}
                             <div className="overflow-hidden">
-                                <p className="text-sm font-bold truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || "已登录"}</p>
+                                <p className="text-sm font-bold truncate">
+                                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || t("sidebar.signedIn")}
+                                </p>
                                 <p className="text-[10px] text-slate-500 truncate">{user?.email || "..."}</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => {
-                                onSignOut();
-                                onClose();
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            <span>退出登录</span>
-                        </button>
+
+                        <div className="flex items-center justify-between px-2 gap-2">
+                            <button
+                                onClick={() => {
+                                    onSignOut();
+                                    onClose();
+                                }}
+                                className="flex-1 flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                <span>{t("common.logout")}</span>
+                            </button>
+                            <LanguageSwitcher />
+                        </div>
                     </div>
                 </div>
             </aside>

@@ -1,3 +1,5 @@
+[2026-01-20] | [FEATURE] | 全站多语言支持 (i18n) | 完成全站 7 大核心页面及 Mock 数据的中英双向支持，集成持久化切换机制 | .antigravity/DEV_LOG.md
+[2026-01-20] | [RESEARCH] | 技术咨询：本地停机影响 | 分析本地后端停止对生产环境的影响并给出结论 | DEV_LOG.md
 [# [2026-01-20] | [UI/UX] | 清理主页入口 | 移除主页开发测试入口，明确 noredirect 参数逻辑 | DEV_LOG.md
 [2026-01-20] | [FIX] | 修复登录重定向环境隔离问题 | 解决 Google Auth 登录后跳回生产环境的问题，协助配置 Supabase 白名单并优化 URL 解析逻辑。 | walkthrough.md
 [# 2026-01-20 | [Fix] 修复 DashboardPage 重复 Key 错误 | 后端 API 去重 | [walkthrough.md](file:///Users/bu/.gemini/antigravity/brain/65f1a9fa-21a7-40de-b773-51ec1c234c85/walkthrough.md)

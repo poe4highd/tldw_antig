@@ -33,7 +33,7 @@ function cn(...inputs: ClassValue[]) {
 const MOCK_VIDEOS = [
     {
         id: "_1C1mRhUYwo",
-        title: "“普通人别学投资”，是我听过最荒谬的蠢话",
+        title: "Stop learning investment if you are an ordinary person? The most ridiculous advice.",
         thumbnail: "https://i.ytimg.com/vi/_1C1mRhUYwo/sddefault.jpg",
         source: "youtube",
         isPublic: true,
@@ -42,7 +42,7 @@ const MOCK_VIDEOS = [
     },
     {
         id: "0wwqxQchN64",
-        title: "《星汉灿烂》宣皇后为什么这么让人意难平？#星汉灿烂 #赵露思 #吴磊",
+        title: "Empress Xuan in 'Love Like the Galaxy' - Why is she so tragic? #LoveLikeTheGalaxy",
         thumbnail: "https://i.ytimg.com/vi_webp/0wwqxQchN64/maxresdefault.webp",
         source: "youtube",
         isPublic: true,
@@ -60,7 +60,7 @@ const MOCK_VIDEOS = [
     },
     {
         id: "yDc0_8emz7M",
-        title: "Agent Skill 从使用到原理，一次讲清",
+        title: "Agent Skills: From Usage to Theory, Explained.",
         thumbnail: "https://i.ytimg.com/vi/yDc0_8emz7M/maxresdefault.jpg",
         source: "youtube",
         isPublic: true,
@@ -69,7 +69,7 @@ const MOCK_VIDEOS = [
     },
     {
         id: "ZzPoWrlzE1w",
-        title: "Claude Skills：被 90% 的人低估的自动化超能力 | 三周深度实测",
+        title: "Claude Skills: The Automated Superpower Underrated by 90% | 3-Week Review",
         thumbnail: "https://i.ytimg.com/vi/ZzPoWrlzE1w/maxresdefault.jpg",
         source: "youtube",
         isPublic: true,
@@ -78,7 +78,7 @@ const MOCK_VIDEOS = [
     },
     {
         id: "upload-mock-1",
-        title: "内部会议录音：2024 Q4 产品路线图讨论.mp3",
+        title: "Internal Meeting: 2024 Q4 Product Roadmap Discussion.mp3",
         thumbnail: "https://images.unsplash.com/photo-1589903303904-a0422599fa86?auto=format&fit=crop&q=80&w=800",
         source: "upload",
         isPublic: false,
@@ -87,7 +87,10 @@ const MOCK_VIDEOS = [
     }
 ];
 
+import { useTranslation } from "@/contexts/LanguageContext";
+
 export default function DashboardPage() {
+    const { t, language } = useTranslation();
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [searchQuery, setSearchQuery] = useState("");
     const [user, setUser] = useState<{
@@ -103,7 +106,7 @@ export default function DashboardPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const router = useRouter();
 
-    // 1. 初始化时从 localStorage 读取偏好
+    // 1. Read preference from localStorage on init
     useEffect(() => {
         const savedViewMode = localStorage.getItem("rt-view-mode");
         if (savedViewMode === "grid" || savedViewMode === "list") {
@@ -111,7 +114,7 @@ export default function DashboardPage() {
         }
     }, []);
 
-    // 2. 偏好改变时保存到 localStorage
+    // 2. Save preference to localStorage when changed
     useEffect(() => {
         localStorage.setItem("rt-view-mode", viewMode);
     }, [viewMode]);
@@ -146,7 +149,7 @@ export default function DashboardPage() {
                         thumbnail: item.thumbnail,
                         source: item.id.length === 11 ? "youtube" : "upload",
                         isPublic: true, // For now, assume public until privacy logic is in
-                        date: new Date(item.mtime).toLocaleDateString('zh-CN', {
+                        date: new Date(item.mtime).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
                             year: 'numeric',
                             month: '2-digit',
                             day: '2-digit'
@@ -173,7 +176,7 @@ export default function DashboardPage() {
         });
 
         return () => subscription.unsubscribe();
-    }, [router]);
+    }, [router, language]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -201,7 +204,7 @@ export default function DashboardPage() {
                     </button>
                     <div className="flex items-center space-x-2">
                         <img src="/icon.png" alt="Logo" className="w-6 h-6" />
-                        <span className="font-black tracking-tighter">Read-Tube</span>
+                        <span className="font-black tracking-tighter">{t("marketing.title")}</span>
                     </div>
                     <div className="w-10"></div>
                 </header>
@@ -209,12 +212,12 @@ export default function DashboardPage() {
                 {/* Header Section */}
                 <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">我的书架</h1>
-                        <p className="text-slate-500 text-sm font-medium">欢迎回来，这是您的核心知识库。</p>
+                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">{t("nav.bookshelf")}</h1>
+                        <p className="text-slate-500 text-sm font-medium">{t("dashboard.subtitle")}</p>
                     </div>
                     <Link href="/tasks" className="flex items-center justify-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
                         <Plus className="w-5 h-5" />
-                        <span>新建处理任务</span>
+                        <span>{t("dashboard.newTask")}</span>
                     </Link>
                 </header>
 
@@ -226,7 +229,7 @@ export default function DashboardPage() {
                         </div>
                         <input
                             type="text"
-                            placeholder="搜索标题、类型或来源..."
+                            placeholder={t("dashboard.searchPlaceholder")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-600 transition-all"
@@ -266,11 +269,11 @@ export default function DashboardPage() {
                         <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-4 text-slate-700">
                             <Plus className="w-8 h-8" />
                         </div>
-                        <p className="text-slate-400 font-bold text-lg mb-2">书架空空如也</p>
-                        <p className="text-slate-600 text-sm mb-8 font-medium">立即添加第一个视频或音频，开启深度学习之旅。</p>
+                        <p className="text-slate-400 font-bold text-lg mb-2">{t("dashboard.emptyTitle")}</p>
+                        <p className="text-slate-600 text-sm mb-8 font-medium">{t("dashboard.emptyDesc")}</p>
                         <Link href="/tasks" className="flex items-center justify-center space-x-2 px-8 py-3.5 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:scale-[1.05] transition-all shadow-xl shadow-indigo-500/20 active:scale-95 leading-none">
                             <Plus className="w-5 h-5" />
-                            <span>立即添加处理任务</span>
+                            <span>{t("dashboard.addFirstTask")}</span>
                         </Link>
                     </div>
                 ) : viewMode === "grid" ? (
@@ -291,12 +294,12 @@ export default function DashboardPage() {
                                         {video.isPublic ? (
                                             <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full backdrop-blur-md flex items-center space-x-1">
                                                 <Share2 className="w-3 h-3" />
-                                                <span>公开</span>
+                                                <span>{t("dashboard.public")}</span>
                                             </div>
                                         ) : (
                                             <div className="px-3 py-1 bg-slate-500/20 border border-white/5 text-slate-400 text-[10px] font-bold rounded-full backdrop-blur-md flex items-center space-x-1">
                                                 <Lock className="w-3 h-3" />
-                                                <span>私有</span>
+                                                <span>{t("dashboard.private")}</span>
                                             </div>
                                         )}
                                     </div>
@@ -308,7 +311,7 @@ export default function DashboardPage() {
                                         <span>{video.date}</span>
                                         <span className="flex items-center space-x-1">
                                             <ArrowRight className="w-3 h-3" />
-                                            <span>查看报告</span>
+                                            <span>{t("dashboard.viewReport")}</span>
                                         </span>
                                     </div>
                                 </div>

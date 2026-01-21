@@ -16,7 +16,10 @@ interface HistoryItem {
     log_file: string;
 }
 
+import { useTranslation } from "@/contexts/LanguageContext";
+
 export default function ProjectHistoryPage() {
+    const { t, language } = useTranslation();
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
@@ -76,7 +79,7 @@ export default function ProjectHistoryPage() {
                         </button>
                         <div className="flex items-center space-x-2">
                             <img src="/icon.png" alt="Logo" className="w-6 h-6" />
-                            <span className="font-black tracking-tighter text-lg">Read-Tube</span>
+                            <span className="font-black tracking-tighter text-lg">{t("marketing.title")}</span>
                         </div>
                         <div className="w-10"></div>
                     </header>
@@ -87,8 +90,8 @@ export default function ProjectHistoryPage() {
                                 <ArrowLeft className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" />
                             </Link>
                             <div>
-                                <h1 className="text-3xl md:text-4xl font-black tracking-tight">项目更新历史</h1>
-                                <p className="text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">记录成长的每一步 · .antigravity/PROJECT_HISTORY.md</p>
+                                <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("history.title")}</h1>
+                                <p className="text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{t("history.subtitle")} · .antigravity/PROJECT_HISTORY.md</p>
                             </div>
                         </div>
                     </header>
@@ -137,14 +140,15 @@ export default function ProjectHistoryPage() {
                                                 {item.log_file}
                                             </div>
                                             <div className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-                                                # RECORD {history.length - idx}
+                                                # {t("history.recordNum")} {history.length - idx}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    )}
+                    )
+                    }
                 </div>
             </main>
         </div>

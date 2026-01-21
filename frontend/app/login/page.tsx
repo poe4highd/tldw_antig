@@ -6,13 +6,17 @@ import { Mail, ArrowRight, Chrome, ShieldCheck } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { getSiteUrl } from "@/utils/api";
 
+import { useTranslation } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+
 export default function LoginPage() {
+    const { t } = useTranslation();
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     const handleGuestEntry = () => {
-        // 模拟进入 Dashboard
+        // Simulate entry to Dashboard
         window.location.href = "/dashboard?mode=guest";
     };
 
@@ -27,7 +31,7 @@ export default function LoginPage() {
 
         if (error) {
             console.error("Error logging in with Google:", error.message);
-            alert("登录失败: " + error.message);
+            alert(t("login.loginFailed") + error.message);
         }
     };
 
@@ -52,13 +56,13 @@ export default function LoginPage() {
 
             setStatus({
                 type: 'success',
-                message: "神奇链接已发送！请检查您的收件箱。"
+                message: t("login.magicLinkSent")
             });
         } catch (error: any) {
             console.error("Error sending magic link:", error.message);
             setStatus({
                 type: 'error',
-                message: "发送失败: " + error.message
+                message: t("login.sendFailed") + error.message
             });
         } finally {
             setLoading(false);
@@ -71,6 +75,11 @@ export default function LoginPage() {
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
+            </div>
+
+            {/* Language Switcher */}
+            <div className="absolute top-8 right-8 z-30">
+                <LanguageSwitcher />
             </div>
 
             {/* Top Logo (Navigator back to Home) */}
@@ -89,8 +98,8 @@ export default function LoginPage() {
                     <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
 
                     <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold tracking-tight mb-2">欢迎回来</h2>
-                        <p className="text-slate-400 text-sm">选择您喜欢的方式解锁知识阅读革命</p>
+                        <h2 className="text-3xl font-bold tracking-tight mb-2">{t("login.title")}</h2>
+                        <p className="text-slate-400 text-sm">{t("login.subtitle")}</p>
                     </div>
 
                     <div className="space-y-4">
@@ -100,12 +109,12 @@ export default function LoginPage() {
                             className="w-full flex items-center justify-center space-x-3 py-4 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-[0.98] shadow-lg shadow-white/5"
                         >
                             <Chrome className="w-5 h-5" />
-                            <span>使用 Google 账号继续</span>
+                            <span>{t("login.googleTitle")}</span>
                         </button>
 
                         <div className="relative py-4 flex items-center">
                             <div className="flex-grow border-t border-slate-800"></div>
-                            <span className="flex-shrink mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">或者</span>
+                            <span className="flex-shrink mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">{t("login.or")}</span>
                             <div className="flex-grow border-t border-slate-800"></div>
                         </div>
 
@@ -117,7 +126,7 @@ export default function LoginPage() {
                                 </div>
                                 <input
                                     type="email"
-                                    placeholder="电子邮箱地址"
+                                    placeholder={t("login.emailPlaceholder")}
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -142,10 +151,10 @@ export default function LoginPage() {
                                 {loading ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                        <span>正在发送...</span>
+                                        <span>{t("login.sending")}</span>
                                     </>
                                 ) : (
-                                    <span>发送神奇登录链接</span>
+                                    <span>{t("login.sendMagicLink")}</span>
                                 )}
                             </button>
                         </form>
@@ -157,7 +166,7 @@ export default function LoginPage() {
                             onClick={handleGuestEntry}
                             className="inline-flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 font-bold text-sm group transition-colors"
                         >
-                            <span>以访客身份快速体验 (Guest Entry)</span>
+                            <span>{t("login.guestEntry")}</span>
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                     </div>
@@ -166,7 +175,7 @@ export default function LoginPage() {
                 {/* Footer info */}
                 <p className="mt-8 text-center text-slate-500 text-xs flex items-center justify-center space-x-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-500/50" />
-                    <span>您的数据安全受高级加密保护</span>
+                    <span>{t("login.securityNote")}</span>
                 </p>
             </div>
         </main>

@@ -7,6 +7,7 @@ import { supabase } from "@/utils/supabase";
 import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { getApiBase } from "@/utils/api";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 interface HistoryItem {
     id: string;
@@ -29,6 +30,7 @@ interface ActiveTask {
 }
 
 export default function TasksPage() {
+    const { t } = useTranslation();
     const [url, setUrl] = useState("");
     const [mode, setMode] = useState("local");
     const [status, setStatus] = useState("");
@@ -67,7 +69,7 @@ export default function TasksPage() {
 
     const startProcess = async () => {
         if (!url) return;
-        setStatus("正在初始化任务...");
+        setStatus(t("tasks.statusInit"));
         setProgress(0);
         setEta(null);
         try {
@@ -87,8 +89,8 @@ export default function TasksPage() {
             pollStatus(data.task_id);
         } catch (e: unknown) {
             console.error("Start process failed:", e);
-            const message = e instanceof Error ? e.message : "网络连接异常";
-            setStatus(`启动失败: ${message}`);
+            const message = e instanceof Error ? e.message : t("tasks.statusNetworkError");
+            setStatus(`${t("tasks.statusStartFailed")}: ${message}`);
         }
     };
 
@@ -96,7 +98,7 @@ export default function TasksPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setStatus("正在上传音频文件...");
+        setStatus(t("tasks.statusUploading"));
         setProgress(0);
         setEta(null);
 
@@ -114,7 +116,7 @@ export default function TasksPage() {
             const data = await resp.json();
             pollStatus(data.task_id);
         } catch (err) {
-            setStatus("上传失败");
+            setStatus(t("tasks.statusUploadFailed"));
         }
     };
 
@@ -134,10 +136,10 @@ export default function TasksPage() {
                     setStatus("Failed: " + (data.detail || "Unknown error"));
                     clearInterval(interval);
                 } else {
-                    setStatus(data.status || "Processing...");
+                    setStatus(data.status || t("tasks.statusProcessing"));
                 }
             } catch (e) {
-                setStatus("Connection lost...");
+                setStatus(t("tasks.statusConnectionLost"));
             }
         }, 2000);
     };
@@ -190,7 +192,7 @@ export default function TasksPage() {
             <main className="min-h-screen bg-slate-950 flex items-center justify-center">
                 <div className="animate-pulse flex flex-col items-center">
                     <div className="w-12 h-12 bg-slate-800 rounded-full mb-4"></div>
-                    <p className="text-slate-500 font-medium">正在验证身份...</p>
+                    <p className="text-slate-500 font-medium">{t("tasks.verifyingIdentity")}</p>
                 </div>
             </main>
         );
@@ -228,12 +230,12 @@ export default function TasksPage() {
                                 <img src="/icon.png" alt="Read-Tube Logo" className="w-8 h-8 group-hover:scale-110 transition-transform" />
                             </Link>
                             <div>
-                                <h1 className="text-3xl md:text-4xl font-black tracking-tight">任务处理中心</h1>
-                                <p className="text-slate-400 font-medium">在这里，我们将视频和音频转化为深度的阅读体验</p>
+                                <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("tasks.title")}</h1>
+                                <p className="text-slate-400 font-medium">{t("tasks.subtitle")}</p>
                             </div>
                         </div>
                         <Link href="/dashboard" className="text-slate-500 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                            返回书架 <ArrowRight className="w-4 h-4" />
+                            {t("tasks.backToBookshelf")} <ArrowRight className="w-4 h-4" />
                         </Link>
                     </header>
 
@@ -245,7 +247,7 @@ export default function TasksPage() {
 
                         <div className="relative z-10 space-y-8">
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-2">提交新的任务</label>
+                                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-2">{t("tasks.submitNew")}</label>
                                 <div className="flex flex-col md:flex-row gap-4">
                                     <div className="flex-1 relative group">
                                         <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-400 transition-colors">
@@ -253,7 +255,7 @@ export default function TasksPage() {
                                         </div>
                                         <input
                                             type="text"
-                                            placeholder="粘贴 YouTube 视频链接..."
+                                            placeholder={t("tasks.placeholder")}
                                             className="w-full bg-slate-950 border border-slate-700/50 rounded-2xl pl-16 pr-6 py-5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-lg placeholder:text-slate-700 shadow-inner"
                                             value={url}
                                             onChange={(e) => setUrl(e.target.value)}
@@ -265,15 +267,15 @@ export default function TasksPage() {
                                             value={mode}
                                             onChange={(e) => setMode(e.target.value)}
                                         >
-                                            <option value="cloud">云端推理</option>
-                                            <option value="local">本地处理</option>
+                                            <option value="cloud">{t("tasks.modeCloud")}</option>
+                                            <option value="local">{t("tasks.modeLocal")}</option>
                                         </select>
                                         <button
                                             onClick={startProcess}
                                             disabled={!url || !!status && !status.includes("Failed")}
                                             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-blue-900/20 active:scale-[0.98] whitespace-nowrap"
                                         >
-                                            立即处理
+                                            {t("tasks.processNow")}
                                         </button>
                                     </div>
                                 </div>
@@ -281,7 +283,7 @@ export default function TasksPage() {
 
                             <div className="flex items-center gap-4 px-2">
                                 <div className="h-px flex-1 bg-slate-800/50"></div>
-                                <span className="text-[10px] text-slate-600 font-black uppercase tracking-widest">或者上传文件</span>
+                                <span className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{t("tasks.orUpload")}</span>
                                 <div className="h-px flex-1 bg-slate-800/50"></div>
                             </div>
 
@@ -291,7 +293,7 @@ export default function TasksPage() {
                                     className="flex items-center gap-3 px-8 py-4 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-2xl text-slate-400 transition-all group hover:text-white"
                                 >
                                     <FileUp className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                    <span className="font-bold">上传音频或视频文件 (MP3/MP4/M4A)</span>
+                                    <span className="font-bold">{t("tasks.uploadButton")}</span>
                                 </button>
                                 <input
                                     type="file"
@@ -309,7 +311,7 @@ export default function TasksPage() {
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
-                                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">正在处理当前任务</p>
+                                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{t("tasks.processingHeader")}</p>
                                         </div>
                                         <p className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">{status}</p>
                                     </div>
@@ -327,7 +329,7 @@ export default function TasksPage() {
                                 </div>
                                 {eta !== null && (
                                     <p className="text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                        预计剩余时间: <span className="text-slate-300 ml-1">{Math.floor(eta / 60)}分 {eta % 60}秒</span>
+                                        {t("tasks.eta")} <span className="text-slate-300 ml-1">{Math.floor(eta / 60)}{t("tasks.minutes")} {eta % 60}{t("tasks.seconds")}</span>
                                     </p>
                                 )}
                             </div>
@@ -340,7 +342,7 @@ export default function TasksPage() {
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
                                     <Clock className="w-5 h-5 text-indigo-400" />
-                                    活动任务
+                                    {t("tasks.activeTasks")}
                                 </h2>
                                 {activeTasks.length > 0 && <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 text-[10px] font-black rounded-lg">{activeTasks.length}</span>}
                             </div>
@@ -348,7 +350,7 @@ export default function TasksPage() {
                             {activeTasks.length === 0 ? (
                                 <div className="bg-slate-900/20 border border-slate-800/50 rounded-3xl p-10 text-center">
                                     <CheckCircle2 className="w-10 h-10 text-slate-700 mx-auto mb-4" />
-                                    <p className="text-slate-500 text-sm font-bold">暂无后台任务</p>
+                                    <p className="text-slate-500 text-sm font-bold">{t("tasks.noActiveTasks")}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -377,7 +379,7 @@ export default function TasksPage() {
                         <div className="lg:col-span-2 space-y-8">
                             <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
                                 <Clock className="w-5 h-5 text-emerald-400" />
-                                最近历史
+                                {t("tasks.recentHistory")}
                             </h2>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -412,7 +414,7 @@ export default function TasksPage() {
 
                             {history.length > 6 && (
                                 <Link href="/dashboard" className="block text-center py-4 bg-slate-900/20 border border-slate-800 rounded-2xl text-slate-500 text-xs font-black uppercase tracking-widest hover:bg-slate-900/40 transition-all hover:text-slate-300">
-                                    查看全部历史记录
+                                    {t("tasks.viewAll")}
                                 </Link>
                             )}
                         </div>
