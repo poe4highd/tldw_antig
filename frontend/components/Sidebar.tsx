@@ -35,10 +35,30 @@ interface SidebarProps {
 
 import { useTranslation } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { getApiBase } from "@/utils/api";
+import { useState, useEffect } from "react";
 
 export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
     const { t } = useTranslation();
+    const [isOnline, setIsOnline] = useState(true);
+
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const apiBase = getApiBase();
+                // Perform a very lightweight check
+                const resp = await fetch(`${apiBase}/history?user_id=1`);
+                setIsOnline(resp.ok);
+            } catch (e) {
+                setIsOnline(false);
+            }
+        };
+
+        checkStatus();
+        const interval = setInterval(checkStatus, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     const menuItems = [
         { name: t("nav.bookshelf"), icon: Library, href: "/dashboard" },
@@ -157,7 +177,15 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                                 <p className="text-sm font-bold truncate">
                                     {user?.user_metadata?.full_name || user?.email?.split('@')[0] || t("sidebar.signedIn")}
                                 </p>
-                                <p className="text-[10px] text-slate-500 truncate">{user?.email || "..."}</p>
+                                <div className="flex items-center gap-1.5">
+                                    <div className={cn(
+                                        "w-1.5 h-1.5 rounded-full shrink-0",
+                                        isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-600"
+                                    )} />
+                                    <p className="text-[10px] text-slate-500 truncate">
+                                        {isOnline ? t("common.online") : t("common.offline")}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 

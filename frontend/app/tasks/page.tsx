@@ -49,6 +49,7 @@ export default function TasksPage() {
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isBackendOnline, setIsBackendOnline] = useState(true);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -62,8 +63,10 @@ export default function TasksPage() {
             setHistory(data.items || []);
             setSummary(data.summary || null);
             setActiveTasks(data.active_tasks || []);
+            setIsBackendOnline(true);
         } catch (e) {
             console.error("Failed to fetch history");
+            setIsBackendOnline(false);
         }
     };
 
@@ -170,15 +173,17 @@ export default function TasksPage() {
             }
         });
 
-        fetchHistory();
+        return () => subscription.unsubscribe();
+    }, [router]);
 
+    useEffect(() => {
+        if (!user?.id) return;
+
+        fetchHistory();
         const interval = setInterval(() => fetchHistory(), 15000);
-        return () => {
-            subscription.unsubscribe();
-            clearInterval(interval);
-        };
+        return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [router, user]);
+    }, [user?.id]);
 
     useEffect(() => {
         if (eta !== null && eta > 0) {
@@ -239,6 +244,17 @@ export default function TasksPage() {
                         </Link>
                     </header>
 
+                    {!isBackendOnline && (
+                        <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                            <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-500 shrink-0">
+                                <Clock className="w-6 h-6" />
+                            </div>
+                            <p className="text-amber-200/80 font-bold text-sm">
+                                {t("common.offlineNotice")}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Input Section */}
                     <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl mb-12 max-w-4xl mx-auto ring-1 ring-white/5 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -267,12 +283,14 @@ export default function TasksPage() {
                                             value={mode}
                                             onChange={(e) => setMode(e.target.value)}
                                         >
-                                            <option value="cloud">{t("tasks.modeCloud")}</option>
+                                            <option value="cloud" disabled>
+                                                {t("tasks.cloudInferenceDev")}
+                                            </option>
                                             <option value="local">{t("tasks.modeLocal")}</option>
                                         </select>
                                         <button
                                             onClick={startProcess}
-                                            disabled={!url || !!status && !status.includes("Failed")}
+                                            disabled={!url || !isBackendOnline || (!!status && !status.includes("Failed"))}
                                             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-blue-900/20 active:scale-[0.98] whitespace-nowrap"
                                         >
                                             {t("tasks.processNow")}

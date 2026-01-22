@@ -8,7 +8,10 @@
         "cancel": "取消",
         "loading": "正在加载...",
         "success": "成功",
-        "error": "错误"
+        "error": "错误",
+        "offlineNotice": "免费转录服务器升级中，当前为只读浏览模式",
+        "online": "在线",
+        "offline": "离线"
     },
     "nav": {
         "bookshelf": "我的书架",
@@ -77,6 +80,7 @@
         "submitNew": "提交新的任务",
         "placeholder": "粘贴 YouTube 视频链接...",
         "modeCloud": "云端推理",
+        "cloudInferenceDev": "云端推理 (付费功能开发中)",
         "modeLocal": "本地处理",
         "processNow": "立即处理",
         "orUpload": "或者上传文件",

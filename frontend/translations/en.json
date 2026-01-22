@@ -8,7 +8,10 @@
         "cancel": "Cancel",
         "loading": "Loading...",
         "success": "Success",
-        "error": "Error"
+        "error": "Error",
+        "offlineNotice": "Free transcription server upgrading, currently in read-only mode",
+        "online": "Online",
+        "offline": "Offline"
     },
     "nav": {
         "bookshelf": "Bookshelf",
@@ -77,6 +80,7 @@
         "submitNew": "Submit New Task",
         "placeholder": "Paste YouTube link here...",
         "modeCloud": "Cloud Inference",
+        "cloudInferenceDev": "Cloud Inference (Paid feature in development)",
         "modeLocal": "Local Processing",
         "processNow": "Process Now",
         "orUpload": "OR UPLOAD FILE",
