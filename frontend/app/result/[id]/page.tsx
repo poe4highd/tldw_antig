@@ -343,7 +343,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                             playerVars: {
                                                 autoplay: 0,
                                                 hl: 'zh-CN',
-                                                // origin will be handled automatically, but explicitly disabling modestbranding etc can be nice
+                                                origin: typeof window !== 'undefined' ? window.location.origin : '',
+                                                modestbranding: 1,
+                                                rel: 0,
                                             },
                                         }}
                                     />

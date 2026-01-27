@@ -222,7 +222,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                         {result.youtube_id ? (
                             <iframe
                                 ref={iframeRef}
-                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=1`}
+                                src={`https://www.youtube.com/embed/${result.youtube_id}?enablejsapi=1&autoplay=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen

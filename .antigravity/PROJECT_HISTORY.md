@@ -1,3 +1,5 @@
+[2026-01-24] | [FIX] | 解决 YouTube 下载 403 与前端 Origin 报警 | 升级 yt-dlp 并优化 Header 配置，修复前端 YouTube 播放器 Origin 缺失导致的控制台报错 | walkthrough.md
+[2026-01-24] | [FIX] | 修复 Cloudflare Tunnel 连接中断 | 升级 cloudflared 至 2026.1.1 并重启后台隧道服务，恢复本地服务公网访问 | walkthrough.md
 [2026-01-22] | [FEATURE] | 实现离线只读模式与 UI 降级 | 在本地后端不在线时，自动降级为只读浏览模式，屏蔽任务提交并引导付费功能 | .antigravity/DEV_LOG.md
 [2026-01-20] | [FEATURE] | 全站多语言支持 (i18n) | 完成全站 7 大核心页面及 Mock 数据的中英双向支持，集成持久化切换机制 | .antigravity/DEV_LOG.md
 [2026-01-20] | [RESEARCH] | 技术咨询：本地停机影响 | 分析本地后端停止对生产环境的影响并给出结论 | DEV_LOG.md

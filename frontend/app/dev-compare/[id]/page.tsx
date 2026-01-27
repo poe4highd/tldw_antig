@@ -391,7 +391,11 @@ export default function DevComparePage({ params }: { params: Promise<{ id: strin
                                 opts={{
                                     height: '100%',
                                     width: '100%',
-                                    playerVars: { autoplay: 1, hl: 'zh-CN' },
+                                    playerVars: {
+                                        autoplay: 1,
+                                        hl: 'zh-CN',
+                                        origin: typeof window !== 'undefined' ? window.location.origin : '',
+                                    },
                                 }}
                             />
                         )}

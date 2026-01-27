@@ -89,7 +89,16 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
             
             # Metadata
             import yt_dlp
-            with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+            ydl_opts_meta = {
+                'quiet': True,
+                'no_warnings': True,
+                'nocheckcertificate': True,
+                'headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Referer': 'https://www.youtube.com/',
+                },
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
                 try:
                     info = ydl.extract_info(url, download=False)
                     title = info.get('title', 'Unknown Title')
