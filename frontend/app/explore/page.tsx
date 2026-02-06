@@ -103,6 +103,17 @@ export default function ExplorePage() {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(channelName)}&background=random&color=fff&size=64&bold=true`;
     };
 
+    const getChannelColor = (channelId: string | undefined, channelName: string | undefined): string => {
+        const seed = channelId || channelName || "default";
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        // Use HSL for consistent vibrance
+        const h = Math.abs(hash) % 360;
+        return `hsl(${h}, 70%, 60%)`;
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
             <Sidebar
@@ -204,14 +215,19 @@ export default function ExplorePage() {
                                 className="group flex items-center gap-4 p-4 bg-slate-900/20 border border-slate-800/30 rounded-2xl hover:bg-slate-900/60 hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.005]"
                             >
                                 <div className="shrink-0 relative">
-                                    <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                        {item.channel_avatar ? (
-                                            <img src={item.channel_avatar} alt={item.channel} className="w-full h-full object-cover" />
-                                        ) : item.channel ? (
-                                            <img src={getAvatarUrl(item.channel)!} alt={item.channel} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User className="w-4 h-4 text-slate-500" />
-                                        )}
+                                    <div
+                                        className="w-10 h-10 rounded-full flex items-center justify-center p-[2px] shadow-lg group-hover:scale-110 transition-transform"
+                                        style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
+                                    >
+                                        <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800 flex items-center justify-center">
+                                            {item.channel_avatar ? (
+                                                <img src={item.channel_avatar} alt={item.channel} className="w-full h-full object-cover" />
+                                            ) : item.channel ? (
+                                                <img src={getAvatarUrl(item.channel)!} alt={item.channel} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <User className="w-4 h-4 text-slate-500" />
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-slate-950">
                                         <Youtube className="w-2 h-2 text-white" />
@@ -267,8 +283,13 @@ export default function ExplorePage() {
 
                                     <div className="flex items-center justify-between pt-4 border-t border-slate-800/50">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 bg-slate-800">
-                                                <img src={item.channel_avatar || getAvatarUrl(item.channel || "YT")!} className="w-full h-full object-cover" />
+                                            <div
+                                                className="w-7 h-7 rounded-full flex items-center justify-center p-[1.5px]"
+                                                style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
+                                            >
+                                                <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
+                                                    <img src={item.channel_avatar || getAvatarUrl(item.channel || "YT")!} className="w-full h-full object-cover" />
+                                                </div>
                                             </div>
                                             <span className="text-[10px] font-bold text-slate-400 truncate max-w-[80px]">
                                                 {item.channel || "Creator"}
