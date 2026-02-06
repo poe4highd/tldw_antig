@@ -104,9 +104,13 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     title = info.get('title', 'Unknown Title')
                     thumbnail = info.get('thumbnail')
                     description = info.get('description', '')
+                    channel = info.get('uploader') or info.get('channel')
+                    channel_id = info.get('uploader_id') or info.get('channel_id')
                 except:
                     title = title or "Unknown Title"
                     thumbnail = thumbnail or get_youtube_thumbnail_url(url)
+                    channel = None
+                    channel_id = None
 
             if not file_path:
                 def on_download_progress(p):
@@ -214,6 +218,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         result["thumbnail"] = thumbnail
         result["media_path"] = os.path.basename(file_path)
         result["user_id"] = user_id
+        result["channel"] = channel
+        result["channel_id"] = channel_id
         
         # 重新保存
         with open(result_file, "w", encoding="utf-8") as f:
@@ -229,7 +235,9 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     "media_path": os.path.basename(file_path),
                     "report_data": {
                         "paragraphs": result["paragraphs"],
-                        "raw_subtitles": result["raw_subtitles"]
+                        "raw_subtitles": result["raw_subtitles"],
+                        "channel": result.get("channel"),
+                        "channel_id": result.get("channel_id")
                     },
                     "usage": result["usage"],
                     "status": "completed"
@@ -315,6 +323,8 @@ async def get_result(task_id: str):
                     "paragraphs": video["report_data"].get("paragraphs"),
                     "usage": video["usage"],
                     "raw_subtitles": video["report_data"].get("raw_subtitles"),
+                    "channel": video["report_data"].get("channel"),
+                    "channel_id": video["report_data"].get("channel_id"),
                     "view_count": video.get("view_count", 0),
                     "interaction_count": video.get("interaction_count", 0),
                     "mtime": video.get("created_at"),
@@ -465,6 +475,43 @@ async def get_history(user_id: str = None):
             "video_count": total_stats["video_count"]
         }
     }
+
+@app.get("/explore")
+async def get_explore():
+    if not supabase:
+        # Fallback to local history but only YouTube ones
+        res = await get_history()
+        items = [i for i in res["items"] if len(i["id"]) == 11]
+        return {"items": items}
+    
+    try:
+        # Fetch videos from Supabase
+        response = supabase.table("videos") \
+            .select("id, title, thumbnail, report_data, created_at, view_count") \
+            .order("created_at", desc=True) \
+            .limit(200) \
+            .execute()
+        
+        items = []
+        for v in response.data:
+            # Skip uploads and other non-youtube items
+            if len(v["id"]) != 11 or v["id"].startswith("up_"):
+                continue
+            
+            report_data = v.get("report_data", {})
+            items.append({
+                "id": v["id"],
+                "title": v["title"],
+                "thumbnail": v["thumbnail"],
+                "channel": report_data.get("channel"),
+                "channel_id": report_data.get("channel_id"),
+                "date": v["created_at"],
+                "views": v.get("view_count", 0)
+            })
+        return {"items": items[:100]}
+    except Exception as e:
+        print(f"Explore fetch failed: {e}")
+        return {"items": []}
 
 @app.get("/project-history")
 async def get_project_history():

@@ -18,6 +18,7 @@
         "tasks": "处理任务",
         "history": "项目史记",
         "projectHistory": "项目更新历史",
+        "explore": "发现广场",
         "terms": "服务条款",
         "privacy": "隐私政策"
     },
@@ -41,7 +42,17 @@
         "notLoggedIn": "未登录",
         "mainMenu": "主菜单",
         "systemSupport": "系统与支持",
-        "signedIn": "已登录"
+        "signedIn": "已登录",
+        "explore": "发现广场"
+    },
+    "explore": {
+        "title": "公共发现广场",
+        "subtitle": "探索大家都在阅读的深度视频报告",
+        "modeText": "简约文本",
+        "modeThumb": "封面图",
+        "searchPlaceholder": "搜索感兴趣的报道...",
+        "empty": "暂无公开报道",
+        "fromChannel": "来自频道"
     },
     "dashboard": {
         "subtitle": "欢迎回来，这是您的核心知识库。",

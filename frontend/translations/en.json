@@ -18,6 +18,7 @@
         "tasks": "Tasks",
         "history": "History",
         "projectHistory": "Project History",
+        "explore": "Explore",
         "terms": "Terms of Service",
         "privacy": "Privacy Policy"
     },
@@ -41,7 +42,17 @@
         "notLoggedIn": "Not logged in",
         "mainMenu": "Main Menu",
         "systemSupport": "System & Support",
-        "signedIn": "Signed in"
+        "signedIn": "Signed in",
+        "explore": "Explore"
+    },
+    "explore": {
+        "title": "Public Library",
+        "subtitle": "Discover deep video reports everyone is reading",
+        "modeText": "Compact Text",
+        "modeThumb": "Thumbnail",
+        "searchPlaceholder": "Search reports...",
+        "empty": "No public reports found",
+        "fromChannel": "from channel"
     },
     "dashboard": {
         "subtitle": "Welcome back, here is your core knowledge base.",

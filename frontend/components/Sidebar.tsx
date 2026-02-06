@@ -62,6 +62,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
 
     const menuItems = [
         { name: t("nav.bookshelf"), icon: Library, href: "/dashboard" },
+        { name: t("nav.explore"), icon: LayoutGrid, href: "/explore" },
         { name: t("nav.tasks"), icon: FileUp, href: "/tasks" },
     ];
 
