@@ -87,7 +87,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     file_path = p
                     break
             
-            # Metadata
+            # Metadata Retrieval
             import yt_dlp
             ydl_opts_meta = {
                 'quiet': True,
@@ -98,32 +98,38 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     'Referer': 'https://www.youtube.com/',
                 },
             }
-            with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
-                try:
+            
+            channel = None
+            channel_id = None
+            channel_avatar = None
+            channel_url = None
+
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
                     info = ydl.extract_info(url, download=False)
-                    title = info.get('title', 'Unknown Title')
-                    thumbnail = info.get('thumbnail')
+                    title = info.get('title', title or 'Unknown Title')
+                    thumbnail = info.get('thumbnail', thumbnail)
                     description = info.get('description', '')
-                    channel = info.get('uploader') or info.get('channel')
+                    channel = info.get('uploader') or info.get('channel') or info.get('uploader_id')
                     channel_id = info.get('uploader_id') or info.get('channel_id')
                     channel_url = info.get('uploader_url') or info.get('channel_url')
                     
-                    # Fetch channel avatar
-                    channel_avatar = None
-                    if channel_url:
-                        try:
-                            with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True}) as ydl_chan:
-                                chan_info = ydl_chan.extract_info(channel_url, download=False)
-                                if chan_info.get('thumbnails'):
-                                    channel_avatar = chan_info['thumbnails'][-1]['url']
-                        except Exception as ce:
-                            print(f"Failed to fetch channel avatar: {ce}")
-                except:
-                    title = title or "Unknown Title"
-                    thumbnail = thumbnail or get_youtube_thumbnail_url(url)
-                    channel = None
-                    channel_id = None
-                    channel_avatar = None
+                    if not channel and channel_id:
+                        channel = channel_id
+
+                # Separate block for avatar to avoid losing channel info if this fails
+                if channel_url:
+                    try:
+                        with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True}) as ydl_chan:
+                            chan_info = ydl_chan.extract_info(channel_url, download=False)
+                            if chan_info and chan_info.get('thumbnails'):
+                                channel_avatar = chan_info['thumbnails'][-1]['url']
+                    except Exception as ce:
+                        print(f"Failed to fetch channel avatar for {channel_url}: {ce}")
+            except Exception as e:
+                print(f"Metadata extraction failed for {url}: {e}")
+                title = title or "Unknown Title"
+                thumbnail = thumbnail or get_youtube_thumbnail_url(url)
 
             if not file_path:
                 def on_download_progress(p):
