@@ -30,6 +30,7 @@ interface ExploreItem {
     thumbnail: string;
     channel?: string;
     channel_id?: string;
+    channel_avatar?: string;
     date: string;
     views: number;
 }
@@ -204,7 +205,9 @@ export default function ExplorePage() {
                             >
                                 <div className="shrink-0 relative">
                                     <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                        {item.channel ? (
+                                        {item.channel_avatar ? (
+                                            <img src={item.channel_avatar} alt={item.channel} className="w-full h-full object-cover" />
+                                        ) : item.channel ? (
                                             <img src={getAvatarUrl(item.channel)!} alt={item.channel} className="w-full h-full object-cover" />
                                         ) : (
                                             <User className="w-4 h-4 text-slate-500" />
@@ -265,7 +268,7 @@ export default function ExplorePage() {
                                     <div className="flex items-center justify-between pt-4 border-t border-slate-800/50">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 bg-slate-800">
-                                                <img src={getAvatarUrl(item.channel || "YT")!} className="w-full h-full object-cover" />
+                                                <img src={item.channel_avatar || getAvatarUrl(item.channel || "YT")!} className="w-full h-full object-cover" />
                                             </div>
                                             <span className="text-[10px] font-bold text-slate-400 truncate max-w-[80px]">
                                                 {item.channel || "Creator"}

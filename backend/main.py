@@ -106,11 +106,24 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     description = info.get('description', '')
                     channel = info.get('uploader') or info.get('channel')
                     channel_id = info.get('uploader_id') or info.get('channel_id')
+                    channel_url = info.get('uploader_url') or info.get('channel_url')
+                    
+                    # Fetch channel avatar
+                    channel_avatar = None
+                    if channel_url:
+                        try:
+                            with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True}) as ydl_chan:
+                                chan_info = ydl_chan.extract_info(channel_url, download=False)
+                                if chan_info.get('thumbnails'):
+                                    channel_avatar = chan_info['thumbnails'][-1]['url']
+                        except Exception as ce:
+                            print(f"Failed to fetch channel avatar: {ce}")
                 except:
                     title = title or "Unknown Title"
                     thumbnail = thumbnail or get_youtube_thumbnail_url(url)
                     channel = None
                     channel_id = None
+                    channel_avatar = None
 
             if not file_path:
                 def on_download_progress(p):
@@ -220,6 +233,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         result["user_id"] = user_id
         result["channel"] = channel
         result["channel_id"] = channel_id
+        result["channel_avatar"] = channel_avatar
         
         # 重新保存
         with open(result_file, "w", encoding="utf-8") as f:
@@ -237,7 +251,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                         "paragraphs": result["paragraphs"],
                         "raw_subtitles": result["raw_subtitles"],
                         "channel": result.get("channel"),
-                        "channel_id": result.get("channel_id")
+                        "channel_id": result.get("channel_id"),
+                        "channel_avatar": result.get("channel_avatar")
                     },
                     "usage": result["usage"],
                     "status": "completed"
@@ -325,6 +340,7 @@ async def get_result(task_id: str):
                     "raw_subtitles": video["report_data"].get("raw_subtitles"),
                     "channel": video["report_data"].get("channel"),
                     "channel_id": video["report_data"].get("channel_id"),
+                    "channel_avatar": video["report_data"].get("channel_avatar"),
                     "view_count": video.get("view_count", 0),
                     "interaction_count": video.get("interaction_count", 0),
                     "mtime": video.get("created_at"),
@@ -505,6 +521,7 @@ async def get_explore():
                 "thumbnail": v["thumbnail"],
                 "channel": report_data.get("channel"),
                 "channel_id": report_data.get("channel_id"),
+                "channel_avatar": report_data.get("channel_avatar"),
                 "date": v["created_at"],
                 "views": v.get("view_count", 0)
             })
