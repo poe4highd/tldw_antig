@@ -501,31 +501,31 @@ async def get_explore():
         return {"items": items}
     
     try:
-        # Fetch videos from Supabase
+        # Fetch videos from Supabase - Optimized to only get needed metadata
+        # Large fields like raw_subtitles are excluded for performance
         response = supabase.table("videos") \
-            .select("id, title, thumbnail, report_data, created_at, view_count") \
+            .select("id, title, thumbnail, created_at, view_count, report_data->channel, report_data->channel_id, report_data->channel_avatar") \
             .order("created_at", desc=True) \
-            .limit(200) \
+            .limit(100) \
             .execute()
         
         items = []
         for v in response.data:
-            # Skip uploads and other non-youtube items
+            # Skip uploads - heuristic: youtube IDs are 11 chars
             if len(v["id"]) != 11 or v["id"].startswith("up_"):
                 continue
             
-            report_data = v.get("report_data", {})
             items.append({
                 "id": v["id"],
                 "title": v["title"],
                 "thumbnail": v["thumbnail"],
-                "channel": report_data.get("channel"),
-                "channel_id": report_data.get("channel_id"),
-                "channel_avatar": report_data.get("channel_avatar"),
+                "channel": v.get("channel"),
+                "channel_id": v.get("channel_id"),
+                "channel_avatar": v.get("channel_avatar"),
                 "date": v["created_at"],
                 "views": v.get("view_count", 0)
             })
-        return {"items": items[:100]}
+        return {"items": items}
     except Exception as e:
         print(f"Explore fetch failed: {e}")
         return {"items": []}

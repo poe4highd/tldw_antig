@@ -1,3 +1,4 @@
+[2026-02-04] | [PERF] | 发现广场加载速度激增 4000x | 通过 JSON 局部字段查询替代全量读取，将接口 payload 从 30MB 优化至 7KB | .antigravity/DEV_LOG.md
 [2026-02-04] | [FEATURE] | 公共发现广场与频道关联 | 实现全站公开报道展示页面，支持紧凑文本/缩略图模式切换，增强 YouTube 频道信息采集与展示 | walkthrough.md
 [2026-01-24] | [FIX] | 解决 YouTube 下载 403 与前端 Origin 报警 | 升级 yt-dlp 并优化 Header 配置，修复前端 YouTube 播放器 Origin 缺失导致的控制台报错 | walkthrough.md
 [2026-01-24] | [FIX] | 修复 Cloudflare Tunnel 连接中断 | 升级 cloudflared 至 2026.1.1 并重启后台隧道服务，恢复本地服务公网访问 | walkthrough.md
