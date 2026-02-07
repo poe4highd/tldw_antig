@@ -148,6 +148,8 @@
         "usageCost": "生成消耗",
         "aiModel": "AI 模型",
         "syncProgress": "同步播放进度",
+        "aiSummary": "AI 深度总结",
+        "keywords": "核心关键词",
         "discussion": "讨论区",
         "noComments": "暂无评论，快来抢沙发吧",
         "anonymousUser": "热心网友",

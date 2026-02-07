@@ -46,6 +46,8 @@ interface Result {
     mtime?: string | number;
     thumbnail?: string;
     media_path?: string;
+    summary?: string;
+    keywords?: string[];
 }
 
 export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
@@ -439,6 +441,30 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         </div>
 
                         <div className="space-y-8 md:space-y-12 relative z-10">
+                            {/* AI Summary Section */}
+                            {result.summary && (
+                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-6 md:p-8 mb-8 md:mb-12">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2 bg-indigo-500 rounded-lg">
+                                            <Send className="w-4 h-4 text-white transform -rotate-45" />
+                                        </div>
+                                        <h3 className="text-lg font-black text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
+                                    </div>
+                                    <p className="text-slate-200 text-lg leading-relaxed mb-6 font-medium">
+                                        {result.summary}
+                                    </p>
+                                    {result.keywords && result.keywords.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {result.keywords.map((tag, i) => (
+                                                <span key={i} className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-500/50 hover:text-indigo-400 transition-colors">
+                                                    #{tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {(() => {
                                 const allSentences = result.paragraphs?.flatMap(p => p.sentences) || [];
                                 return result.paragraphs?.map((p: Paragraph, pIdx: number) => (

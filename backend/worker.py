@@ -87,6 +87,25 @@ def main():
             description=args.description
         )
         
+        # 8.5 提炼摘要与关键词 (新步骤)
+        print(f"[Worker] 开始提取全文摘要与关键词...")
+        from processor import summarize_text
+        full_text = ""
+        for p in paragraphs:
+            for s in p["sentences"]:
+                full_text += s["text"]
+        
+        summary_data, summary_usage = summarize_text(
+            full_text,
+            title=args.title,
+            description=args.description
+        )
+        
+        # 合并 LLM Usage
+        llm_usage["prompt_tokens"] += summary_usage.get("prompt_tokens", 0)
+        llm_usage["completion_tokens"] += summary_usage.get("completion_tokens", 0)
+        llm_usage["total_tokens"] += summary_usage.get("total_tokens", 0)
+
         # 计算成本
         whisper_cost = (duration / 60.0) * 0.006 if args.mode == "cloud" else 0
         llm_cost = (llm_usage["prompt_tokens"] / 1000000.0 * 0.15) + \
@@ -99,6 +118,8 @@ def main():
             "youtube_id": args.video_id,
             "thumbnail": None,  # 由主进程填充
             "media_path": os.path.basename(args.file) if args.file else None,
+            "summary": summary_data.get("summary", ""),
+            "keywords": summary_data.get("keywords", []),
             "paragraphs": paragraphs,
             "usage": {
                 "duration": round(duration, 2),

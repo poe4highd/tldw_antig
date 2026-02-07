@@ -66,6 +66,26 @@ PROMPT = """
 {text_with_timestamps}
 """
 
+def get_llm_client():
+    """
+    根据环境变量 LLM_PROVIDER 返回对应的 OpenAI 或 Ollama 客户端。
+    """
+    provider = os.getenv("LLM_PROVIDER", "openai").lower()
+    
+    if provider == "ollama":
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        print(f"--- Using Ollama Provider: {base_url} ---")
+        return OpenAI(
+            base_url=base_url,
+            api_key="ollama"  # Ollama 不需要真正的 key，但 OpenAI 客户端初始化通常需要非空字符串
+        )
+    
+    # 默认使用 OpenAI
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
+
 def get_youtube_thumbnail_url(url):
     video_id = ""
     # 尝试从常见格式提取 ID
@@ -138,7 +158,9 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     keywords = extract_keywords(title, description)
     current_prompt = PROMPT + "\n" + lang_instruction
 
-    client = OpenAI(api_key=api_key)
+    client = get_llm_client()
+    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if os.getenv("LLM_PROVIDER") == "ollama" else "gpt-4o-mini"
+    actual_model = model if model != "gpt-4o-mini" else default_model
     
     # 如果片段太多（超过 100 个），分块处理以防输出被截断
     CHUNK_SIZE = 80 
@@ -154,7 +176,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
         raw_input = "\n".join([f"[{s['start']:.1f}] {s['text']}" for s in chunk])
         try:
             response = client.chat.completions.create(
-                model=model,
+                model=actual_model,
                 messages=[
                     {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。"},
                     {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context, keywords=keywords, context_last_chunk=last_context)}
@@ -234,6 +256,61 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
         return group_by_time(subtitles), total_usage
 
     return all_paragraphs, total_usage
+
+def summarize_text(full_text, title="", description=""):
+    """
+    调用 LLM 对全文本进行总结并提炼关键词。
+    """
+    client = get_llm_client()
+    if not client:
+        return {"summary": "无总结", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
+
+    lang_pref = detect_language_preference(title, description)
+    lang_instruction = "请使用简体中文输出。"
+    if lang_pref == "traditional":
+        lang_instruction = "请使用繁体中文输出。"
+    elif lang_pref == "english":
+        lang_instruction = "Please output in English."
+
+    system_prompt = "你是一位专业的视频内容分析师。请阅读以下视频转录文本，并提供一个简洁的总结（约150-200字）和5-10个核心关键词。"
+    user_prompt = f"""
+视频标题: {title}
+视频描述: {description}
+
+待分析内容:
+{full_text}
+
+请严格按以下 JSON 格式输出:
+{{
+  "summary": "一段话总结视频核心内容...",
+  "keywords": ["关键词1", "关键词2", ...]
+}}
+{lang_instruction}
+"""
+
+    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if os.getenv("LLM_PROVIDER") == "ollama" else "gpt-4o-mini"
+    
+    try:
+        response = client.chat.completions.create(
+            model=default_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={ "type": "json_object" }
+        )
+        
+        content = response.choices[0].message.content
+        data = json.loads(content)
+        usage = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens
+        }
+        return data, usage
+    except Exception as e:
+        print(f"Summarization Error: {e}")
+        return {"summary": "总结生成失败", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
 
 def group_by_time(subtitles, seconds=45):
     """

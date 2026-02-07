@@ -1,3 +1,6 @@
+[2026-02-07] | [FEATURE] | 视频报告摘要与关键词提炼 | 实现基于二次 LLM 调用的全局摘要生成与关键词提取，并在前端实现 AI 洞察展示卡片 | walkthrough.md
+[2026-02-06] | [RESEARCH] | Ollama vs OpenAI 准确度对标 | 完成本地模型 (qwen3:8b) 与 OpenAI 的 CER 量化对比，确定本地模型由于“总结倾向”导致 63% 准确率，需进一步优化 | walkthrough.md
+[2026-02-05] | [FEATURE] | 接入本地 Ollama (qwen3:8b) | 实现 LLM 无缝切换逻辑，支持 192.168.1.182 本地模型进行转录分段与校对 | walkthrough.md
 [2026-02-04] | [PERF] | 发现广场加载速度激增 4000x | 通过 JSON 局部字段查询替代全量读取，将接口 payload 从 30MB 优化至 7KB | .antigravity/DEV_LOG.md
 [2026-02-04] | [FEATURE] | 公共发现广场与频道关联 | 实现全站公开报道展示页面，支持紧凑文本/缩略图模式切换，增强 YouTube 频道信息采集与展示 | walkthrough.md
 [2026-01-24] | [FIX] | 解决 YouTube 下载 403 与前端 Origin 报警 | 升级 yt-dlp 并优化 Header 配置，修复前端 YouTube 播放器 Origin 缺失导致的控制台报错 | walkthrough.md

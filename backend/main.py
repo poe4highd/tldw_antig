@@ -256,6 +256,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     "report_data": {
                         "paragraphs": result["paragraphs"],
                         "raw_subtitles": result["raw_subtitles"],
+                        "summary": result.get("summary"),
+                        "keywords": result.get("keywords"),
                         "channel": result.get("channel"),
                         "channel_id": result.get("channel_id"),
                         "channel_avatar": result.get("channel_avatar")
@@ -342,6 +344,8 @@ async def get_result(task_id: str):
                     "thumbnail": video["thumbnail"],
                     "media_path": video["media_path"],
                     "paragraphs": video["report_data"].get("paragraphs"),
+                    "summary": video["report_data"].get("summary"),
+                    "keywords": video["report_data"].get("keywords"),
                     "usage": video["usage"],
                     "raw_subtitles": video["report_data"].get("raw_subtitles"),
                     "channel": video["report_data"].get("channel"),
@@ -510,7 +514,7 @@ async def get_explore():
         # Fetch videos from Supabase - Optimized to only get needed metadata
         # Large fields like raw_subtitles are excluded for performance
         response = supabase.table("videos") \
-            .select("id, title, thumbnail, created_at, view_count, report_data->channel, report_data->channel_id, report_data->channel_avatar") \
+            .select("id, title, thumbnail, created_at, view_count, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords") \
             .order("created_at", desc=True) \
             .limit(100) \
             .execute()
@@ -528,6 +532,8 @@ async def get_explore():
                 "channel": v.get("channel"),
                 "channel_id": v.get("channel_id"),
                 "channel_avatar": v.get("channel_avatar"),
+                "summary": v.get("summary"),
+                "keywords": v.get("keywords"),
                 "date": v["created_at"],
                 "views": v.get("view_count", 0)
             })
