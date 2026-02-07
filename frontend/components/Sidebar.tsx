@@ -62,7 +62,6 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
 
     const menuItems = [
         { name: t("nav.bookshelf"), icon: Library, href: "/dashboard" },
-        { name: t("nav.explore"), icon: LayoutGrid, href: "/explore" },
         { name: t("nav.tasks"), icon: FileUp, href: "/tasks" },
     ];
 
@@ -161,49 +160,56 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                         </div>
                     </nav>
 
-                    <div className="mt-auto pt-6 border-t border-slate-900 flex flex-col gap-6">
-                        <div className="flex items-center space-x-3 px-2">
-                            {user?.user_metadata?.avatar_url ? (
-                                <img
-                                    src={user.user_metadata.avatar_url}
-                                    alt="Avatar"
-                                    className="w-10 h-10 rounded-full border-2 border-white/10 shadow-lg shadow-indigo-500/20"
-                                />
-                            ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold border-2 border-white/10 shadow-lg shadow-indigo-500/20">
-                                    {user?.email?.[0].toUpperCase() || "U"}
-                                </div>
-                            )}
-                            <div className="overflow-hidden">
-                                <p className="text-sm font-bold truncate">
-                                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || t("sidebar.signedIn")}
-                                </p>
-                                <div className="flex items-center gap-1.5">
-                                    <div className={cn(
-                                        "w-1.5 h-1.5 rounded-full shrink-0",
-                                        isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-600"
-                                    )} />
-                                    <p className="text-[10px] text-slate-500 truncate">
-                                        {isOnline ? t("common.online") : t("common.offline")}
+                    {user && (
+                        <div className="mt-auto pt-6 border-t border-slate-900 flex flex-col gap-6">
+                            <div className="flex items-center space-x-3 px-2">
+                                {user?.user_metadata?.avatar_url ? (
+                                    <img
+                                        src={user.user_metadata.avatar_url}
+                                        alt="Avatar"
+                                        className="w-10 h-10 rounded-full border-2 border-white/10 shadow-lg shadow-indigo-500/20"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center font-bold border-2 border-white/10 shadow-lg shadow-indigo-500/20">
+                                        {user?.email?.[0].toUpperCase() || "U"}
+                                    </div>
+                                )}
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-bold truncate">
+                                        {user?.user_metadata?.full_name || user?.email?.split('@')[0] || t("sidebar.signedIn")}
                                     </p>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className={cn(
+                                            "w-1.5 h-1.5 rounded-full shrink-0",
+                                            isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-600"
+                                        )} />
+                                        <p className="text-[10px] text-slate-500 truncate">
+                                            {isOnline ? t("common.online") : t("common.offline")}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="flex items-center justify-between px-2 gap-2">
-                            <button
-                                onClick={() => {
-                                    onSignOut();
-                                    onClose();
-                                }}
-                                className="flex-1 flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                <span>{t("common.logout")}</span>
-                            </button>
+                            <div className="flex items-center justify-between px-2 gap-2">
+                                <button
+                                    onClick={() => {
+                                        onSignOut();
+                                        onClose();
+                                    }}
+                                    className="flex-1 flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span>{t("common.logout")}</span>
+                                </button>
+                                <LanguageSwitcher />
+                            </div>
+                        </div>
+                    )}
+                    {!user && (
+                        <div className="mt-auto pt-6 border-t border-slate-900 flex justify-center">
                             <LanguageSwitcher />
                         </div>
-                    </div>
+                    )}
                 </div>
             </aside>
         </>

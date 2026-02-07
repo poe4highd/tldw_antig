@@ -1,158 +1,334 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import {
+  LayoutGrid,
+  List,
+  Search,
+  Youtube,
+  ArrowRight,
+  Menu,
+  Eye,
+  Calendar,
+  User,
+  Sparkles
+} from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { supabase } from "@/utils/supabase";
+import { getApiBase } from "@/utils/api";
+import { Sidebar } from "@/components/Sidebar";
 import { useTranslation } from "@/contexts/LanguageContext";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+interface ExploreItem {
+  id: string;
+  title: string;
+  thumbnail: string;
+  channel?: string;
+  channel_id?: string;
+  channel_avatar?: string;
+  date: string;
+  views: number;
+}
 
 export default function MarketingPage() {
-  const router = useRouter();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const [viewMode, setViewMode] = useState<"text" | "thumb">("text");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [items, setItems] = useState<ExploreItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // 监听状态变化（处理挂载时的初始检查及 OAuth 回调后的状态切换）
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      // 检查当前 URL 缓存或实时获取，避免异步竞争
-      const urlParams = new URLSearchParams(window.location.search);
-      const isNoRedirect = urlParams.get("noredirect") === "1";
+    // Read preference
+    const saved = localStorage.getItem("rt-explore-view-mode");
+    if (saved === "text" || saved === "thumb") {
+      setViewMode(saved as any);
+    }
 
-      if (session && !isNoRedirect) {
-        router.push("/dashboard");
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    fetchUser();
+
+    fetchExplore();
+  }, []);
+
+  const fetchExplore = async () => {
+    setIsLoading(true);
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/explore`);
+      const data = await response.json();
+      if (data.items) {
+        setItems(data.items);
       }
-    });
+    } catch (error) {
+      console.error("Failed to fetch explore:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return () => subscription.unsubscribe();
-  }, [router]);
+  const toggleViewMode = (mode: "text" | "thumb") => {
+    setViewMode(mode);
+    localStorage.setItem("rt-explore-view-mode", mode);
+  };
+
+  const filteredItems = items.filter(item =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.channel && item.channel.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const getAvatarUrl = (channelName: string) => {
+    if (!channelName) return null;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(channelName)}&background=random&color=fff&size=64&bold=true`;
+  };
+
+  const getChannelColor = (channelId: string | undefined, channelName: string | undefined): string => {
+    const seed = channelId || channelName || "default";
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash) % 360;
+    return `hsl(${h}, 70%, 60%)`;
+  };
+
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-indigo-500/30">
-      {/* Background Glows */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
-        <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/10 blur-[120px] rounded-full" />
-        <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-emerald-600/5 blur-[120px] rounded-full" />
-      </div>
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans selection:bg-indigo-500/30">
+      <Sidebar
+        user={user}
+        onSignOut={() => supabase.auth.signOut().then(() => setUser(null))}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
-      <nav className="relative z-10 max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
-        <Link href="/?noredirect=1" className="flex items-center space-x-3 group cursor-pointer">
-          <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-colors duration-300">
-            <img src="/icon.png" alt="Read-Tube Logo" className="w-8 h-8" />
-          </div>
-          <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            {t("marketing.title")}
-          </span>
-        </Link>
-        <div className="flex items-center space-x-4 md:space-x-6">
-          <LanguageSwitcher />
-          <Link href="/login" className="px-5 py-2.5 bg-white text-slate-950 rounded-full text-sm font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-lg shadow-white/5">
-            {t("common.login")}
-          </Link>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-32 text-center">
-        <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold tracking-widest uppercase mb-8 animate-fade-in">
-          <span className="relative flex h-2 w-2 mr-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-          </span>
-          {t("marketing.tagline")}
+      <main className="flex-grow min-w-0 p-4 md:p-8 bg-slate-950 relative">
+        {/* Background Glows */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full" />
+          <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 blur-[120px] rounded-full" />
         </div>
 
-        <h1 className="text-6xl md:text-8xl font-black tracking-tight mb-8 max-w-4xl mx-auto leading-[1.1]">
-          {t("marketing.heroTitle1")}
-          <span className="block bg-gradient-to-r from-indigo-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent italic">
-            {t("marketing.heroTitle2")}
-          </span>
-        </h1>
-
-        <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-          {t("marketing.description")}
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/login" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-bold text-lg hover:shadow-[0_0_40px_rgba(79,70,229,0.4)] transition-all active:scale-95 text-center">
-            {t("marketing.ctaStart")}
-          </Link>
-          <button className="w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white rounded-2xl font-bold text-lg hover:bg-slate-800/50 transition-all">
-            {t("marketing.ctaLearnMore")}
+        {/* Mobile Header */}
+        <header className="flex items-center justify-between mb-8 md:hidden relative z-10">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 -ml-2 text-slate-400 hover:text-white"
+          >
+            <Menu className="w-6 h-6" />
           </button>
-        </div>
-
-        {/* Product Preview Section */}
-        <div className="mt-24 relative max-w-5xl mx-auto aspect-[16/9] rounded-3xl border border-slate-800 bg-slate-900/50 backdrop-blur-md overflow-hidden shadow-2xl group">
-          <img
-            src="/images/hero_mockup.png"
-            alt="Read-Tube Product Interface"
-            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-40" />
-
-          {/* Glossy overlay */}
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-
-          {/* Floating badge for AI status */}
-          <div className="absolute bottom-6 left-6 px-4 py-2 bg-indigo-500/20 backdrop-blur-xl border border-indigo-500/30 rounded-2xl flex items-center space-x-2 animate-pulse">
-            <div className="w-2 h-2 bg-indigo-400 rounded-full" />
-            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
-              {t("marketing.aiReading")}
-            </span>
+          <div className="flex items-center space-x-2">
+            <img src="/icon.png" alt="Logo" className="w-6 h-6 border border-slate-800 rounded-lg p-0.5" />
+            <span className="font-black tracking-tighter">{t("marketing.title")}</span>
           </div>
-        </div>
-      </section>
+          <div className="w-10"></div>
+        </header>
 
-      {/* Features Grid */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-slate-900">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-indigo-500/30 transition-all group">
-            <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+        {/* Compact Hero Section */}
+        <div className="relative z-10 mb-8 max-w-4xl">
+          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-widest uppercase mb-3">
+            <Sparkles className="w-3 h-3 mr-1.5" />
+            {t("marketing.tagline")}
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
+            {t("marketing.heroTitle1")} {t("marketing.heroTitle2")}
+          </h1>
+          <p className="text-slate-500 text-sm font-medium max-w-2xl">{t("marketing.description")}</p>
+        </div>
+
+        {/* Toolbar */}
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+          <div className="relative w-full md:max-w-xl group">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+              <Search className="w-4 h-4" />
             </div>
-            <h3 className="text-xl font-bold mb-4">{t("marketing.feature1Title")}</h3>
-            <p className="text-slate-400 leading-relaxed">
-              {t("marketing.feature1Desc")}
-            </p>
+            <input
+              type="text"
+              placeholder={t("explore.searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900/40 border border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 placeholder:text-slate-600 transition-all shadow-lg"
+            />
           </div>
 
-          <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-blue-500/30 transition-all group">
-            <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold mb-4">{t("marketing.feature2Title")}</h3>
-            <p className="text-slate-400 leading-relaxed">
-              {t("marketing.feature2Desc")}
-            </p>
-          </div>
-
-          <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-emerald-500/30 transition-all group">
-            <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold mb-4">{t("marketing.feature3Title")}</h3>
-            <p className="text-slate-400 leading-relaxed">
-              {t("marketing.feature3Desc")}
-            </p>
+          <div className="flex items-center bg-slate-900/50 border border-slate-800 p-1 rounded-xl shadow-inner">
+            <button
+              onClick={() => toggleViewMode("text")}
+              className={cn(
+                "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
+                viewMode === "text"
+                  ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
+                  : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <List className="w-3 h-3" />
+              <span>{t("explore.modeText")}</span>
+            </button>
+            <button
+              onClick={() => toggleViewMode("thumb")}
+              className={cn(
+                "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
+                viewMode === "thumb"
+                  ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
+                  : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <LayoutGrid className="w-3 h-3" />
+              <span>{t("explore.modeThumb")}</span>
+            </button>
           </div>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 max-w-7xl mx-auto px-6 py-12 border-t border-slate-900 text-center text-slate-500 text-sm">
-        <p>© 2026 Read-Tube. All rights reserved.</p>
-        <div className="mt-4 flex items-center justify-center space-x-6">
-          <Link href="/project-history" className="hover:text-white transition-colors">{t("nav.projectHistory")}</Link>
-          <a href="#" className="hover:text-white transition-colors">{t("nav.terms")}</a>
-          <a href="#" className="hover:text-white transition-colors">{t("nav.privacy")}</a>
+        {/* Content */}
+        <div className="relative z-10">
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-12 bg-slate-900/40 rounded-xl animate-pulse border border-slate-800/50" />
+              ))}
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="py-20 text-center bg-slate-900/20 border border-dashed border-slate-800 rounded-[2rem] flex flex-col items-center">
+              <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 text-slate-700">
+                <Search className="w-8 h-8" />
+              </div>
+              <p className="text-slate-400 font-bold text-lg">{t("explore.empty")}</p>
+            </div>
+          ) : viewMode === "text" ? (
+            <div className="flex flex-col space-y-2">
+              {filteredItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/result/${item.id}`}
+                  className="group flex items-center gap-3 p-3 bg-slate-900/20 border border-slate-800/30 rounded-xl hover:bg-slate-900/60 hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.005]"
+                >
+                  <div className="shrink-0 relative">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center p-[2px] shadow-lg group-hover:scale-110 transition-transform"
+                      style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
+                    >
+                      <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800 flex items-center justify-center">
+                        {item.channel_avatar ? (
+                          <img src={item.channel_avatar} alt={item.channel} className="w-full h-full object-cover" />
+                        ) : item.channel ? (
+                          <img src={getAvatarUrl(item.channel)!} alt={item.channel} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-4 h-4 text-slate-500" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-slate-950">
+                      <Youtube className="w-2 h-2 text-white" />
+                    </div>
+                  </div>
+
+                  <div className="flex-grow min-w-0">
+                    <h3 className="font-bold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors line-clamp-1 mb-0.5">
+                      {item.title}
+                    </h3>
+                    <div className="flex items-center gap-3 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3 text-slate-600" />
+                        {item.channel || "YouTube Creator"}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-slate-800" />
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {formatDate(item.date)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-6 pr-2">
+                    <div className="hidden sm:flex flex-col items-end">
+                      <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
+                        <Eye className="w-3 h-3" />
+                        {item.views.toLocaleString()}
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-700 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredItems.map((item) => (
+                <div key={item.id} className="group relative bg-slate-900/30 border border-slate-800/50 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
+                  <div className="aspect-video relative overflow-hidden">
+                    <img src={item.thumbnail} alt={item.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
+
+                    <div className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10">
+                      <Youtube className="w-4 h-4 text-red-500" />
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="font-bold text-sm line-clamp-2 mb-3 h-10 group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
+                      {item.title}
+                    </h3>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center p-[1.5px]"
+                          style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
+                        >
+                          <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
+                            <img src={item.channel_avatar || getAvatarUrl(item.channel || "YT")!} className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[80px]">
+                          {item.channel || "Creator"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] font-bold text-slate-600">
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          {item.views}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link href={`/result/${item.id}`} className="absolute inset-0 z-10" aria-label="View report" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </footer>
-    </main>
+
+        {/* Footer Link */}
+        <footer className="relative z-10 mt-12 py-6 border-t border-slate-900/50 text-center">
+          <div className="flex items-center justify-center space-x-6 text-[10px] font-bold text-slate-600">
+            <Link href="/project-history" className="hover:text-white transition-colors">{t("nav.projectHistory")}</Link>
+            <a href="#" className="hover:text-white transition-colors uppercase tracking-widest">{t("nav.terms")}</a>
+            <a href="#" className="hover:text-white transition-colors uppercase tracking-widest">{t("nav.privacy")}</a>
+          </div>
+        </footer>
+      </main>
+    </div>
   );
 }

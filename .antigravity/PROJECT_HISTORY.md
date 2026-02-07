@@ -1,3 +1,5 @@
+[2026-02-07] | [REFACTOR] | 首页重构与体验优化 | 将 Explore 设为全站主入口，移除全屏营销页及匿名用户登录限制，侧边栏实现访客模式适配 | walkthrough.md
+[2026-02-07] | [UI/UX] | Explore 页面布局紧凑化 | 压缩 Explore 页面及卡片的边距与间距，显著提升空间利用率与信息密度 | walkthrough.md
 [2026-02-07] | [FEATURE] | 视频报告摘要与关键词提炼 | 实现基于二次 LLM 调用的全局摘要生成与关键词提取，并在前端实现 AI 洞察展示卡片 | walkthrough.md
 [2026-02-06] | [RESEARCH] | Ollama vs OpenAI 准确度对标 | 完成本地模型 (qwen3:8b) 与 OpenAI 的 CER 量化对比，确定本地模型由于“总结倾向”导致 63% 准确率，需进一步优化 | walkthrough.md
 [2026-02-05] | [FEATURE] | 接入本地 Ollama (qwen3:8b) | 实现 LLM 无缝切换逻辑，支持 192.168.1.182 本地模型进行转录分段与校对 | walkthrough.md
