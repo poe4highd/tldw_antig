@@ -12,8 +12,11 @@ import {
   Eye,
   Calendar,
   User,
-  Sparkles
+  Sparkles,
+  Settings,
+  Columns2
 } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from "@/utils/supabase";
@@ -38,7 +41,7 @@ interface ExploreItem {
 
 export default function MarketingPage() {
   const { t, language } = useTranslation();
-  const [viewMode, setViewMode] = useState<"text" | "thumb">("text");
+  const [viewMode, setViewMode] = useState<"thumb" | "text-single" | "text-double">("text-double");
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<ExploreItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,8 +51,11 @@ export default function MarketingPage() {
   useEffect(() => {
     // Read preference
     const saved = localStorage.getItem("rt-explore-view-mode");
-    if (saved === "text" || saved === "thumb") {
+    if (saved === "thumb" || saved === "text-single" || saved === "text-double") {
       setViewMode(saved as any);
+    } else if (saved === "text") {
+      // Migrate old setting
+      setViewMode("text-single");
     }
 
     const fetchUser = async () => {
@@ -77,7 +83,7 @@ export default function MarketingPage() {
     }
   };
 
-  const toggleViewMode = (mode: "text" | "thumb") => {
+  const toggleViewMode = (mode: "thumb" | "text-single" | "text-double") => {
     setViewMode(mode);
     localStorage.setItem("rt-explore-view-mode", mode);
   };
@@ -146,15 +152,28 @@ export default function MarketingPage() {
         </header>
 
         {/* Compact Hero Section */}
-        <div className="relative z-10 mb-8 max-w-4xl">
-          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-widest uppercase mb-3">
-            <Sparkles className="w-3 h-3 mr-1.5" />
-            {t("marketing.tagline")}
+        <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+          <div className="max-w-4xl">
+            <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-widest uppercase mb-3">
+              <Sparkles className="w-3 h-3 mr-1.5" />
+              {t("marketing.tagline")}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
+              {t("marketing.heroTitle1")} {t("marketing.heroTitle2")}
+            </h1>
+            <p className="text-slate-500 text-sm font-medium max-w-2xl">{t("marketing.description")}</p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
-            {t("marketing.heroTitle1")} {t("marketing.heroTitle2")}
-          </h1>
-          <p className="text-slate-500 text-sm font-medium max-w-2xl">{t("marketing.description")}</p>
+
+          <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
+            <Link
+              href="/settings"
+              className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg"
+              title={t("common.settings")}
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
 
         {/* Toolbar */}
@@ -174,16 +193,30 @@ export default function MarketingPage() {
 
           <div className="flex items-center bg-slate-900/50 border border-slate-800 p-1 rounded-xl shadow-inner">
             <button
-              onClick={() => toggleViewMode("text")}
+              onClick={() => toggleViewMode("text-double")}
               className={cn(
                 "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
-                viewMode === "text"
+                viewMode === "text-double"
+                  ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
+                  : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <Columns2 className="w-3 h-3" />
+              <span className="hidden sm:inline">{t("explore.modeText")} (2)</span>
+              <span className="sm:hidden">2</span>
+            </button>
+            <button
+              onClick={() => toggleViewMode("text-single")}
+              className={cn(
+                "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
+                viewMode === "text-single"
                   ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
                   : "text-slate-500 hover:text-slate-300"
               )}
             >
               <List className="w-3 h-3" />
-              <span>{t("explore.modeText")}</span>
+              <span className="hidden sm:inline">{t("explore.modeText")} (1)</span>
+              <span className="sm:hidden">1</span>
             </button>
             <button
               onClick={() => toggleViewMode("thumb")}
@@ -195,7 +228,7 @@ export default function MarketingPage() {
               )}
             >
               <LayoutGrid className="w-3 h-3" />
-              <span>{t("explore.modeThumb")}</span>
+              <span className="hidden sm:inline">{t("explore.modeThumb")}</span>
             </button>
           </div>
         </div>
@@ -215,8 +248,11 @@ export default function MarketingPage() {
               </div>
               <p className="text-slate-400 font-bold text-lg">{t("explore.empty")}</p>
             </div>
-          ) : viewMode === "text" ? (
-            <div className="flex flex-col space-y-2">
+          ) : viewMode === "text-single" || viewMode === "text-double" ? (
+            <div className={cn(
+              "gap-3",
+              viewMode === "text-double" ? "grid grid-cols-1 xl:grid-cols-2" : "flex flex-col space-y-2"
+            )}>
               {filteredItems.map((item) => (
                 <Link
                   key={item.id}

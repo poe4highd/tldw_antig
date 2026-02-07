@@ -60,14 +60,14 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
         return () => clearInterval(interval);
     }, []);
 
-    const menuItems = [
+    const menuItems = user ? [
         { name: t("nav.bookshelf"), icon: Library, href: "/dashboard" },
         { name: t("nav.tasks"), icon: FileUp, href: "/tasks" },
-    ];
+    ] : [];
 
     const systemItems = [
         { name: t("nav.projectHistory"), icon: History, href: "/project-history" },
-        { name: t("common.settings"), icon: Settings, href: "/settings" },
+        ...(user ? [{ name: t("common.settings"), icon: Settings, href: "/settings" }] : []),
     ];
 
     return (
@@ -105,59 +105,63 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                     </div>
 
                     <nav className="space-y-8 flex-1">
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">
-                                {t("sidebar.mainMenu")}
-                            </p>
-                            <div className="space-y-1">
-                                {menuItems.map((item) => {
-                                    const isActive = pathname === item.href;
-                                    return (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            onClick={onClose}
-                                            className={cn(
-                                                "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
-                                                isActive
-                                                    ? "bg-indigo-500/10 text-indigo-400 font-bold"
-                                                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                                            )}
-                                        >
-                                            <item.icon className="w-5 h-5 flex-shrink-0" />
-                                            <span>{item.name}</span>
-                                        </Link>
-                                    );
-                                })}
+                        {menuItems.length > 0 && (
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">
+                                    {t("sidebar.mainMenu")}
+                                </p>
+                                <div className="space-y-1">
+                                    {menuItems.map((item) => {
+                                        const isActive = pathname === item.href;
+                                        return (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                onClick={onClose}
+                                                className={cn(
+                                                    "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
+                                                    isActive
+                                                        ? "bg-indigo-500/10 text-indigo-400 font-bold"
+                                                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                                                )}
+                                            >
+                                                <item.icon className="w-5 h-5 flex-shrink-0" />
+                                                <span>{item.name}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">
-                                {t("sidebar.systemSupport")}
-                            </p>
-                            <div className="space-y-1">
-                                {systemItems.map((item) => {
-                                    const isActive = pathname === item.href;
-                                    return (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            onClick={onClose}
-                                            className={cn(
-                                                "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
-                                                isActive
-                                                    ? "bg-indigo-500/10 text-indigo-400 font-bold"
-                                                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                                            )}
-                                        >
-                                            <item.icon className="w-5 h-5 flex-shrink-0" />
-                                            <span>{item.name}</span>
-                                        </Link>
-                                    );
-                                })}
+                        {systemItems.length > 0 && (
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">
+                                    {t("sidebar.systemSupport")}
+                                </p>
+                                <div className="space-y-1">
+                                    {systemItems.map((item) => {
+                                        const isActive = pathname === item.href;
+                                        return (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                onClick={onClose}
+                                                className={cn(
+                                                    "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
+                                                    isActive
+                                                        ? "bg-indigo-500/10 text-indigo-400 font-bold"
+                                                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                                                )}
+                                            >
+                                                <item.icon className="w-5 h-5 flex-shrink-0" />
+                                                <span>{item.name}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </nav>
 
                     {user && (
