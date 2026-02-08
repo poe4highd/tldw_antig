@@ -233,7 +233,7 @@ export default function MarketingPage() {
         </div>
 
         {/* Header: Logo & Global Settings (Sticky) */}
-        <div className="sticky top-0 z-[60] bg-background backdrop-blur-xl border-b border-card-border -mx-3 px-3 md:-mx-8 md:px-8 pb-3 pt-3 md:pt-4 transition-all duration-300">
+        <div className="sticky top-0 z-[60] bg-background backdrop-blur-xl border-b border-card-border -mx-3 px-3 md:-mx-8 md:px-8 h-14 md:h-16 flex items-center transition-all duration-300">
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center space-x-2 md:space-x-3 group shrink-0">
               <div className={cn(
@@ -279,8 +279,8 @@ export default function MarketingPage() {
 
         {/* Hero Title (Non-sticky) */}
         <div className={cn(
-          "relative z-10 mt-6 overflow-hidden transition-all duration-700 ease-in-out",
-          isScrolled ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-6"
+          "relative z-10 overflow-hidden transition-all duration-500 ease-in-out",
+          isScrolled ? "max-h-0 opacity-0 mb-0 mt-0" : "max-h-40 opacity-100 mb-6 mt-6"
         )}>
           <div className="flex flex-col">
             <h1 className={cn(
@@ -299,7 +299,7 @@ export default function MarketingPage() {
         </div>
 
         {/* Consolidate Toolbar (Sticky below hero) */}
-        <div className="sticky top-[64px] md:top-[76px] z-50 bg-background backdrop-blur-lg border-y border-card-border -mx-3 px-3 md:-mx-8 md:px-8 py-2 md:py-3 transition-all duration-300">
+        <div className="sticky top-14 md:top-16 z-50 bg-background backdrop-blur-lg border-y border-card-border -mx-3 px-3 md:-mx-8 md:px-8 py-2 md:py-3 transition-all duration-300">
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 md:gap-4">
             {/* Search Bar: Desktop Order 1, 30% Width | Mobile Order 2 */}
             <div className="order-2 lg:order-1 flex-grow lg:flex-none lg:w-[30%] relative group">

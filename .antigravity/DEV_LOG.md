@@ -7,12 +7,12 @@
 
 ### 2. 实施
 - **前端 (`page.tsx`)**:
-  - 提升了 Global Header 的 `z-index` (50 -> 60) 和背景不透明度 (`bg-background/80` -> `bg-background`)。
-  - 提升了 Toolbar 的 `z-index` (40 -> 50) 和背景不透明度 (`bg-background/50` -> `bg-background`)。
-  - 调整了 Toolbar 的 `top` 偏移量以适配 Header 的微调，消除了物理间隙。
+  - **消除残余边距**: 将 Hero Title 的 `mt-6` 修改为动态控制 (`isScrolled ? "mt-0" : "mt-6"`)，防止主标题隐藏后留下 24px 的空隙。
+  - **像素级对齐**: 为 Global Header 设置固定高度 (`h-14 md:h-16`)，并将 Toolbar 的吸顶偏移量 (`top`) 硬编码为与之完全相等，消除任何由于动态高度计算导致的缝隙。
+  - **层级加固**: 维持 Header (`z-60`) > Toolbar (`z-50`) > 视频内容的堆叠顺序。
 
 ### 3. 回顾
-- **结果**: 视频卡片现在在滚动过程中会被工具栏完美遮挡，解决了内容漏出问题。
+- **结果**: 视频卡片现在在滚动过程中会被工具栏完美遮挡，完全消除了由于标题边距残留导致的“二阶段漏出”现象。
 - **改动文件**: `frontend/app/page.tsx`, `.antigravity/DEV_LOG.md`, `.antigravity/PROJECT_HISTORY.md`。
 
 ---
