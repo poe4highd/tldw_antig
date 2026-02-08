@@ -20,12 +20,14 @@ import {
     Play,
     ArrowDownToLine,
     Sun,
-    Moon
+    Moon,
+    Heart
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { supabase } from "@/utils/supabase";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -78,19 +80,25 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [viewCount, setViewCount] = useState(0);
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
-    // const [origin, setOrigin] = useState(""); // react-youtube handles origin
+    const [user, setUser] = useState<any>(null);
 
-    // useEffect(() => {
-    //     setOrigin(window.location.origin);
-    // }, []);
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setUser(session?.user || null);
+        };
+        fetchUser();
+    }, []);
 
     useEffect(() => {
         const fetchResult = async () => {
             try {
                 const apiBase = getApiBase();
+                const { data: { session } } = await supabase.auth.getSession();
+                const user_id = session?.user?.id;
 
                 // Fetch basic result
-                const response = await fetch(`${apiBase}/result/${id}`);
+                const response = await fetch(`${apiBase}/result/${id}${user_id ? `?user_id=${user_id}` : ''}`);
                 if (!response.ok) throw new Error(t("result.fetchError"));
                 const data = await response.json();
 
@@ -98,6 +106,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     setResult(data);
                     setViewCount(data.view_count || 0);
                     setLikeCount(data.interaction_count || 0);
+                    setIsLiked(data.is_liked || false);
 
                     // Trigger view increment
                     fetch(`${apiBase}/result/${id}/view`, { method: 'POST' });
@@ -252,12 +261,33 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     };
 
     const handleToggleLike = async () => {
-        setIsLiked(!isLiked);
-        setLikeCount(l => isLiked ? l - 1 : l + 1);
+        if (!user) {
+            window.location.href = "/login";
+            return;
+        }
+
+        const newStatus = !isLiked;
+        setIsLiked(newStatus);
+        setLikeCount(l => newStatus ? l + 1 : l - 1);
+
         try {
             const apiBase = getApiBase();
-            await fetch(`${apiBase}/result/${id}/like`, { method: 'POST' });
-        } catch (err) { }
+            const response = await fetch(`${apiBase}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ video_id: id, user_id: user.id })
+            });
+            const data = await response.json();
+            if (data.status !== "success") {
+                // Rollback if failed
+                setIsLiked(!newStatus);
+                setLikeCount(l => !newStatus ? l + 1 : l - 1);
+            }
+        } catch (err) {
+            // Rollback if error
+            setIsLiked(!newStatus);
+            setLikeCount(l => !newStatus ? l + 1 : l - 1);
+        }
     };
 
     if (loading) {
@@ -418,10 +448,10 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     onClick={handleToggleLike}
                                     className={cn(
                                         "px-4 md:px-5 py-2 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
-                                        isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-background border-card-border text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white"
+                                        isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
                                     )}
                                 >
-                                    <ThumbsUp className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
+                                    <Heart className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
                                     <span>{likeCount}</span>
                                 </button>
                             </div>

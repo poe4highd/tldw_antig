@@ -59,6 +59,10 @@ class CommentRequest(BaseModel):
     user_id: str = None
     parent_id: str = None
 
+class LikeRequest(BaseModel):
+    video_id: str
+    user_id: str
+
 def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
@@ -414,13 +418,24 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
     return {"task_id": task_id}
 
 @app.get("/result/{task_id}")
-async def get_result(task_id: str):
+async def get_result(task_id: str, user_id: str = None):
     # 0. Try Supabase first
     if supabase:
         try:
+            # Fetch video
             response = supabase.table("videos").select("*").eq("id", task_id).execute()
             if response.data:
                 video = response.data[0]
+                
+                is_liked = False
+                if user_id:
+                    like_res = supabase.table("user_likes") \
+                        .select("id") \
+                        .eq("user_id", user_id) \
+                        .eq("video_id", task_id) \
+                        .execute()
+                    is_liked = len(like_res.data) > 0
+
                 return {
                     "title": video["title"],
                     "url": "N/A",
@@ -437,6 +452,7 @@ async def get_result(task_id: str):
                     "channel_avatar": video["report_data"].get("channel_avatar"),
                     "view_count": video.get("view_count", 0),
                     "interaction_count": video.get("interaction_count", 0),
+                    "is_liked": is_liked,
                     "mtime": video.get("created_at"),
                     "status": "completed",
                     "progress": 100
@@ -657,7 +673,7 @@ async def get_history(user_id: str = None):
     }
 
 @app.get("/explore")
-async def get_explore(page: int = 1, limit: int = 24, q: str = None):
+async def get_explore(page: int = 1, limit: int = 24, q: str = None, user_id: str = None):
     if not supabase:
         # Fallback to local history but only YouTube ones
         res = await get_history()
@@ -698,6 +714,14 @@ async def get_explore(page: int = 1, limit: int = 24, q: str = None):
             .range(start, end) \
             .execute()
         
+        # If user_id is provided, fetch their liked videos to mark items
+        liked_ids = set()
+        if user_id:
+            try:
+                like_res = supabase.table("user_likes").select("video_id").eq("user_id", user_id).execute()
+                liked_ids = {l["video_id"] for l in like_res.data}
+            except: pass
+
         items = []
         for v in response.data:
             # Skip uploads - heuristic: youtube IDs are 11 chars
@@ -714,7 +738,8 @@ async def get_explore(page: int = 1, limit: int = 24, q: str = None):
                 "summary": v.get("summary"),
                 "keywords": v.get("keywords"),
                 "date": v["created_at"],
-                "views": v.get("view_count", 0)
+                "views": v.get("view_count", 0),
+                "is_liked": v["id"] in liked_ids
             })
             
         return {
@@ -743,6 +768,102 @@ async def get_trending_keywords():
     except Exception as e:
         print(f"Failed to fetch trending keywords: {e}")
         return ["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"]
+
+@app.post("/like")
+async def toggle_user_like(request: LikeRequest):
+    if not supabase:
+        return {"status": "error", "message": "Supabase not connected"}
+    
+    try:
+        # Check if already liked
+        existing = supabase.table("user_likes") \
+            .select("id") \
+            .eq("user_id", request.user_id) \
+            .eq("video_id", request.video_id) \
+            .execute()
+        
+        if existing.data:
+            # Unlike
+            supabase.table("user_likes") \
+                .delete() \
+                .eq("user_id", request.user_id) \
+                .eq("video_id", request.video_id) \
+                .execute()
+            status = "unliked"
+        else:
+            # Like
+            supabase.table("user_likes") \
+                .insert({
+                    "user_id": request.user_id,
+                    "video_id": request.video_id
+                }) \
+                .execute()
+            status = "liked"
+        
+        return {"status": "success", "action": status}
+    except Exception as e:
+        print(f"Failed to toggle like: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/bookshelf")
+async def get_bookshelf(user_id: str):
+    if not supabase:
+        return {"history": []}
+    
+    try:
+        # 1. Fetch user's submissions
+        sub_res = supabase.table("submissions") \
+            .select("video_id, created_at, videos(*)") \
+            .eq("user_id", user_id) \
+            .execute()
+        
+        # 2. Fetch user's likes
+        like_res = supabase.table("user_likes") \
+            .select("video_id, created_at, videos(*)") \
+            .eq("user_id", user_id) \
+            .execute()
+        
+        # Combine and deduplicate
+        bookshelf_map = {}
+        
+        for item in sub_res.data:
+            vid = item.get("video_id")
+            video = item.get("videos")
+            if video:
+                bookshelf_map[vid] = {
+                    "id": video["id"],
+                    "title": video["title"],
+                    "thumbnail": video["thumbnail"],
+                    "mtime": item["created_at"],
+                    "status": video["status"],
+                    "source": "submission"
+                }
+
+        for item in like_res.data:
+            vid = item.get("video_id")
+            video = item.get("videos")
+            if video:
+                # If already in bookshelf via submission, we mark it liked
+                if vid not in bookshelf_map:
+                    bookshelf_map[vid] = {
+                        "id": video["id"],
+                        "title": video["title"],
+                        "thumbnail": video["thumbnail"],
+                        "mtime": item["created_at"],
+                        "status": video["status"],
+                        "source": "like",
+                        "is_liked": True
+                    }
+                else:
+                    bookshelf_map[vid]["is_liked"] = True
+
+        # Convert to list and sort by date
+        sorted_items = sorted(bookshelf_map.values(), key=lambda x: x["mtime"], reverse=True)
+        
+        return {"history": sorted_items}
+    except Exception as e:
+        print(f"Failed to fetch bookshelf: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.get("/project-history")
 async def get_project_history():
@@ -826,20 +947,10 @@ async def add_view(task_id: str):
         return {"status": "error", "message": str(e)}
 
 @app.post("/result/{task_id}/like")
-async def toggle_like(task_id: str):
-    if not supabase:
-        return {"status": "ok", "message": "Local mode"}
-    try:
-        response = supabase.table("videos").select("interaction_count").eq("id", task_id).execute()
-        if response.data:
-            current_count = response.data[0].get("interaction_count", 0)
-            # Simple increment for now
-            new_count = current_count + 1
-            supabase.table("videos").update({"interaction_count": new_count}).eq("id", task_id).execute()
-            return {"status": "success", "interaction_count": new_count}
-        return {"status": "error", "message": "Video not found"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+async def toggle_like_legacy(task_id: str):
+    # This is a legacy endpoint that just increments interaction_count
+    # Keep it for backward compatibility or remove if not used.
+    pass
 
 @app.get("/result/{task_id}/comments")
 async def get_comments(task_id: str):

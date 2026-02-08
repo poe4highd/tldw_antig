@@ -18,7 +18,8 @@ import {
   TrendingUp,
   Columns2,
   Moon,
-  Sun
+  Sun,
+  Heart
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -43,6 +44,7 @@ interface ExploreItem {
   keywords?: string[];
   date: string;
   views: number;
+  is_liked?: boolean;
 }
 
 export default function MarketingPage() {
@@ -102,7 +104,7 @@ export default function MarketingPage() {
 
   useEffect(() => {
     fetchExplore(page, debouncedSearchQuery);
-  }, [page, debouncedSearchQuery, limit]);
+  }, [page, debouncedSearchQuery, limit, user?.id]);
 
   const fetchExplore = async (pageNum: number, query: string) => {
     setIsLoading(true);
@@ -112,6 +114,7 @@ export default function MarketingPage() {
       url.searchParams.append("page", pageNum.toString());
       url.searchParams.append("limit", limit.toString());
       if (query) url.searchParams.append("q", query);
+      if (user?.id) url.searchParams.append("user_id", user.id);
 
       const response = await fetch(url.toString());
       const data = await response.json();
@@ -191,6 +194,33 @@ export default function MarketingPage() {
     }
     const h = Math.abs(hash) % 360;
     return `hsl(${h}, 70%, 60%)`;
+  };
+
+  const handleLike = async (e: React.MouseEvent, videoId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video_id: videoId, user_id: user.id })
+      });
+      const data = await response.json();
+      if (data.status === "success") {
+        setItems(prev => prev.map(item =>
+          item.id === videoId ? { ...item, is_liked: data.action === "liked" } : item
+        ));
+      }
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+    }
   };
 
   return (
@@ -443,6 +473,15 @@ export default function MarketingPage() {
                             <Eye className="w-2.5 h-2.5" />
                             {item.views.toLocaleString()}
                           </span>
+                          <button
+                            onClick={(e) => handleLike(e, item.id)}
+                            className={cn(
+                              "flex items-center gap-1 transition-colors",
+                              item.is_liked ? "text-rose-500" : "hover:text-rose-400"
+                            )}
+                          >
+                            <Heart className={cn("w-2.5 h-2.5", item.is_liked && "fill-current")} />
+                          </button>
                         </div>
                       </div>
                     </>
@@ -468,6 +507,16 @@ export default function MarketingPage() {
                             <Eye className="w-2.5 h-2.5" />
                             {item.views.toLocaleString()}
                           </span>
+                          <button
+                            onClick={(e) => handleLike(e, item.id)}
+                            className={cn(
+                              "flex items-center gap-1.5 transition-colors pl-1 border-l border-slate-800/30",
+                              item.is_liked ? "text-rose-500" : "hover:text-rose-400"
+                            )}
+                          >
+                            <Heart className={cn("w-3 h-3", item.is_liked && "fill-current")} />
+                            {item.is_liked && <span className="text-[8px] uppercase">{language === 'zh' ? '已收录' : 'Saved'}</span>}
+                          </button>
                         </div>
                       </div>
 
@@ -516,6 +565,15 @@ export default function MarketingPage() {
                           <Eye className="w-3 h-3" />
                           {item.views}
                         </span>
+                        <button
+                          onClick={(e) => handleLike(e, item.id)}
+                          className={cn(
+                            "flex items-center gap-1 transition-colors",
+                            item.is_liked ? "text-rose-500" : "hover:text-rose-400"
+                          )}
+                        >
+                          <Heart className={cn("w-3.5 h-3.5", item.is_liked && "fill-current")} />
+                        </button>
                       </div>
                     </div>
                   </div>

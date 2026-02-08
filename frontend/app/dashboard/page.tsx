@@ -13,7 +13,11 @@ import {
     Share2,
     Lock,
     ArrowRight,
-    Menu
+    Menu,
+    Heart,
+    Eye,
+    Calendar,
+    Clock
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -25,67 +29,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-// Mock Data
-// ... (omitted if possible, but replace_file_content needs contiguous block)
-// I'll replace from the imports down to the return statement start.
-
-// Mock Data
-const MOCK_VIDEOS = [
-    {
-        id: "_1C1mRhUYwo",
-        title: "Stop learning investment if you are an ordinary person? The most ridiculous advice.",
-        thumbnail: "https://i.ytimg.com/vi/_1C1mRhUYwo/sddefault.jpg",
-        source: "youtube",
-        isPublic: true,
-        views: 1250,
-        date: "2024-01-16"
-    },
-    {
-        id: "0wwqxQchN64",
-        title: "Empress Xuan in 'Love Like the Galaxy' - Why is she so tragic? #LoveLikeTheGalaxy",
-        thumbnail: "https://i.ytimg.com/vi_webp/0wwqxQchN64/maxresdefault.webp",
-        source: "youtube",
-        isPublic: true,
-        views: 450,
-        date: "2024-01-15"
-    },
-    {
-        id: "MnjNgtPr3v0",
-        title: "2026 Tesla Model Y Performance - Actually still the best?",
-        thumbnail: "https://i.ytimg.com/vi/MnjNgtPr3v0/maxresdefault.jpg",
-        source: "youtube",
-        isPublic: true,
-        views: 890,
-        date: "2024-01-14"
-    },
-    {
-        id: "yDc0_8emz7M",
-        title: "Agent Skills: From Usage to Theory, Explained.",
-        thumbnail: "https://i.ytimg.com/vi/yDc0_8emz7M/maxresdefault.jpg",
-        source: "youtube",
-        isPublic: true,
-        views: 3100,
-        date: "2024-01-13"
-    },
-    {
-        id: "ZzPoWrlzE1w",
-        title: "Claude Skills: The Automated Superpower Underrated by 90% | 3-Week Review",
-        thumbnail: "https://i.ytimg.com/vi/ZzPoWrlzE1w/maxresdefault.jpg",
-        source: "youtube",
-        isPublic: true,
-        views: 2400,
-        date: "2024-01-12"
-    },
-    {
-        id: "upload-mock-1",
-        title: "Internal Meeting: 2024 Q4 Product Roadmap Discussion.mp3",
-        thumbnail: "https://images.unsplash.com/photo-1589903303904-a0422599fa86?auto=format&fit=crop&q=80&w=800",
-        source: "upload",
-        isPublic: false,
-        views: 0,
-        date: "2024-01-11"
-    }
-];
+// Mock Data removed
 
 import { useTranslation } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -137,10 +81,9 @@ export default function DashboardPage() {
             try {
                 // Determine API Base
                 const apiBase = getApiBase();
-
                 const { data: { session } } = await supabase.auth.getSession();
                 const user_id = session?.user?.id;
-                const response = await fetch(`${apiBase}/history${user_id ? `?user_id=${user_id}` : ''}`);
+                const response = await fetch(`${apiBase}/bookshelf${user_id ? `?user_id=${user_id}` : ''}`);
                 const data = await response.json();
 
                 if (data.history) {
@@ -150,7 +93,8 @@ export default function DashboardPage() {
                         title: item.title,
                         thumbnail: item.thumbnail,
                         source: item.id.length === 11 ? "youtube" : "upload",
-                        isPublic: true, // For now, assume public until privacy logic is in
+                        isPublic: true,
+                        is_liked: item.is_liked || item.source === "like",
                         date: new Date(item.mtime).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
                             year: 'numeric',
                             month: '2-digit',
@@ -183,6 +127,30 @@ export default function DashboardPage() {
     const handleSignOut = async () => {
         await supabase.auth.signOut();
         router.push("/");
+    };
+
+    const handleLike = async (e: React.MouseEvent, videoId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!user) return;
+
+        try {
+            const apiBase = getApiBase();
+            const response = await fetch(`${apiBase}/like`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ video_id: videoId, user_id: user.id })
+            });
+            const data = await response.json();
+            if (data.status === "success") {
+                setVideos(prev => prev.map(video =>
+                    video.id === videoId ? { ...video, is_liked: data.action === "liked" } : video
+                ));
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
     };
 
     return (
@@ -218,57 +186,63 @@ export default function DashboardPage() {
                 </header>
 
                 {/* Header Section */}
-                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-10">
-                    <div>
+                <header className="relative z-10 mb-8">
+                    <div className="flex flex-col">
                         <h1 className={cn(
-                            "text-3xl md:text-4xl font-black tracking-tight mb-2",
-                            theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-900"
+                            "text-xl md:text-3xl font-black tracking-tight mb-1",
+                            theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
                         )}>
-                            {t("nav.bookshelf")}
+                            {language === 'zh' ? "我的书架" : "My Bookshelf"}
                         </h1>
-                        <p className="text-slate-500 text-sm font-medium">{t("dashboard.subtitle")}</p>
+                        <p className={cn(
+                            "text-xs md:text-sm font-medium transition-colors duration-300",
+                            theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
+                        )}>
+                            {language === 'zh' ? "欢迎回来，这是您的核心知识库。" : "Welcome back, this is your core knowledge base."}
+                        </p>
                     </div>
-                    <Link href="/tasks" className="flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-indigo-500/20 active:scale-95">
-                        <Plus className="w-5 h-5" />
-                        <span>{t("dashboard.newTask")}</span>
-                    </Link>
                 </header>
 
-                {/* Filters & View Toggle (Sticky) */}
-                <div className="sticky top-0 z-40 bg-background/50 backdrop-blur-lg border-y border-card-border -mx-4 px-4 md:-mx-10 md:px-10 py-3 mb-8 transition-all duration-300">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="relative w-full md:max-w-md group">
-                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                                <Search className="w-4 h-4" />
+                {/* Toolbar (Sticky) */}
+                <div className="sticky top-0 z-40 bg-background/50 backdrop-blur-lg border-y border-card-border -mx-4 px-4 md:-mx-10 md:px-10 py-2.5 mb-8 transition-all duration-300">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="relative flex-grow max-w-md group">
+                            <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                <Search className="w-3.5 h-3.5" />
                             </div>
                             <input
                                 type="text"
                                 placeholder={t("dashboard.searchPlaceholder")}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-card-bg/30 border border-card-border rounded-xl py-2 pl-12 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md text-foreground"
+                                className="w-full bg-card-bg/50 border border-card-border rounded-xl py-1.5 pl-10 pr-4 text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md text-foreground"
                             />
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                            <Link href="/tasks" className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-[10px] transition-all shadow-lg shadow-indigo-500/10 active:scale-95">
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>{t("dashboard.newTask")}</span>
+                            </Link>
+
                             <div className="flex items-center bg-card-bg/30 border border-card-border p-0.5 rounded-lg backdrop-blur-md">
                                 <button
                                     onClick={() => setViewMode("grid")}
                                     className={cn(
-                                        "p-2 rounded-lg transition-all",
+                                        "p-1.5 rounded-md transition-all",
                                         viewMode === "grid" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                                     )}
                                 >
-                                    <LayoutGrid className="w-4 h-4" />
+                                    <LayoutGrid className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                     onClick={() => setViewMode("list")}
                                     className={cn(
-                                        "p-2 rounded-lg transition-all",
+                                        "p-1.5 rounded-md transition-all",
                                         viewMode === "list" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                                     )}
                                 >
-                                    <List className="w-4 h-4" />
+                                    <List className="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
@@ -323,12 +297,23 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    <div className="p-6">
-                                        <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors text-foreground">{video.title}</h3>
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                            <span>{video.date}</span>
-                                            <span className="flex items-center space-x-1">
-                                                <ArrowRight className="w-3 h-3" />
+                                    <div className="p-5">
+                                        <h3 className="font-bold text-[13px] leading-tight line-clamp-2 mb-4 h-9 group-hover:text-indigo-400 transition-colors text-foreground">{video.title}</h3>
+                                        <div className="flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-tight border-t border-card-border/50 pt-3">
+                                            <div className="flex items-center gap-3">
+                                                <span>{video.date}</span>
+                                                <button
+                                                    onClick={(e) => handleLike(e, video.id)}
+                                                    className={cn(
+                                                        "flex items-center gap-1 transition-colors",
+                                                        video.is_liked ? "text-rose-500" : "hover:text-rose-400"
+                                                    )}
+                                                >
+                                                    <Heart className={cn("w-3 h-3", video.is_liked && "fill-current")} />
+                                                </button>
+                                            </div>
+                                            <span className="flex items-center space-x-1 group/btn hover:text-indigo-400 transition-colors">
+                                                <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
                                                 <span>{t("dashboard.viewReport")}</span>
                                             </span>
                                         </div>
@@ -353,10 +338,19 @@ export default function DashboardPage() {
                                         </span>
                                         <span className="font-bold text-sm truncate text-foreground">{video.title}</span>
                                     </div>
-                                    <div className="flex items-center space-x-8 flex-shrink-0 ml-4">
-                                        <div className="hidden sm:flex items-center space-x-4">
-                                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{video.date}</span>
-                                            {video.isPublic ? <Share2 className="w-4 h-4 text-emerald-500/50" /> : <Lock className="w-4 h-4 text-slate-600" />}
+                                    <div className="flex items-center space-x-6 flex-shrink-0 ml-4">
+                                        <div className="hidden sm:flex items-center space-x-6">
+                                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-tight">{video.date}</span>
+                                            <button
+                                                onClick={(e) => handleLike(e, video.id)}
+                                                className={cn(
+                                                    "transition-colors",
+                                                    video.is_liked ? "text-rose-500" : "text-slate-500 hover:text-rose-400"
+                                                )}
+                                            >
+                                                <Heart className={cn("w-3.5 h-3.5", video.is_liked && "fill-current")} />
+                                            </button>
+                                            {video.isPublic ? <Share2 className="w-3.5 h-3.5 text-emerald-500/50" /> : <Lock className="w-3.5 h-3.5 text-slate-600" />}
                                         </div>
                                         <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
                                     </div>
