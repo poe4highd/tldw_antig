@@ -21,7 +21,6 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from "@/utils/supabase";
 import { getApiBase } from "@/utils/api";
-import { Sidebar } from "@/components/Sidebar";
 import { useTranslation } from "@/contexts/LanguageContext";
 
 function cn(...inputs: ClassValue[]) {
@@ -45,7 +44,6 @@ export default function MarketingPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<ExploreItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -121,74 +119,82 @@ export default function MarketingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans selection:bg-indigo-500/30">
-      <Sidebar
-        user={user}
-        onSignOut={() => supabase.auth.signOut().then(() => setUser(null))}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-
-      <main className="flex-grow min-w-0 p-4 md:p-8 bg-slate-950 relative">
+    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-indigo-500/30">
+      <main className="max-w-7xl mx-auto p-4 md:p-8 bg-slate-950 relative">
         {/* Background Glows */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full" />
           <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 blur-[120px] rounded-full" />
         </div>
 
-        {/* Mobile Header */}
-        <header className="flex items-center justify-between mb-8 md:hidden relative z-10">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 -ml-2 text-slate-400 hover:text-white"
+        {/* Desktop & Mobile Top Header (Settings/Lang) */}
+        <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20 flex items-center gap-3">
+          <LanguageSwitcher />
+          <Link
+            href="/settings"
+            className="p-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg"
+            title={t("common.settings")}
           >
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="flex items-center space-x-2">
-            <img src="/icon.png" alt="Logo" className="w-6 h-6 border border-slate-800 rounded-lg p-0.5" />
-            <span className="font-black tracking-tighter">{t("marketing.title")}</span>
-          </div>
-          <div className="w-10"></div>
-        </header>
+            <Settings className="w-5 h-5" />
+          </Link>
+        </div>
+
+
 
         {/* Compact Hero Section */}
-        <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
-          <div className="max-w-4xl">
-            <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-widest uppercase mb-3">
+        <div className="relative z-10 mb-12">
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/" className="flex items-center space-x-3 group animate-in fade-in slide-in-from-left-4 duration-700">
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
+                <img src="/icon.png" alt="Read-Tube Logo" className="w-7 h-7" />
+              </div>
+              <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                {t("marketing.title")}
+              </span>
+            </Link>
+            <div className="h-6 w-px bg-slate-800 mx-1" />
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-widest uppercase">
               <Sparkles className="w-3 h-3 mr-1.5" />
               {t("marketing.tagline")}
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
-              {t("marketing.heroTitle1")} {t("marketing.heroTitle2")}
-            </h1>
-            <p className="text-slate-500 text-sm font-medium max-w-2xl">{t("marketing.description")}</p>
           </div>
-
-          <div className="hidden md:flex items-center gap-3">
-            <LanguageSwitcher />
-            <Link
-              href="/settings"
-              className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg"
-              title={t("common.settings")}
-            >
-              <Settings className="w-5 h-5" />
-            </Link>
+          <div className="max-w-4xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-tight">
+              {t("marketing.heroTitle1")} <br className="hidden sm:block" />
+              {t("marketing.heroTitle2")}
+            </h1>
+            <p className="text-slate-500 text-base md:text-lg font-medium max-w-2xl leading-relaxed">
+              {t("marketing.description")}
+            </p>
           </div>
         </div>
 
         {/* Toolbar */}
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-          <div className="relative w-full md:max-w-xl group">
+          <div className="relative w-full md:max-w-2xl group">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-              <Search className="w-4 h-4" />
+              <Search className="w-5 h-5" />
             </div>
             <input
               type="text"
               placeholder={t("explore.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900/40 border border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 placeholder:text-slate-600 transition-all shadow-lg"
+              className="w-full bg-slate-900/40 border border-slate-800/60 rounded-[1.5rem] py-4 pl-12 pr-4 text-base focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 placeholder:text-slate-600 transition-all shadow-2xl backdrop-blur-sm"
             />
+            {/* Quick Keywords */}
+            <div className="flex flex-wrap items-center gap-2 mt-4 px-2">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mr-2">{t("explore.trending") || "Trending"}:</span>
+              {["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"].map((kw) => (
+                <button
+                  key={kw}
+                  onClick={() => setSearchQuery(kw)}
+                  className="px-3 py-1 rounded-full bg-slate-900/40 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800 text-[10px] font-bold text-slate-400 hover:text-indigo-400 transition-all"
+                >
+                  #{kw}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center bg-slate-900/50 border border-slate-800 p-1 rounded-xl shadow-inner">

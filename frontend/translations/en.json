@@ -52,6 +52,7 @@
         "modeThumb": "Thumbnail",
         "searchPlaceholder": "Search reports...",
         "empty": "No public reports found",
+        "trending": "Trending Keywords",
         "fromChannel": "from channel"
     },
     "dashboard": {
