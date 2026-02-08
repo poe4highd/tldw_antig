@@ -43,6 +43,7 @@ export default function MarketingPage() {
   const [viewMode, setViewMode] = useState<"thumb" | "text-single" | "text-double">("text-double");
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<ExploreItem[]>([]);
+  const [trendingKeywords, setTrendingKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
@@ -63,6 +64,7 @@ export default function MarketingPage() {
     fetchUser();
 
     fetchExplore();
+    fetchTrending();
   }, []);
 
   const fetchExplore = async () => {
@@ -78,6 +80,23 @@ export default function MarketingPage() {
       console.error("Failed to fetch explore:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchTrending = async () => {
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/trending-keywords`);
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setTrendingKeywords(data);
+      } else {
+        // Fallback
+        setTrendingKeywords(["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch trending:", error);
+      setTrendingKeywords(["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"]);
     }
   };
 
@@ -185,7 +204,7 @@ export default function MarketingPage() {
             {/* Quick Keywords */}
             <div className="flex flex-wrap items-center gap-2 mt-4 px-2">
               <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mr-2">{t("explore.trending") || "Trending"}:</span>
-              {["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"].map((kw) => (
+              {trendingKeywords.map((kw) => (
                 <button
                   key={kw}
                   onClick={() => setSearchQuery(kw)}

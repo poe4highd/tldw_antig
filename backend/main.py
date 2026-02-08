@@ -267,7 +267,33 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 }
                 supabase.table("videos").upsert(video_data).execute()
                 print(f"Successfully saved to Supabase: {video_data['id']}")
-                
+
+                # 4.5 关键词关系持久化
+                keywords = result.get("keywords", [])
+                if keywords:
+                    for kw in keywords:
+                        kw_clean = kw.strip()
+                        if not kw_clean: continue
+                        
+                        # 获取或创建关键词记录并增加计数
+                        kw_res = supabase.table("keywords").select("id, count").eq("name", kw_clean).execute()
+                        if kw_res.data:
+                            kw_id = kw_res.data[0]["id"]
+                            new_count = (kw_res.data[0]["count"] or 0) + 1
+                            supabase.table("keywords").update({"count": new_count}).eq("id", kw_id).execute()
+                        else:
+                            new_kw = supabase.table("keywords").insert({"name": kw_clean, "count": 1}).execute()
+                            if new_kw.data:
+                                kw_id = new_kw.data[0]["id"]
+                            else: continue
+                        
+                        # 建立关联
+                        supabase.table("video_keywords").upsert({
+                            "video_id": video_data["id"],
+                            "keyword_id": kw_id
+                        }).execute()
+                    print(f"Successfully synced {len(keywords)} keywords for {video_data['id']}")
+
                 if user_id:
                     submission_data = {
                         "user_id": user_id,
@@ -541,6 +567,23 @@ async def get_explore():
     except Exception as e:
         print(f"Explore fetch failed: {e}")
         return {"items": []}
+
+@app.get("/trending-keywords")
+async def get_trending_keywords():
+    if not supabase:
+        return ["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"]
+    
+    try:
+        response = supabase.table("keywords") \
+            .select("name") \
+            .order("count", desc=True) \
+            .limit(24) \
+            .execute()
+        
+        return [item["name"] for item in response.data]
+    except Exception as e:
+        print(f"Failed to fetch trending keywords: {e}")
+        return ["AI", "Finance", "Productivity", "Tech", "Education", "Crypto"]
 
 @app.get("/project-history")
 async def get_project_history():

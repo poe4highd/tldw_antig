@@ -272,13 +272,19 @@ def summarize_text(full_text, title="", description=""):
     elif lang_pref == "english":
         lang_instruction = "Please output in English."
 
-    system_prompt = "你是一位专业的视频内容分析师。请阅读以下视频转录文本，并提供一个简洁的总结（约150-200字）和5-10个核心关键词。"
+    system_prompt = "你是一位专业的视频内容分析师。请通过阅读视频标题、描述及转录全文，提取 5-10 个最能代表视频核心主题且具备分类或搜索价值的关键词（Tag）。"
     user_prompt = f"""
 视频标题: {title}
 视频描述: {description}
 
-待分析内容:
+待分析转录文本:
 {full_text}
+
+【任务要求】：
+1. 综合标题中的核心概念和全文讨论的细节。
+2. 优先提取具备通用性、能帮助用户快速点击筛选的关键词（如：AI, 科技, 生产力, 财经, 育儿 等）。
+3. 关键词应简洁有力，通常为 2-4 个字。
+4. 排除掉没意义的泛指词。
 
 请严格按以下 JSON 格式输出:
 {{
