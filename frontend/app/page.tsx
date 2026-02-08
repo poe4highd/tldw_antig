@@ -325,6 +325,25 @@ export default function MarketingPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Page Size Selector */}
+              <div className="flex items-center bg-card-bg/50 border border-card-border p-0.5 rounded-lg shadow-inner">
+                {[20, 50, 80].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => {
+                      setLimit(val);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[8px] font-black transition-all",
+                      limit === val ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                    )}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Trending Keywords (Compact as Toolbar) */}
