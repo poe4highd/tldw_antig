@@ -13,7 +13,10 @@ import {
     Search,
     Tv,
     Video,
-    Loader2
+    Loader2,
+    Lock,
+    Unlock,
+    Key
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -42,23 +45,50 @@ export default function VisibilityPage() {
     const [saving, setSaving] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [videoSearchQuery, setVideoSearchQuery] = useState("");
+    const [adminKey, setAdminKey] = useState<string>("");
+    const [isAuthorized, setIsAuthorized] = useState<boolean>(true);
 
     useEffect(() => {
-        fetchData();
+        const storedKey = localStorage.getItem("tldw_admin_key");
+        if (storedKey) {
+            setAdminKey(storedKey);
+        }
     }, []);
+
+    useEffect(() => {
+        if (adminKey !== undefined) {
+            fetchData();
+        }
+    }, [adminKey]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/admin/visibility`);
-            const data = await res.json();
-            setChannels(data.channels || []);
-            setAllVideos(data.all_videos || []);
-            setKnownChannels(data.known_channels || []);
+            const res = await fetch(`${API_BASE}/admin/visibility`, {
+                headers: { "X-Admin-Key": adminKey }
+            });
+            if (res.status === 403) {
+                setIsAuthorized(false);
+                setLoading(false);
+                return;
+            }
+            if (res.ok) {
+                setIsAuthorized(true);
+                const data = await res.json();
+                setChannels(data.channels || []);
+                setAllVideos(data.all_videos || []);
+                setKnownChannels(data.known_channels || {});
+            }
         } catch (err) {
             console.error("Failed to fetch visibility settings:", err);
         }
         setLoading(false);
+    };
+
+    const handleSaveKey = (newKey: string) => {
+        setAdminKey(newKey);
+        localStorage.setItem("tldw_admin_key", newKey);
+        fetchData();
     };
 
     const updateChannel = async (channelId: string, update: Partial<ChannelSetting>) => {
@@ -67,7 +97,10 @@ export default function VisibilityPage() {
             const existingChannel = channels.find(c => c.channel_id === channelId);
             const res = await fetch(`${API_BASE}/admin/visibility/channel`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Admin-Key": adminKey
+                },
                 body: JSON.stringify({
                     channel_id: channelId,
                     channel_name: update.channel_name ?? existingChannel?.channel_name ?? knownChannels[channelId],
@@ -89,7 +122,10 @@ export default function VisibilityPage() {
         try {
             const res = await fetch(`${API_BASE}/admin/visibility/video`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Admin-Key": adminKey
+                },
                 body: JSON.stringify({ video_id: videoId, hidden_from_home: hidden })
             });
             if (res.ok) {
@@ -133,6 +169,49 @@ export default function VisibilityPage() {
         return (
             <main className="min-h-screen bg-background text-foreground flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </main>
+        );
+    }
+
+    if (!isAuthorized) {
+        return (
+            <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+                <div className="bg-card border border-card-border p-8 rounded-2xl w-full max-w-md text-center shadow-xl backdrop-blur-sm">
+                    <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2">需要管理员权限</h2>
+                    <p className="text-muted-foreground mb-8 text-sm">请输入管理员密钥以继续操作。如果您不清楚密钥，请联系系统管理员。</p>
+
+                    <div className="space-y-4">
+                        <div className="relative">
+                            <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                                type="password"
+                                placeholder="输入管理员密钥..."
+                                className="w-full pl-10 pr-4 py-3 bg-background border border-card-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleSaveKey((e.target as HTMLInputElement).value);
+                                    }
+                                }}
+                            />
+                        </div>
+                        <button
+                            onClick={(e) => {
+                                const input = e.currentTarget.previousElementSibling?.querySelector('input');
+                                if (input) handleSaveKey(input.value);
+                            }}
+                            className="w-full py-3 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all active:scale-[0.98]"
+                        >
+                            身份验证
+                        </button>
+                    </div>
+
+                    <Link href="/" className="inline-block mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        返回首页
+                    </Link>
+                </div>
             </main>
         );
     }

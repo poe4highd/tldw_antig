@@ -11,14 +11,30 @@ import {
     Calendar,
     Filter,
     ChevronRight,
-    MousePointer2
+    MousePointer2,
+    Lock,
+    Key,
+    Loader2
 } from "lucide-react";
 
 export default function AdminInsightPage() {
     // Mock Heatmap Data
     const [heatmapRows, setHeatmapRows] = React.useState<{ id: number; label: string; cells: number[] }[]>([]);
+    const [adminKey, setAdminKey] = React.useState<string | null>(null);
+    const [isAuthorized, setIsAuthorized] = React.useState<boolean>(false);
+    const [verifying, setVerifying] = React.useState(true);
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     React.useEffect(() => {
+        const storedKey = localStorage.getItem("tldw_admin_key");
+        if (storedKey) {
+            setAdminKey(storedKey);
+            verifyKey(storedKey);
+        } else {
+            setVerifying(false);
+        }
+
         const rows = Array.from({ length: 8 }, (_, i) => ({
             id: i,
             label: `视频领域 ${i + 1}`,
@@ -27,8 +43,85 @@ export default function AdminInsightPage() {
         setHeatmapRows(rows);
     }, []);
 
+    const verifyKey = async (key: string) => {
+        setVerifying(true);
+        try {
+            // 通过调用 visibility 接口来验证密钥是否正确
+            const res = await fetch(`${API_BASE}/admin/visibility`, {
+                headers: { "X-Admin-Key": key }
+            });
+            if (res.ok) {
+                setIsAuthorized(true);
+                localStorage.setItem("tldw_admin_key", key);
+            } else {
+                setIsAuthorized(false);
+            }
+        } catch (err) {
+            console.error("Auth failed:", err);
+            setIsAuthorized(false);
+        }
+        setVerifying(false);
+    };
+
+    const handleSaveKey = (newKey: string) => {
+        setAdminKey(newKey);
+        verifyKey(newKey);
+    };
+
+    if (verifying) {
+        return (
+            <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+            </main>
+        );
+    }
+
+    if (!isAuthorized) {
+        return (
+            <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center p-6">
+                <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl">
+                    <div className="w-16 h-16 bg-indigo-500/10 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-black mb-2">需要管理员权限</h2>
+                    <p className="text-slate-400 mb-8 text-xs font-medium uppercase tracking-widest">请输入身份验证密钥</p>
+
+                    <div className="space-y-4 text-left">
+                        <div className="relative">
+                            <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                            <input
+                                type="password"
+                                placeholder="Admin Secret..."
+                                className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleSaveKey((e.target as HTMLInputElement).value);
+                                    }
+                                }}
+                            />
+                        </div>
+                        <button
+                            onClick={(e) => {
+                                const input = e.currentTarget.previousElementSibling?.querySelector('input');
+                                if (input) handleSaveKey(input.value);
+                            }}
+                            className="w-full py-3 bg-indigo-500 text-white rounded-xl text-sm font-bold hover:bg-indigo-600 transition-all active:scale-[0.98] shadow-lg shadow-indigo-500/20"
+                        >
+                            进入驾驶舱
+                        </button>
+                    </div>
+
+                    <Link href="/dashboard" className="inline-block mt-8 text-xs font-bold text-slate-600 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+                        返回书架
+                    </Link>
+                </div>
+            </main>
+        );
+    }
+
     return (
         <main className="min-h-screen bg-slate-950 text-slate-50 p-10 font-sans">
+            {/* ... rest of the component ... */}
             {/* Header */}
             <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-12">
                 <div>

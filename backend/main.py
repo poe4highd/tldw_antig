@@ -7,7 +7,7 @@ import re
 import hashlib
 import random
 import shutil
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -1110,6 +1110,16 @@ async def dev_compare_subtitles(video_id: str):
         "models": models_data
     }
 
+# ========== 管理认证 ==========
+async def verify_admin_key(x_admin_key: str = Header(None)):
+    admin_secret = os.getenv("ADMIN_SECRET_KEY")
+    # 如果没设置密钥，默认一个简单的密钥用于防护，或者可以设置为 None 以跳过验证（不推荐）
+    if not admin_secret:
+        admin_secret = "tldw-admin-secret"
+        
+    if x_admin_key != admin_secret:
+        raise HTTPException(status_code=403, detail="Invalid Admin Key")
+
 # ========== 管理 API ==========
 
 class ChannelSettingsRequest(BaseModel):
@@ -1122,7 +1132,7 @@ class VideoVisibilityRequest(BaseModel):
     video_id: str
     hidden_from_home: bool
 
-@app.get("/admin/visibility")
+@app.get("/admin/visibility", dependencies=[Depends(verify_admin_key)])
 async def get_visibility_settings():
     """获取所有频道设置和所有视频列表"""
     if not supabase:
@@ -1171,7 +1181,7 @@ async def get_visibility_settings():
         "known_channels": known_channels
     }
 
-@app.post("/admin/visibility/channel")
+@app.post("/admin/visibility/channel", dependencies=[Depends(verify_admin_key)])
 async def update_channel_settings(request: ChannelSettingsRequest):
     """更新频道设置"""
     if not supabase:
@@ -1193,7 +1203,7 @@ async def update_channel_settings(request: ChannelSettingsRequest):
         print(f"Failed to update channel settings: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.post("/admin/visibility/video")
+@app.post("/admin/visibility/video", dependencies=[Depends(verify_admin_key)])
 async def update_video_visibility(request: VideoVisibilityRequest):
     """更新单个视频的隐藏状态"""
     if not supabase:
