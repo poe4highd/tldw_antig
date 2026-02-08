@@ -40,11 +40,20 @@
 - **后端**：
   - `get_explore` API 过滤隐藏视频和隐藏频道
   - `channel_tracker.py` 跳过 `track_new_videos=FALSE` 的频道
-  - 新增 `/admin/visibility` 管理 API
-- **前端**：新增 `/admin/visibility` 管理页面
+  - 新增 `/admin/visibility` 管理 API，由 `x-admin-key` 保护
+- **前端**：
+  - 新增 `/admin/visibility` 频道与视频管理页面
+  - 管理页面整合密钥验证流，支持 `localStorage` 持久化存储
+  - /admin 主页增加密钥锁定保护
 
 ### 3. 回顾
-- **待执行**：需要在 Supabase Dashboard 执行 `004_visibility_schema.sql` 迁移
+- **结果**：视频可见性控制与管理员认证系统完整上线。用户已验证 `/admin/visibility` 功能可用，且所有变更已提交并推送。
+- **改动文件**：`backend/main.py`, `backend/scripts/channel_tracker.py`, `frontend/app/admin/visibility/page.tsx`, `frontend/app/admin/page.tsx`。
+
+### 4. 经验
+- **轻量级鉴权**：在小型单用户/内部项目中，利用环境变量 `ADMIN_SECRET_KEY` 配合自定义 HTTP Header (`X-Admin-Key`) 是一种极简且优雅的鉴权方案，避免了复杂的 RBAC 角色系统。
+- **DB 限制**：Python Supabase 库无法执行 DDL，必须通过 SQL 脚本进行迁移。
+- **UX 优化**：在管理页面使用 `localStorage` 存储密钥，避免了刷新页面重复输入的烦恼。
 
 ---
 
