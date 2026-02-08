@@ -251,7 +251,7 @@ export default function MarketingPage() {
           ) : viewMode === "text-single" || viewMode === "text-double" ? (
             <div className={cn(
               "gap-3",
-              viewMode === "text-double" ? "grid grid-cols-1 xl:grid-cols-2" : "flex flex-col space-y-2"
+              viewMode === "text-double" ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col space-y-2"
             )}>
               {filteredItems.map((item) => (
                 <Link

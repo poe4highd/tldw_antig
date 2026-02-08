@@ -65,10 +65,10 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
         { name: t("nav.tasks"), icon: FileUp, href: "/tasks" },
     ] : [];
 
-    const systemItems = [
+    const systemItems = user ? [
         { name: t("nav.projectHistory"), icon: History, href: "/project-history" },
-        ...(user ? [{ name: t("common.settings"), icon: Settings, href: "/settings" }] : []),
-    ];
+        { name: t("common.settings"), icon: Settings, href: "/settings" },
+    ] : [];
 
     return (
         <>
