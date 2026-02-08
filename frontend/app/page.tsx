@@ -16,9 +16,12 @@ import {
   Sparkles,
   Settings,
   TrendingUp,
-  Columns2
+  Columns2,
+  Moon,
+  Sun
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTheme } from "@/contexts/ThemeContext";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from "@/utils/supabase";
@@ -44,6 +47,7 @@ interface ExploreItem {
 
 export default function MarketingPage() {
   const { t, language } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
   const [viewMode, setViewMode] = useState<"thumb" | "text-single" | "text-double">("text-double");
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<ExploreItem[]>([]);
@@ -162,8 +166,8 @@ export default function MarketingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-indigo-500/30">
-      <main className="max-w-7xl mx-auto p-4 md:p-8 bg-slate-950 relative">
+    <div className="min-h-screen bg-transparent text-foreground font-sans selection:bg-indigo-500/30">
+      <main className="max-w-7xl mx-auto p-4 md:p-8 relative">
         {/* Background Glows */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full" />
@@ -175,14 +179,21 @@ export default function MarketingPage() {
           <LanguageSwitcher />
           <Link
             href="/pending"
-            className="p-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg group"
+            className="p-2.5 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100/80 backdrop-blur-md border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg group"
             title="Queue / 待处理"
           >
             <Clock className="w-5 h-5 group-hover:animate-pulse" />
           </Link>
+          <button
+            onClick={toggleTheme}
+            className="p-2.5 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100/80 backdrop-blur-md border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
+            title={theme === 'dark' ? "Light Mode / 浅色模式" : "Dark Mode / 深色模式"}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <Link
             href="/settings"
-            className="p-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg"
+            className="p-2.5 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100/80 backdrop-blur-md border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
             title={t("common.settings")}
           >
             <Settings className="w-5 h-5" />
@@ -195,10 +206,10 @@ export default function MarketingPage() {
         <div className="relative z-10 mb-6">
           <div className="flex items-center gap-4 mb-2 flex-wrap">
             <Link href="/" className="flex items-center space-x-3 group animate-in fade-in slide-in-from-left-4 duration-700">
-              <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
+              <div className="p-1.5 bg-slate-900 dark:bg-slate-900 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
                 <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
               </div>
-              <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent">
                 {t("marketing.title")}
               </span>
             </Link>
@@ -218,27 +229,27 @@ export default function MarketingPage() {
                 placeholder={t("explore.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full bg-slate-900/30 border border-slate-800/40 rounded-full py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-700 transition-all backdrop-blur-sm"
+                className="w-full bg-card-bg border border-card-border rounded-full py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-sm"
               />
             </div>
           </div>
           <div className="flex items-end justify-between gap-4">
             <div className="flex-grow">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-[0.8]">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent leading-[0.8]">
                 {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
               </h1>
-              <p className="text-slate-500 text-sm md:text-base font-medium leading-snug hidden sm:block">
+              <p className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-sm md:text-base font-medium leading-snug hidden sm:block">
                 {t("marketing.description")}
               </p>
             </div>
 
             {/* Compact View Switcher */}
-            <div className="flex items-center bg-slate-900/40 border border-slate-800/50 p-1 rounded-xl shadow-inner mb-2">
+            <div className="flex items-center bg-card-bg border border-card-border p-1 rounded-xl shadow-inner mb-2">
               <button
                 onClick={() => toggleViewMode("text-double")}
                 className={cn(
                   "p-2 rounded-lg transition-all duration-300",
-                  viewMode === "text-double" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600 hover:text-slate-400"
+                  viewMode === "text-double" ? "bg-foreground text-background shadow-lg" : "text-slate-500 dark:text-slate-600 light:text-slate-400 hover:text-indigo-400"
                 )}
                 title={t("explore.modeText") + " (2)"}
               >
@@ -248,7 +259,7 @@ export default function MarketingPage() {
                 onClick={() => toggleViewMode("text-single")}
                 className={cn(
                   "p-2 rounded-lg transition-all duration-300",
-                  viewMode === "text-single" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600 hover:text-slate-400"
+                  viewMode === "text-single" ? "bg-foreground text-background shadow-lg" : "text-slate-500 dark:text-slate-600 light:text-slate-400 hover:text-indigo-400"
                 )}
                 title={t("explore.modeText") + " (1)"}
               >
@@ -258,7 +269,7 @@ export default function MarketingPage() {
                 onClick={() => toggleViewMode("thumb")}
                 className={cn(
                   "p-2 rounded-lg transition-all duration-300",
-                  viewMode === "thumb" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600 hover:text-slate-400"
+                  viewMode === "thumb" ? "bg-foreground text-background shadow-lg" : "text-slate-500 dark:text-slate-600 light:text-slate-400 hover:text-indigo-400"
                 )}
                 title={t("explore.modeThumb")}
               >
@@ -282,7 +293,7 @@ export default function MarketingPage() {
                     "mx-2 px-4 py-1.5 rounded-full border text-[10px] font-bold transition-all duration-300",
                     searchQuery === kw
                       ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
-                      : "bg-slate-900/40 border-slate-800 text-slate-400 hover:border-indigo-500/50 hover:text-indigo-400 hover:bg-slate-800"
+                      : "bg-card-bg border-card-border text-slate-500 dark:text-slate-400 light:text-slate-600 hover:border-indigo-500/50 hover:text-indigo-400"
                   )}
                 >
                   {kw}
@@ -319,7 +330,7 @@ export default function MarketingPage() {
                 <Link
                   key={item.id}
                   href={`/result/${item.id}`}
-                  className="group flex items-start sm:items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 bg-slate-900/10 border border-slate-800/20 rounded-lg hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
+                  className="group flex items-start sm:items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 bg-card-bg border border-card-border rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
                 >
                   {/* Thumbnail for Mobile/List */}
                   <div className="shrink-0 w-24 sm:w-auto h-auto sm:h-auto">
@@ -341,7 +352,7 @@ export default function MarketingPage() {
                   </div>
 
                   <div className="flex-grow min-w-0 flex flex-col justify-center h-full">
-                    <h3 className="font-bold text-sm sm:text-base text-slate-100 group-hover:text-indigo-400 transition-colors line-clamp-2 sm:truncate leading-tight mb-1 sm:mb-0">
+                    <h3 className="font-bold text-sm sm:text-base text-foreground group-hover:text-indigo-400 transition-colors line-clamp-2 sm:truncate leading-tight mb-1 sm:mb-0">
                       {item.title}
                     </h3>
                     <div className="flex sm:hidden items-center gap-3 text-[10px] font-black text-slate-600">
@@ -357,7 +368,7 @@ export default function MarketingPage() {
                   </div>
 
                   <div className="shrink-0 hidden sm:flex items-center gap-4 pr-1">
-                    <div className="flex items-center gap-1 text-[9px] font-black text-slate-600 group-hover:text-slate-400">
+                    <div className="flex items-center gap-1 text-[9px] font-black text-slate-500 group-hover:text-slate-400">
                       <Eye className="w-2.5 h-2.5" />
                       {item.views.toLocaleString()}
                     </div>
@@ -420,7 +431,7 @@ export default function MarketingPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1 || isLoading}
-                  className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="px-4 py-2 bg-card-bg border border-card-border rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 light:text-slate-600 hover:text-indigo-500 hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {language === 'zh' ? '上一页' : 'Previous'}
                 </button>
@@ -430,7 +441,7 @@ export default function MarketingPage() {
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || isLoading}
-                  className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="px-4 py-2 bg-card-bg border border-card-border rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 light:text-slate-600 hover:text-indigo-500 hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {language === 'zh' ? '下一页' : 'Next'}
                 </button>
@@ -438,11 +449,11 @@ export default function MarketingPage() {
             )}
 
             {/* Limit Selector - Always visible */}
-            <div className="flex items-center gap-3 bg-slate-950 border border-slate-900 p-1 rounded-xl shadow-lg">
-              <span className="text-[9px] font-black text-slate-600 px-2 uppercase tracking-tighter">
+            <div className="flex items-center gap-3 bg-card-bg border border-card-border p-1 rounded-xl shadow-lg">
+              <span className="text-[9px] font-black text-slate-500 px-2 uppercase tracking-tighter">
                 {language === 'zh' ? '每页显示' : 'Limit'}
               </span>
-              <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+              <div className="flex items-center bg-background rounded-lg p-0.5 border border-card-border">
                 {[20, 40, 80].map((l) => (
                   <button
                     key={l}
@@ -452,7 +463,7 @@ export default function MarketingPage() {
                     }}
                     className={cn(
                       "px-3 py-1 rounded-md text-[10px] font-bold transition-all",
-                      limit === l ? "bg-white text-slate-950 shadow-md scale-105" : "text-slate-500 hover:text-slate-300"
+                      limit === l ? "bg-foreground text-background shadow-md scale-105" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
                     {l}
@@ -465,10 +476,10 @@ export default function MarketingPage() {
 
         {/* Footer Link */}
         <footer className="relative z-10 mt-12 py-6 border-t border-slate-900/50 text-center">
-          <div className="flex items-center justify-center space-x-6 text-[10px] font-bold text-slate-600">
-            <Link href="/project-history" className="hover:text-white transition-colors">{t("nav.projectHistory")}</Link>
-            <a href="#" className="hover:text-white transition-colors uppercase tracking-widest">{t("nav.terms")}</a>
-            <a href="#" className="hover:text-white transition-colors uppercase tracking-widest">{t("nav.privacy")}</a>
+          <div className="flex items-center justify-center space-x-6 text-[10px] font-bold text-slate-500 dark:text-slate-600 light:text-slate-400">
+            <Link href="/project-history" className="hover:text-indigo-400 transition-colors uppercase tracking-widest">{t("nav.projectHistory")}</Link>
+            <a href="#" className="hover:text-indigo-400 transition-colors uppercase tracking-widest">{t("nav.terms")}</a>
+            <a href="#" className="hover:text-indigo-400 transition-colors uppercase tracking-widest">{t("nav.privacy")}</a>
           </div>
         </footer>
       </main >
