@@ -179,21 +179,21 @@ export default function MarketingPage() {
           <LanguageSwitcher />
           <Link
             href="/pending"
-            className="p-2.5 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100/80 backdrop-blur-md border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg group"
+            className="p-2.5 bg-card-bg backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg group"
             title="Queue / 待处理"
           >
             <Clock className="w-5 h-5 group-hover:animate-pulse" />
           </Link>
           <button
             onClick={toggleTheme}
-            className="p-2.5 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100/80 backdrop-blur-md border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
+            className="p-2.5 bg-card-bg backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
             title={theme === 'dark' ? "Light Mode / 浅色模式" : "Dark Mode / 深色模式"}
           >
             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <Link
             href="/settings"
-            className="p-2.5 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100/80 backdrop-blur-md border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
+            className="p-2.5 bg-card-bg backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
             title={t("common.settings")}
           >
             <Settings className="w-5 h-5" />
@@ -235,7 +235,7 @@ export default function MarketingPage() {
           </div>
           <div className="flex items-end justify-between gap-4">
             <div className="flex-grow">
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent leading-[0.8]">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent leading-[1.1]">
                 {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
               </h1>
               <p className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-sm md:text-base font-medium leading-snug hidden sm:block">
