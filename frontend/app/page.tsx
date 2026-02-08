@@ -202,10 +202,9 @@ export default function MarketingPage() {
           <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 blur-[120px] rounded-full" />
         </div>
 
-        {/* Sticky Header Wrapper */}
-        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border -mx-3 px-3 md:-mx-8 md:px-8 pb-3 pt-3 md:pt-4 transition-all duration-300">
-          {/* Top Row: Logo & Settings */}
-          <div className="flex items-center justify-between gap-4 mb-3">
+        {/* Header: Logo & Global Settings (Sticky) */}
+        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border -mx-3 px-3 md:-mx-8 md:px-8 pb-2 pt-3 md:pt-4 transition-all duration-300">
+          <div className="flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center space-x-2 md:space-x-3 group shrink-0">
               <div className={cn(
                 "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
@@ -238,13 +237,6 @@ export default function MarketingPage() {
                 {theme === 'dark' ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
               </button>
               <Link
-                href="/settings"
-                className="p-2 bg-card-bg/50 backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
-                title={t("common.settings")}
-              >
-                <Settings className="w-4 h-4 md:w-5 md:h-5" />
-              </Link>
-              <Link
                 href="/login"
                 className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98]"
               >
@@ -253,27 +245,74 @@ export default function MarketingPage() {
               </Link>
             </div>
           </div>
+        </div>
 
-          {/* Second Row: Search Bar */}
-          <div className="relative group mb-3">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-              <Search className="w-4 h-4" />
-            </div>
-            <input
-              type="text"
-              placeholder={t("explore.searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-card-bg/50 border border-card-border rounded-2xl py-2.5 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
-            />
+        {/* Hero Title (Non-sticky) */}
+        <div className={cn(
+          "relative z-10 mt-6 overflow-hidden transition-all duration-700 ease-in-out",
+          isScrolled ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-6"
+        )}>
+          <div className="flex flex-col">
+            <h1 className={cn(
+              "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1]",
+              theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
+            )}>
+              {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
+            </h1>
+            <p className={cn(
+              "text-sm md:text-base font-medium leading-snug transition-colors duration-300",
+              theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
+            )}>
+              {t("marketing.description")}
+            </p>
           </div>
+        </div>
 
-          {/* Third Row: View Switchers & Toolbar */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-card-bg/50 border border-card-border p-0.5 rounded-lg shadow-inner gap-0.5">
+        {/* Consolidate Toolbar (Sticky below hero) */}
+        <div className="sticky top-[60px] md:top-[76px] z-40 bg-background/50 backdrop-blur-lg border-y border-card-border -mx-3 px-3 md:-mx-8 md:px-8 py-2 md:py-3 transition-all duration-300">
+          <div className="flex flex-col lg:flex-row items-center gap-3 md:gap-4">
+            {/* Row 1 for Mobile / Part of the row for Desktop: Keywords */}
+            <div className="w-full lg:w-auto flex-grow overflow-hidden relative group h-8">
+              <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] h-full">
+                {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
+                  <button
+                    key={`${kw}-${idx}`}
+                    onClick={() => handleKeywordClick(kw)}
+                    className={cn(
+                      "mx-1.5 px-3 py-1 rounded-full border text-[9px] font-bold transition-all duration-300",
+                      searchQuery === kw
+                        ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
+                        : "bg-card-bg/50 border-card-border text-slate-500 hover:border-indigo-500/50 hover:text-white"
+                    )}
+                  >
+                    {kw}
+                  </button>
+                ))}
+              </div>
+              <div className="absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+              <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+            </div>
+
+            {/* Row 2 for Mobile / Part of the row for Desktop: Search & Switchers */}
+            <div className="w-full lg:w-3/5 flex items-center justify-between gap-2 md:gap-3">
+              {/* Search Bar */}
+              <div className="flex-grow relative group">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Search className="w-3.5 h-3.5" />
+                </div>
+                <input
+                  type="text"
+                  placeholder={t("explore.searchPlaceholder")}
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full bg-card-bg/50 border border-card-border rounded-xl py-1.5 pl-9 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
+                />
+              </div>
+
+              {/* View Switchers */}
+              <div className="flex items-center bg-card-bg/30 border border-card-border p-0.5 rounded-lg gap-0.5 shrink-0">
                 {(viewMode === "text-single" || viewMode === "text-double") && (
-                  <div className="flex items-center bg-background/30 rounded-md p-0.5 border border-card-border/50 mr-0.5">
+                  <div className="flex items-center bg-background/30 rounded-md p-0.5 border border-card-border/30 mr-0.5">
                     <button
                       onClick={() => toggleDensity("compact")}
                       className={cn(
@@ -295,7 +334,7 @@ export default function MarketingPage() {
                   </div>
                 )}
 
-                <div className="flex items-center bg-background/30 rounded-md p-0.5 border border-card-border/50">
+                <div className="flex items-center bg-background/30 rounded-md p-0.5 border border-card-border/30">
                   <button
                     onClick={() => toggleViewMode("text-double")}
                     className={cn(
@@ -303,7 +342,7 @@ export default function MarketingPage() {
                       viewMode === "text-double" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
-                    <Columns2 className="w-3.5 h-3.5" />
+                    <Columns2 className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => toggleViewMode("text-single")}
@@ -312,7 +351,7 @@ export default function MarketingPage() {
                       viewMode === "text-single" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
-                    <List className="w-3.5 h-3.5" />
+                    <List className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => toggleViewMode("thumb")}
@@ -321,14 +360,14 @@ export default function MarketingPage() {
                       viewMode === "thumb" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
-                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <LayoutGrid className="w-3 h-3" />
                   </button>
                 </div>
               </div>
 
-              {/* Page Size Selector */}
-              <div className="flex items-center bg-card-bg/50 border border-card-border p-0.5 rounded-lg shadow-inner">
-                {[20, 50, 80].map((val) => (
+              {/* Page Size Selector (20/40/80) */}
+              <div className="flex items-center bg-card-bg/30 border border-card-border p-0.5 rounded-lg shrink-0">
+                {[20, 40, 80].map((val) => (
                   <button
                     key={val}
                     onClick={() => {
@@ -336,7 +375,7 @@ export default function MarketingPage() {
                       setPage(1);
                     }}
                     className={cn(
-                      "px-2 py-0.5 rounded text-[8px] font-black transition-all",
+                      "px-1.5 py-0.5 rounded text-[8px] font-black transition-all",
                       limit === val ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
@@ -345,49 +384,6 @@ export default function MarketingPage() {
                 ))}
               </div>
             </div>
-
-            {/* Trending Keywords (Compact as Toolbar) */}
-            <div className="hidden sm:block flex-grow overflow-hidden relative group h-8">
-              <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] h-full">
-                {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
-                  <button
-                    key={`${kw}-${idx}`}
-                    onClick={() => handleKeywordClick(kw)}
-                    className={cn(
-                      "mx-1.5 px-3 py-1 rounded-full border text-[9px] font-bold transition-all duration-300",
-                      searchQuery === kw
-                        ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
-                        : "bg-card-bg/50 border-card-border text-slate-500 hover:border-indigo-500/50 hover:text-white"
-                    )}
-                  >
-                    {kw}
-                  </button>
-                ))}
-              </div>
-              <div className="absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
-              <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
-            </div>
-          </div>
-        </div>
-
-        {/* Hero Section (Non-sticky, after the sticky header) */}
-        <div className={cn(
-          "relative z-10 mt-6 overflow-hidden transition-all duration-700 ease-in-out",
-          isScrolled ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-6"
-        )}>
-          <div className="flex flex-col">
-            <h1 className={cn(
-              "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1]",
-              theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
-            )}>
-              {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
-            </h1>
-            <p className={cn(
-              "text-sm md:text-base font-medium leading-snug transition-colors duration-300",
-              theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
-            )}>
-              {t("marketing.description")}
-            </p>
           </div>
         </div>
 
