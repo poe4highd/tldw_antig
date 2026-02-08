@@ -18,8 +18,12 @@ import {
     Send,
     MoreVertical,
     Play,
-    ArrowDownToLine // New icon for sync button
+    ArrowDownToLine,
+    Sun,
+    Moon
 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -52,6 +56,7 @@ interface Result {
 
 export default function EnhancedResultPage({ params }: { params: Promise<{ id: string }> }) {
     const { t, language } = useTranslation();
+    const { theme, toggleTheme } = useTheme();
     const { id } = use(params);
     const [result, setResult] = useState<Result | null>(null);
     const [loading, setLoading] = useState(true);
@@ -257,7 +262,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
             </div>
         );
@@ -265,24 +270,24 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
     if (error || !result) {
         return (
-            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-                <h1 className="text-2xl font-bold text-slate-200 mb-4">{t("result.errorTitle")}</h1>
-                <p className="text-slate-400 mb-8">{error || t("result.notFound")}</p>
-                <Link href="/dashboard" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">{t("result.backButton")}</Link>
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+                <h1 className="text-2xl font-bold mb-4">{t("result.errorTitle")}</h1>
+                <p className="text-slate-500 dark:text-slate-400 mb-8">{error || t("result.notFound")}</p>
+                <Link href="/" className="px-6 py-2 bg-indigo-500 rounded-xl font-bold text-white">{t("result.backButton")}</Link>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-50 font-sans">
+        <div className="min-h-screen bg-background text-foreground font-sans">
             {/* Top Navigation Bar */}
-            <nav className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-900 px-6 py-4 flex items-center justify-between">
+            <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-6">
-                    <Link href="/dashboard" className="p-2 hover:bg-slate-900 rounded-xl transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
+                    <Link href="/" className="p-2 hover:bg-card-bg rounded-xl transition-colors">
+                        <ArrowLeft className="w-5 h-5 text-slate-400 hover:text-foreground" />
                     </Link>
                     <Link href="/?noredirect=1" className="flex items-center space-x-3 cursor-pointer group">
-                        <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-indigo-500/50 transition-colors">
+                        <div className="p-1.5 bg-card-bg border border-card-border rounded-lg group-hover:border-indigo-500/50 transition-colors">
                             <img src="/icon.png" alt="Logo" className="w-4 h-4" />
                         </div>
                         <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{result.title}</span>
@@ -290,7 +295,15 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 <div className="flex items-center space-x-3">
-                    <button className="flex items-center space-x-2 px-4 py-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">
+                    <LanguageSwitcher />
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 bg-card-bg border border-card-border rounded-xl text-slate-400 hover:text-foreground transition-all shadow-lg hidden sm:block"
+                        title={theme === 'dark' ? "Light Mode" : "Dark Mode"}
+                    >
+                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    </button>
+                    <button className="flex items-center space-x-2 px-4 py-2 bg-card-bg border border-card-border hover:border-indigo-500/50 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-foreground">
                         <Share2 className="w-4 h-4" />
                         <span className="hidden sm:inline">{t("result.shareReport")}</span>
                     </button>
@@ -305,9 +318,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 {/* Left Column: Video & Transcription */}
                 <div className="lg:col-span-8 lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)] flex flex-col gap-6">
                     {/* Fixed Header Group: Video, Actions, Info */}
-                    <div className="flex-shrink-0 space-y-4 md:space-y-6 sticky top-[68px] lg:static z-40 bg-slate-950/95 backdrop-blur-md lg:backdrop-blur-none lg:bg-slate-950 py-2 md:py-0 -mx-6 px-4 md:px-0 lg:mx-0 lg:px-0 transition-all lg:rounded-none shadow-xl lg:shadow-none border-b border-white/5 lg:border-none">
+                    <div className="flex-shrink-0 space-y-4 md:space-y-6 sticky top-[68px] lg:static z-40 bg-background/95 backdrop-blur-md lg:backdrop-blur-none lg:bg-background py-2 md:py-0 -mx-6 px-4 md:px-0 lg:mx-0 lg:px-0 transition-all lg:rounded-none shadow-xl lg:shadow-none border-b border-card-border lg:border-none">
                         {/* Video Player Section */}
-                        <div className="relative aspect-video bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/5 group transition-all duration-300">
+                        <div className="relative aspect-video bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
                             <div className="relative aspect-video group">
                                 {useLocalAudio ? (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
@@ -367,18 +380,18 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         </div>
 
                         {/* Action Bar Below Video */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-2xl backdrop-blur-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-card-bg/50 border border-card-border rounded-2xl backdrop-blur-sm">
                             <div className="flex items-center space-x-1.5 md:space-x-2">
                                 <button
                                     onClick={copyFullText}
-                                    className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                                    className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
                                 >
                                     {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
                                     <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
                                 </button>
                                 <button
                                     onClick={downloadSRT}
-                                    className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                                    className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
                                 >
                                     <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
                                     <span>SRT</span>
@@ -394,7 +407,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         a.download = `${result.title}.txt`;
                                         a.click();
                                     }}
-                                    className="px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-[10px] md:text-xs font-black text-slate-200 hover:bg-indigo-500 hover:border-indigo-500 transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
+                                    className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
                                 >
                                     <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
                                     <span>TXT</span>
@@ -405,7 +418,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     onClick={handleToggleLike}
                                     className={cn(
                                         "px-4 md:px-5 py-2 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
-                                        isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-indigo-500 hover:border-indigo-500"
+                                        isLiked ? "bg-indigo-500 border-indigo-500 text-white" : "bg-background border-card-border text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white"
                                     )}
                                 >
                                     <ThumbsUp className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
@@ -434,29 +447,29 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         ref={subtitleContainerRef}
                         onScroll={handleManualScroll}
                         data-testid="subtitle-container"
-                        className="bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth"
+                        className="bg-card-bg/30 border border-card-border rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth shadow-inner"
                     >
-                        <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-white/[0.02] pointer-events-none select-none italic">
+                        <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-foreground/[0.02] pointer-events-none select-none italic">
                             TLDW
                         </div>
 
                         <div className="space-y-8 md:space-y-12 relative z-10">
                             {/* AI Summary Section */}
                             {result.summary && (
-                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-6 md:p-8 mb-8 md:mb-12">
+                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-6 md:p-8 mb-8 md:mb-12 shadow-sm">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="p-2 bg-indigo-500 rounded-lg">
+                                        <div className="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
                                             <Send className="w-4 h-4 text-white transform -rotate-45" />
                                         </div>
-                                        <h3 className="text-lg font-black text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
+                                        <h3 className="text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
                                     </div>
-                                    <p className="text-slate-200 text-lg leading-relaxed mb-6 font-medium">
+                                    <p className="text-foreground/90 text-lg leading-relaxed mb-6 font-medium">
                                         {result.summary}
                                     </p>
                                     {result.keywords && result.keywords.length > 0 && (
                                         <div className="flex flex-wrap gap-2">
                                             {result.keywords.map((tag, i) => (
-                                                <span key={i} className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-500/50 hover:text-indigo-400 transition-colors">
+                                                <span key={i} className="px-3 py-1 bg-background border border-card-border rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest hover:border-indigo-500/50 hover:text-indigo-500 transition-colors shadow-sm">
                                                     #{tag}
                                                 </span>
                                             ))}
@@ -480,7 +493,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                                     id={`sentence-${pIdx}-${sIdx}`}
                                                     className={cn(
                                                         "cursor-pointer rounded px-1 transition-all duration-300 inline",
-                                                        isCurrent ? "text-indigo-400 bg-indigo-500/10" : "hover:text-white hover:bg-white/5"
+                                                        isCurrent ? "text-indigo-500 dark:text-indigo-400 bg-indigo-500/10" : "hover:text-foreground hover:bg-foreground/5"
                                                     )}
                                                     style={{ fontSize: 'inherit', fontWeight: 'inherit' }} // Force stable font size
                                                     onClick={() => seekTo(s.start)}
@@ -493,7 +506,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 ))
                             })()}
 
-                            <div className="pt-8 border-t border-slate-800 flex items-center justify-between">
+                            <div className="pt-8 border-t border-card-border flex items-center justify-between">
                                 <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-relaxed">
                                     {t("result.usageCost")}: ${result.usage?.total_cost || "0.01"} <br />
                                     {t("result.aiModel")}: Claude 3.5 Sonnet
@@ -518,13 +531,13 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 {/* Right Column: Discussion & Analytics Side Panel */}
                 <div className="lg:col-span-4 space-y-8">
                     {/* Discussion Section */}
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] flex flex-col h-[600px]">
-                        <div className="p-8 border-b border-slate-800 flex items-center justify-between">
+                    <div className="bg-card-bg/40 border border-card-border rounded-[2.5rem] flex flex-col h-[600px] shadow-sm">
+                        <div className="p-8 border-b border-card-border flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                                <MessageSquare className="w-5 h-5 text-indigo-400" />
+                                <MessageSquare className="w-5 h-5 text-indigo-500" />
                                 <h3 className="font-bold">{t("result.discussion")} ({comments.length})</h3>
                             </div>
-                            <MoreVertical className="w-5 h-5 text-slate-600 cursor-pointer" />
+                            <MoreVertical className="w-5 h-5 text-slate-400 cursor-pointer" />
                         </div>
 
                         <div className="flex-grow overflow-y-auto p-8 space-y-8 no-scrollbar">
@@ -544,12 +557,12 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-slate-200">{comment.profiles?.username || t("result.anonymousUser")}</span>
-                                            <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                                            <span className="text-sm font-bold text-foreground">{comment.profiles?.username || t("result.anonymousUser")}</span>
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-600 font-bold uppercase tracking-widest">
                                                 {new Date(comment.created_at).toLocaleDateString()}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-slate-400 leading-relaxed">{comment.content}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{comment.content}</p>
                                         <div className="flex items-center gap-4 pt-1">
                                             <button className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
                                                 <ThumbsUp className="w-3 h-3" /> {comment.likes_count || 0}
@@ -561,7 +574,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             ))}
                         </div>
 
-                        <div className="p-6 border-t border-slate-800 bg-slate-900/50">
+                        <div className="p-6 border-t border-card-border bg-card-bg/50">
                             <form onSubmit={async (e) => {
                                 e.preventDefault();
                                 if (!newComment.trim()) return;
@@ -584,7 +597,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
                                     placeholder={t("result.commentPlaceholder")}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-700 transition-all font-medium"
+                                    className="w-full bg-background border border-card-border rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-500 transition-all font-medium"
                                 />
                                 <button type="submit" className="absolute right-2 top-2 p-1.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors">
                                     <Send className="w-4 h-4" />
@@ -594,13 +607,13 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     {/* User Interest Heatmap Placeholder */}
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8">
+                    <div className="bg-card-bg/40 border border-card-border rounded-[2.5rem] p-8 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="font-bold">{t("result.analytics")}</h3>
-                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">{t("result.live")}</span>
+                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">{t("result.live")}</span>
                         </div>
                         <div className="space-y-4">
-                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
+                            <div className="h-2 w-full bg-background border border-card-border rounded-full overflow-hidden flex">
                                 <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
                                 <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
                                 <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>

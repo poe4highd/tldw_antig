@@ -10,10 +10,13 @@ import {
     ChevronLeft,
     Youtube,
     Search,
-    Loader2
+    Loader2,
+    Sun,
+    Moon
 } from "lucide-react";
 import { getApiBase } from "@/utils/api";
 import { useTranslation } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { twMerge } from "tailwind-merge";
 import { clsx, type ClassValue } from "clsx";
@@ -34,6 +37,7 @@ interface PendingItem {
 
 export default function PendingPage() {
     const { t } = useTranslation();
+    const { theme, toggleTheme } = useTheme();
     const [tasks, setTasks] = useState<PendingItem[]>([]);
     const [recentRecords, setRecentRecords] = useState<PendingItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -60,21 +64,21 @@ export default function PendingPage() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-indigo-500/30">
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-indigo-500/30">
             <main className="max-w-4xl mx-auto p-6 md:p-12">
                 <div className="flex items-center justify-between mb-12">
                     <div className="flex items-center gap-4">
                         <Link
                             href="/"
-                            className="p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg"
+                            className="p-2 bg-card-bg border border-card-border rounded-xl text-slate-400 hover:text-foreground transition-all shadow-lg"
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </Link>
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight text-white mb-1">
+                            <h1 className="text-3xl font-black tracking-tight mb-1">
                                 {t("pending.title")} <span className="text-indigo-500">{t("pending.queueLabel")}</span>
                             </h1>
-                            <p className="text-slate-500 text-sm font-medium">
+                            <p className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-sm font-medium">
                                 {t("pending.subtitle")}
                             </p>
                         </div>
@@ -83,8 +87,15 @@ export default function PendingPage() {
                     <div className="flex items-center gap-3">
                         <LanguageSwitcher />
                         <button
+                            onClick={toggleTheme}
+                            className="p-3 bg-card-bg border border-card-border rounded-xl text-slate-400 hover:text-foreground transition-all shadow-lg"
+                            title={theme === 'dark' ? "Light Mode" : "Dark Mode"}
+                        >
+                            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        </button>
+                        <button
                             onClick={fetchTasks}
-                            className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 hover:bg-indigo-500/20 transition-all"
+                            className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 hover:bg-indigo-500/20 transition-all shadow-lg"
                         >
                             <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
                         </button>
@@ -92,11 +103,11 @@ export default function PendingPage() {
                 </div>
 
                 {tasks.length === 0 && !isLoading ? (
-                    <div className="py-20 text-center bg-slate-900/20 border border-dashed border-slate-800 rounded-[2rem] flex flex-col items-center">
-                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 text-slate-700">
+                    <div className="py-20 text-center bg-card-bg/20 border border-dashed border-card-border rounded-[2rem] flex flex-col items-center">
+                        <div className="w-16 h-16 bg-card-bg border border-card-border rounded-2xl flex items-center justify-center mb-6 text-slate-500">
                             <Clock className="w-8 h-8" />
                         </div>
-                        <p className="text-slate-400 font-bold text-lg">{t("pending.empty")}</p>
+                        <p className="text-slate-500 dark:text-slate-400 font-bold text-lg">{t("pending.empty")}</p>
                         <Link href="/" className="mt-4 text-indigo-400 hover:underline font-bold text-sm">
                             {t("pending.goSubmit")}
                         </Link>
@@ -106,12 +117,12 @@ export default function PendingPage() {
                         {tasks.map((task) => (
                             <div
                                 key={task.id}
-                                className="group relative bg-slate-900/40 border border-slate-800/50 rounded-2xl p-4 transition-all hover:border-indigo-500/30"
+                                className="group relative bg-card-bg border border-card-border rounded-2xl p-4 transition-all hover:border-indigo-500/30"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 shrink-0 bg-slate-800 rounded-xl flex items-center justify-center overflow-hidden border border-slate-700">
+                                    <div className="w-12 h-12 shrink-0 bg-background rounded-xl flex items-center justify-center overflow-hidden border border-card-border/50">
                                         {task.id.startsWith('up_') ? (
-                                            <Search className="w-6 h-6 text-slate-600" />
+                                            <Search className="w-6 h-6 text-slate-500" />
                                         ) : (
                                             <img
                                                 src={`https://i.ytimg.com/vi/${task.id}/default.jpg`}
@@ -127,7 +138,7 @@ export default function PendingPage() {
 
                                     <div className="flex-grow min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-bold text-sm text-slate-200 truncate">
+                                            <h3 className="font-bold text-sm text-foreground truncate">
                                                 {task.id}
                                             </h3>
                                             <span className={cn(
@@ -145,11 +156,11 @@ export default function PendingPage() {
                                         </div>
 
                                         {/* Progress Bar */}
-                                        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="w-full h-1.5 bg-background border border-card-border rounded-full overflow-hidden">
                                             <div
                                                 className={cn(
                                                     "h-full transition-all duration-500 ease-out",
-                                                    task.status === 'processing' ? "bg-indigo-500 animate-pulse" : "bg-slate-600"
+                                                    task.status === 'processing' ? "bg-indigo-500 animate-pulse" : "bg-slate-400 dark:bg-slate-600"
                                                 )}
                                                 style={{ width: `${task.progress}%` }}
                                             />
@@ -179,20 +190,20 @@ export default function PendingPage() {
                 {/* Recent History Section */}
                 <div className="mt-16 mb-8">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl text-indigo-400">
+                        <div className="p-2 bg-card-bg border border-card-border rounded-xl text-indigo-400 shadow-lg">
                             <Clock className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white leading-none">
+                            <h2 className="text-xl font-bold leading-none">
                                 {t("pending.recentTitle")}
                             </h2>
-                            <p className="text-slate-500 text-xs mt-1">
+                            <p className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-xs mt-1">
                                 {t("pending.recentSubtitle")}
                             </p>
                         </div>
                     </div>
 
-                    <div className="bg-slate-900/20 border border-slate-800/50 rounded-3xl p-2 space-y-1">
+                    <div className="bg-card-bg border border-card-border rounded-3xl p-2 space-y-1 shadow-inner">
                         {recentRecords.length === 0 ? (
                             <div className="py-8 text-center text-slate-600 text-sm italic">
                                 {t("pending.noRecent")}
@@ -201,14 +212,14 @@ export default function PendingPage() {
                             recentRecords.map((item) => (
                                 <div
                                     key={`${item.id}-${item.mtime}`}
-                                    className="flex items-center justify-between p-3 hover:bg-slate-800/30 rounded-2xl transition-all group"
+                                    className="flex items-center justify-between p-3 hover:bg-slate-100 dark:hover:bg-slate-800/30 rounded-2xl transition-all group"
                                 >
                                     <div className="flex items-center gap-4 min-w-0">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 text-slate-600 group-hover:text-indigo-400 transition-colors">
+                                        <div className="w-8 h-8 rounded-lg bg-background border border-card-border/50 flex items-center justify-center shrink-0 text-slate-500 group-hover:text-indigo-400 transition-colors">
                                             {item.id.includes('up_') ? <Search size={14} /> : <Youtube size={14} />}
                                         </div>
                                         <div className="min-w-0">
-                                            <h4 className="text-sm font-bold text-slate-300 truncate pr-4">
+                                            <h4 className="text-sm font-bold text-foreground truncate pr-4">
                                                 {item.title || item.id}
                                             </h4>
                                             <div className="flex items-center gap-3 mt-0.5">
@@ -222,7 +233,7 @@ export default function PendingPage() {
                                                         item.status === 'failed' ? t("pending.statusFailed") :
                                                             item.status}
                                                 </span>
-                                                <span className="text-slate-600 text-[10px] font-medium flex items-center gap-1">
+                                                <span className="text-slate-500 dark:text-slate-600 text-[10px] font-medium flex items-center gap-1">
                                                     <Clock size={10} />
                                                     {new Date(item.mtime).toLocaleString(undefined, {
                                                         month: 'short',
@@ -259,11 +270,11 @@ export default function PendingPage() {
                 </div>
 
                 <div className="mt-12 p-6 bg-indigo-500/5 rounded-[2rem] border border-indigo-500/10">
-                    <h4 className="text-indigo-400 text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <h4 className="text-indigo-500 dark:text-indigo-400 text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         <Sparkles className="w-3.5 h-3.5" />
                         {t("pending.noteTitle")}
                     </h4>
-                    <ul className="text-slate-500 text-xs space-y-2 font-medium">
+                    <ul className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-xs space-y-2 font-medium">
                         <li>• {t("pending.note1")}</li>
                         <li>• {t("pending.note2")}</li>
                         <li>• {t("pending.note3")}</li>

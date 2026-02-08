@@ -398,16 +398,16 @@ export default function MarketingPage() {
                   href={`/result/${item.id}`}
                   className={cn(
                     "group flex items-center bg-card-bg border border-card-border rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300",
-                    density === "compact" ? "p-1 gap-3" : "p-1.5 sm:p-2 gap-2 sm:gap-4"
+                    density === "compact" ? "py-0.5 px-2 gap-2" : "p-1.5 sm:p-2 gap-2 sm:gap-4"
                   )}
                 >
                   {density === "compact" ? (
                     <>
-                      <div className="shrink-0 w-8 h-8 rounded bg-slate-900 overflow-hidden border border-card-border">
+                      <div className="shrink-0 w-9 h-5 rounded-[4px] bg-slate-900 overflow-hidden border border-card-border/30">
                         <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex-grow min-w-0 flex items-center gap-4">
-                        <h3 className="font-bold text-[11px] sm:text-xs text-foreground group-hover:text-indigo-400 transition-colors truncate flex-grow">
+                      <div className="flex-grow min-w-0 flex items-center gap-3">
+                        <h3 className="font-bold text-[11px] sm:text-xs text-foreground group-hover:text-indigo-400 transition-colors truncate flex-grow leading-none">
                           {item.title}
                         </h3>
                         <div className="shrink-0 flex items-center gap-3 text-[9px] font-black text-slate-500 pr-1">
@@ -459,9 +459,9 @@ export default function MarketingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((item) => (
                 <div key={item.id} className="group relative bg-card-bg border border-card-border rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
-                  <div className="aspect-video relative overflow-hidden">
+                  <div className="aspect-video relative overflow-hidden bg-slate-900 border-b border-card-border/10">
                     <img src={item.thumbnail} alt={item.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent dark:block hidden" />
 
                     <div className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10">
                       <Youtube className="w-4 h-4 text-red-500" />

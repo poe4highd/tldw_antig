@@ -4,12 +4,15 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/contexts/LanguageContext";
-import { ArrowLeft, Save, Shield, User, Monitor, Eye, Menu } from "lucide-react";
+import { ArrowLeft, Save, Shield, User, Monitor, Eye, Menu, Sun, Moon } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { Sidebar } from "@/components/Sidebar";
+import { useTheme } from "@/contexts/ThemeContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function SettingsPage() {
     const { t } = useTranslation();
+    const { theme, toggleTheme } = useTheme();
     const [user, setUser] = useState<any>(null);
     const [viewMode, setViewMode] = useState<string>("grid");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,7 +45,7 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
+        <div className="min-h-screen bg-background text-foreground flex font-sans">
             <Sidebar
                 user={user}
                 onSignOut={handleSignOut}
@@ -50,37 +53,54 @@ export default function SettingsPage() {
                 onClose={() => setIsSidebarOpen(false)}
             />
 
-            <main className="flex-grow min-w-0 bg-slate-950 text-slate-50 font-sans pb-20 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-950 to-slate-950">
+            <main className="flex-grow min-w-0 bg-background text-foreground font-sans pb-20 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background">
                 <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
                     {/* Mobile Header */}
                     <header className="flex items-center justify-between mb-8 md:hidden">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="p-2 -ml-2 text-slate-400 hover:text-white"
+                            className="p-2 -ml-2 text-slate-400 hover:text-foreground"
                         >
                             <Menu className="w-6 h-6" />
                         </button>
                         <div className="flex items-center space-x-2">
-                            <img src="/icon.png" alt="Logo" className="w-6 h-6" />
-                            <span className="font-black tracking-tighter text-lg">Read-Tube</span>
+                            <div className="w-6 h-6 bg-card-bg border border-card-border rounded flex items-center justify-center overflow-hidden">
+                                <img src="/icon.png" alt="Logo" className="w-4 h-4" />
+                            </div>
+                            <span className="font-black tracking-tighter text-lg">{t("marketing.title")}</span>
                         </div>
-                        <div className="w-10"></div>
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 text-slate-400 hover:text-foreground"
+                        >
+                            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        </button>
                     </header>
 
                     <header className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
-                            <Link href="/dashboard" className="p-3 bg-slate-900 border border-slate-800 rounded-2xl hover:border-indigo-500/50 transition-all group hidden md:block">
-                                <ArrowLeft className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" />
+                            <Link href="/" className="p-3 bg-card-bg border border-card-border rounded-2xl hover:border-indigo-500/50 transition-all group hidden md:block">
+                                <ArrowLeft className="w-6 h-6 text-slate-400 group-hover:text-foreground transition-colors" />
                             </Link>
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("settings.title")}</h1>
                                 <p className="text-slate-400 font-medium">{t("settings.subtitle")}</p>
                             </div>
                         </div>
-                        <button className="px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center space-x-2 shadow-xl shadow-indigo-900/20 active:scale-95">
-                            <Save className="w-5 h-5" />
-                            <span>{t("settings.saveChanges")}</span>
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <LanguageSwitcher />
+                            <button
+                                onClick={toggleTheme}
+                                className="p-3 bg-card-bg border border-card-border rounded-2xl text-slate-400 hover:text-foreground hover:border-indigo-500/50 transition-all shadow-lg"
+                                title={theme === 'dark' ? "Light Mode" : "Dark Mode"}
+                            >
+                                {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+                            </button>
+                            <button className="px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center space-x-2 shadow-xl shadow-indigo-900/20 active:scale-95">
+                                <Save className="w-5 h-5" />
+                                <span>{t("settings.saveChanges")}</span>
+                            </button>
+                        </div>
                     </header>
 
                     <div className="space-y-12">
@@ -90,11 +110,11 @@ export default function SettingsPage() {
                                 <User className="w-5 h-5 text-indigo-400" />
                                 <h2 className="text-lg font-bold">{t("settings.profile")}</h2>
                             </div>
-                            <div className="bg-slate-900/40 border border-slate-800/50 backdrop-blur-md rounded-3xl p-8 space-y-6">
+                            <div className="bg-card-bg border border-card-border backdrop-blur-md rounded-3xl p-8 space-y-6">
                                 <div className="flex items-center space-x-6">
                                     <img
                                         src={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop"}
-                                        className="w-20 h-20 rounded-2xl border-2 border-white/5 shadow-2xl"
+                                        className="w-20 h-20 rounded-2xl border-2 border-indigo-500/10 shadow-2xl"
                                         alt="Avatar"
                                     />
                                     <div>
@@ -111,13 +131,13 @@ export default function SettingsPage() {
                                 <Monitor className="w-5 h-5 text-blue-400" />
                                 <h2 className="text-lg font-bold">{t("settings.interface")}</h2>
                             </div>
-                            <div className="bg-slate-900/40 border border-slate-800/50 backdrop-blur-md rounded-3xl p-8 space-y-8">
+                            <div className="bg-card-bg border border-card-border backdrop-blur-md rounded-3xl p-8 space-y-8">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">{t("settings.displayMode")}</label>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <button
                                             onClick={() => handleSaveViewMode("grid")}
-                                            className={`p-6 rounded-2xl border transition-all text-left group ${viewMode === "grid" ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-100 shadow-lg shadow-indigo-500/5" : "bg-slate-950/50 border-slate-800 text-slate-500 hover:border-slate-700"}`}
+                                            className={`p-6 rounded-2xl border transition-all text-left group ${viewMode === "grid" ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-100 shadow-lg shadow-indigo-500/5" : "bg-background border-card-border text-slate-500 hover:border-slate-400"}`}
                                         >
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="font-black">{t("settings.gridMode")}</div>
@@ -129,7 +149,7 @@ export default function SettingsPage() {
                                         </button>
                                         <button
                                             onClick={() => handleSaveViewMode("list")}
-                                            className={`p-6 rounded-2xl border transition-all text-left group ${viewMode === "list" ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-100 shadow-lg shadow-indigo-500/5" : "bg-slate-950/50 border-slate-800 text-slate-500 hover:border-slate-700"}`}
+                                            className={`p-6 rounded-2xl border transition-all text-left group ${viewMode === "list" ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-100 shadow-lg shadow-indigo-500/5" : "bg-background border-card-border text-slate-500 hover:border-slate-400"}`}
                                         >
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="font-black">{t("settings.listMode")}</div>
@@ -150,7 +170,7 @@ export default function SettingsPage() {
                                 <Shield className="w-5 h-5 text-emerald-400" />
                                 <h2 className="text-lg font-bold">{t("settings.security")}</h2>
                             </div>
-                            <div className="bg-slate-900/40 border border-slate-800/50 backdrop-blur-md rounded-3xl p-8">
+                            <div className="bg-card-bg border border-card-border backdrop-blur-md rounded-3xl p-8">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <h4 className="font-bold">{t("settings.loginProtection")}</h4>
