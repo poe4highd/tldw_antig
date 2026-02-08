@@ -202,170 +202,60 @@ export default function MarketingPage() {
           <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 blur-[120px] rounded-full" />
         </div>
 
-        {/* Desktop & Mobile Top Header (Settings/Lang) */}
-        <div className="absolute top-3 right-3 md:top-8 md:right-8 z-20 flex items-center gap-2 md:gap-3">
-          <LanguageSwitcher />
-          <Link
-            href="/pending"
-            className="p-2.5 bg-card-bg backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg group"
-            title="Queue / 待处理"
-          >
-            <Clock className="w-5 h-5 group-hover:animate-pulse" />
-          </Link>
-          <button
-            onClick={toggleTheme}
-            className="p-2.5 bg-card-bg backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
-            title={theme === 'dark' ? "Light Mode / 浅色模式" : "Dark Mode / 深色模式"}
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-          <Link
-            href="/settings"
-            className="p-2.5 bg-card-bg backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
-            title={t("common.settings")}
-          >
-            <Settings className="w-5 h-5" />
-          </Link>
-          <Link
-            href="/login"
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98]"
-          >
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">{user ? "Profile" : t("login.title")}</span>
-          </Link>
-        </div>
+        {/* Sticky Header Wrapper */}
+        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border -mx-3 px-3 md:-mx-8 md:px-8 pb-3 pt-3 md:pt-4 transition-all duration-300">
+          {/* Top Row: Logo & Settings */}
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <Link href="/" className="flex items-center space-x-2 md:space-x-3 group shrink-0">
+              <div className={cn(
+                "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
+                theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+              )}>
+                <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
+              </div>
+              <span className={cn(
+                "text-lg md:text-xl font-black tracking-tighter",
+                theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
+              )}>
+                {t("marketing.title")}
+              </span>
+            </Link>
 
-
-
-        {/* Responsive Header & Hero Section */}
-        <div className={cn(
-          "relative z-10 transition-all duration-500",
-          isScrolled ? "mb-2" : "mb-6"
-        )}>
-          {/* Title Row */}
-          <div className="flex items-center justify-between gap-4 mb-3 flex-wrap lg:flex-nowrap">
-            <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
-              <Link href="/" className="flex items-center space-x-3 group shrink-0">
-                <div className={cn(
-                  "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
-                  theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-                )}>
-                  <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
-                </div>
-                <span className={cn(
-                  "text-xl font-black tracking-tighter",
-                  theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
-                )}>
-                  {t("marketing.title")}
-                </span>
+            <div className="flex items-center gap-1.5 md:gap-3">
+              <LanguageSwitcher />
+              <Link
+                href="/pending"
+                className="p-2 bg-card-bg/50 backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg group"
+                title="Queue / 待处理"
+              >
+                <Clock className="w-4 h-4 md:w-5 md:h-5 group-hover:animate-pulse" />
               </Link>
-              <div className="h-4 w-px bg-slate-800/50 mx-1 hidden sm:block" />
-              <div className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase shrink-0">
-                <Sparkles className="w-2.5 h-2.5 mr-1" />
-                {t("marketing.tagline")}
-              </div>
-            </div>
-
-            {/* Desktop Search Bar Integration */}
-            <div className="hidden lg:flex flex-grow max-w-xl mx-4 relative group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                <Search className="w-3.5 h-3.5" />
-              </div>
-              <input
-                type="text"
-                placeholder={t("explore.searchPlaceholder")}
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full bg-card-bg/50 border border-card-border rounded-xl py-2 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
-              />
-            </div>
-
-            {/* Compact View Switcher */}
-            <div className="flex items-center bg-card-bg border border-card-border p-1 rounded-xl shadow-inner gap-1 shrink-0">
-              {(viewMode === "text-single" || viewMode === "text-double") && (
-                <div className="flex items-center bg-background/50 rounded-lg p-0.5 border border-card-border mr-1">
-                  <button
-                    onClick={() => toggleDensity("compact")}
-                    className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[8px] font-black transition-all",
-                      density === "compact" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
-                    )}
-                  >
-                    1L
-                  </button>
-                  <button
-                    onClick={() => toggleDensity("detailed")}
-                    className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[8px] font-black transition-all",
-                      density === "detailed" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
-                    )}
-                  >
-                    3L
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-center bg-background/50 rounded-lg p-0.5 border border-card-border">
-                <button
-                  onClick={() => toggleViewMode("text-double")}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all",
-                    viewMode === "text-double" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
-                  )}
-                  title={t("explore.modeText") + " (2)"}
-                >
-                  <Columns2 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => toggleViewMode("text-single")}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all",
-                    viewMode === "text-single" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
-                  )}
-                  title={t("explore.modeText") + " (1)"}
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => toggleViewMode("thumb")}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all",
-                    viewMode === "thumb" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
-                  )}
-                  title={t("explore.modeThumb")}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button
+                onClick={toggleTheme}
+                className="p-2 bg-card-bg/50 backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
+                title={theme === 'dark' ? "Light Mode / 浅色模式" : "Dark Mode / 深色模式"}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
+              </button>
+              <Link
+                href="/settings"
+                className="p-2 bg-card-bg/50 backdrop-blur-md border border-card-border rounded-xl text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:border-indigo-500/50 transition-all shadow-lg"
+                title={t("common.settings")}
+              >
+                <Settings className="w-4 h-4 md:w-5 md:h-5" />
+              </Link>
+              <Link
+                href="/login"
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98]"
+              >
+                <User className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">{user ? "Profile" : t("login.title")}</span>
+              </Link>
             </div>
           </div>
 
-          {/* Hero Content with Scroll-to-Hide */}
-          <div className={cn(
-            "flex flex-col overflow-hidden transition-all duration-700 ease-in-out",
-            isScrolled ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-2"
-          )}>
-            <h1 className={cn(
-              "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1]",
-              theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
-            )}>
-              {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
-            </h1>
-            <p className={cn(
-              "text-sm md:text-base font-medium leading-snug hidden sm:block",
-              theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
-            )}>
-              {t("marketing.description")}
-            </p>
-          </div>
-        </div>
-
-        {/* Mobile Search Bar (lg:hidden) */}
-        <div className={cn(
-          "relative z-10 transition-all duration-500 lg:hidden",
-          isScrolled ? "mb-4" : "mb-6"
-        )}>
-          <div className="max-w-xl mx-auto group relative">
+          {/* Second Row: Search Bar */}
+          <div className="relative group mb-3">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
               <Search className="w-4 h-4" />
             </div>
@@ -374,38 +264,112 @@ export default function MarketingPage() {
               placeholder={t("explore.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-card-bg border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md shadow-xl"
+              className="w-full bg-card-bg/50 border border-card-border rounded-2xl py-2.5 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
             />
+          </div>
+
+          {/* Third Row: View Switchers & Toolbar */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-card-bg/50 border border-card-border p-0.5 rounded-lg shadow-inner gap-0.5">
+                {(viewMode === "text-single" || viewMode === "text-double") && (
+                  <div className="flex items-center bg-background/30 rounded-md p-0.5 border border-card-border/50 mr-0.5">
+                    <button
+                      onClick={() => toggleDensity("compact")}
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-[8px] font-black transition-all",
+                        density === "compact" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                      )}
+                    >
+                      1L
+                    </button>
+                    <button
+                      onClick={() => toggleDensity("detailed")}
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-[8px] font-black transition-all",
+                        density === "detailed" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                      )}
+                    >
+                      3L
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center bg-background/30 rounded-md p-0.5 border border-card-border/50">
+                  <button
+                    onClick={() => toggleViewMode("text-double")}
+                    className={cn(
+                      "p-1 rounded transition-all",
+                      viewMode === "text-double" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                    )}
+                  >
+                    <Columns2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleViewMode("text-single")}
+                    className={cn(
+                      "p-1 rounded transition-all",
+                      viewMode === "text-single" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                    )}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleViewMode("thumb")}
+                    className={cn(
+                      "p-1 rounded transition-all",
+                      viewMode === "thumb" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                    )}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Trending Keywords (Compact as Toolbar) */}
+            <div className="hidden sm:block flex-grow overflow-hidden relative group h-8">
+              <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] h-full">
+                {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
+                  <button
+                    key={`${kw}-${idx}`}
+                    onClick={() => handleKeywordClick(kw)}
+                    className={cn(
+                      "mx-1.5 px-3 py-1 rounded-full border text-[9px] font-bold transition-all duration-300",
+                      searchQuery === kw
+                        ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
+                        : "bg-card-bg/50 border-card-border text-slate-500 hover:border-indigo-500/50 hover:text-white"
+                    )}
+                  >
+                    {kw}
+                  </button>
+                ))}
+              </div>
+              <div className="absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+              <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+            </div>
           </div>
         </div>
 
-        {/* Space Optimization for Keywords */}
+        {/* Hero Section (Non-sticky, after the sticky header) */}
         <div className={cn(
-          "relative z-10 overflow-hidden group border-y border-card-border py-1.5 transition-all duration-500",
-          isScrolled ? "mb-4" : "mb-8"
+          "relative z-10 mt-6 overflow-hidden transition-all duration-700 ease-in-out",
+          isScrolled ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-6"
         )}>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] cursor-pointer">
-              {/* Duplicate array for seamless loop */}
-              {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
-                <button
-                  key={`${kw}-${idx}`}
-                  onClick={() => handleKeywordClick(kw)}
-                  className={cn(
-                    "mx-2 px-4 py-1.5 rounded-full border text-[10px] font-bold transition-all duration-300",
-                    searchQuery === kw
-                      ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
-                      : "bg-card-bg border-card-border text-slate-500 dark:text-slate-400 light:text-slate-600 hover:border-indigo-500/50 hover:text-indigo-400"
-                  )}
-                >
-                  {kw}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-col">
+            <h1 className={cn(
+              "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1]",
+              theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
+            )}>
+              {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
+            </h1>
+            <p className={cn(
+              "text-sm md:text-base font-medium leading-snug transition-colors duration-300",
+              theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
+            )}>
+              {t("marketing.description")}
+            </p>
           </div>
-          {/* Gradients to mask edges */}
-          <div className="absolute top-0 left-0 h-full w-20 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
-          <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
         </div>
 
         {/* Content */}
