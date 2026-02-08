@@ -49,7 +49,7 @@ export default function MarketingPage() {
   const [items, setItems] = useState<ExploreItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [limit] = useState(24);
+  const [limit, setLimit] = useState(80);
   const [trendingKeywords, setTrendingKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -202,8 +202,8 @@ export default function MarketingPage() {
                 {t("marketing.title")}
               </span>
             </Link>
-            <div className="h-4 w-px bg-slate-800 mx-1" />
-            <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase">
+            <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
+            <div className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase">
               <Sparkles className="w-2.5 h-2.5 mr-1" />
               {t("marketing.tagline")}
             </div>
@@ -227,13 +227,30 @@ export default function MarketingPage() {
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-[0.8]">
                 {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
               </h1>
-              <p className="text-slate-500 text-sm md:text-base font-medium leading-snug">
+              <p className="text-slate-500 text-sm md:text-base font-medium leading-snug hidden sm:block">
                 {t("marketing.description")}
               </p>
             </div>
 
-            {/* Compact View Switcher */}
-            <div className="flex items-center bg-slate-900/40 border border-slate-800/50 p-1 rounded-xl shadow-inner mb-2">
+            {/* Pagination Limit Selector & Compact View Switcher */}
+            <div className="flex flex-col items-end gap-2 mb-2">
+              <div className="flex items-center bg-slate-900/40 border border-slate-800/50 p-0.5 rounded-lg shadow-inner">
+                {[20, 40, 80].map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      setLimit(l);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      "px-2 py-1 rounded text-[10px] font-bold transition-all",
+                      limit === l ? "bg-white text-slate-950" : "text-slate-500 hover:text-slate-300"
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={() => toggleViewMode("text-double")}
                 className={cn(
@@ -319,11 +336,15 @@ export default function MarketingPage() {
                 <Link
                   key={item.id}
                   href={`/result/${item.id}`}
-                  className="group flex items-center gap-2 p-1.5 bg-slate-900/10 border border-slate-800/20 rounded-lg hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
+                  className="group flex items-start sm:items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 bg-slate-900/10 border border-slate-800/20 rounded-lg hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
                 >
-                  <div className="shrink-0">
+                  {/* Thumbnail for Mobile/List */}
+                  <div className="shrink-0 w-24 sm:w-auto h-auto sm:h-auto">
+                    <div className="aspect-video sm:hidden rounded-md overflow-hidden bg-slate-900 border border-slate-800/50 mb-0">
+                      <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
+                    </div>
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center p-[1px] shadow-sm group-hover:scale-105 transition-transform"
+                      className="hidden sm:flex w-6 h-6 rounded-full items-center justify-center p-[1px] shadow-sm group-hover:scale-105 transition-transform"
                       style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
                     >
                       <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
@@ -336,13 +357,23 @@ export default function MarketingPage() {
                     </div>
                   </div>
 
-                  <div className="flex-grow min-w-0">
-                    <h3 className="font-bold text-base text-slate-100 group-hover:text-indigo-400 transition-colors truncate">
+                  <div className="flex-grow min-w-0 flex flex-col justify-center h-full">
+                    <h3 className="font-bold text-sm sm:text-base text-slate-100 group-hover:text-indigo-400 transition-colors line-clamp-2 sm:truncate leading-tight mb-1 sm:mb-0">
                       {item.title}
                     </h3>
+                    <div className="flex sm:hidden items-center gap-3 text-[10px] font-black text-slate-600">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-2.5 h-2.5" />
+                        {formatDate(item.date)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-2.5 h-2.5" />
+                        {item.views.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center gap-4 pr-1">
+                  <div className="shrink-0 hidden sm:flex items-center gap-4 pr-1">
                     <div className="flex items-center gap-1 text-[9px] font-black text-slate-600 group-hover:text-slate-400">
                       <Eye className="w-2.5 h-2.5" />
                       {item.views.toLocaleString()}
