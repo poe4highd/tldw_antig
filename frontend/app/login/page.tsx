@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Mail, ArrowRight, Chrome, ShieldCheck } from "lucide-react";
+import { Mail, ArrowRight, Chrome, ShieldCheck, Clock, LayoutGrid, Sparkles } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { getSiteUrl } from "@/utils/api";
 
@@ -10,7 +10,7 @@ import { useTranslation } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function LoginPage() {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -56,13 +56,13 @@ export default function LoginPage() {
 
             setStatus({
                 type: 'success',
-                message: t("login.magicLinkSent")
+                message: t("magicLinkSent")
             });
         } catch (error: any) {
             console.error("Error sending magic link:", error.message);
             setStatus({
                 type: 'error',
-                message: t("login.sendFailed") + error.message
+                message: t("sendFailed") + error.message
             });
         } finally {
             setLoading(false);
@@ -92,9 +92,56 @@ export default function LoginPage() {
                 </span>
             </Link>
 
-            <div className="relative z-10 w-full max-w-md">
+            <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                {/* Left side: Feature List */}
+                <div className="hidden lg:flex flex-col space-y-8">
+                    <div className="space-y-2">
+                        <h2 className="text-4xl font-black tracking-tight text-white leading-tight">
+                            {language === 'zh' ? "探索 Read-Tube 完整体验" : "Experience the Full Power"}
+                        </h2>
+                        <p className="text-slate-400 text-lg">
+                            {language === 'zh' ? "登录后解锁更多专为深度学习者设计的功能" : "Unlock premium features designed for deep learners"}
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6">
+                        {[
+                            {
+                                icon: <Clock className="w-6 h-6 text-indigo-400" />,
+                                title: language === 'zh' ? "云端历史" : "Cloud History",
+                                desc: language === 'zh' ? "永久保存您的所有音视频转录与阅读记录，随时随地回溯。" : "Save all transcriptions and reading history permanently."
+                            },
+                            {
+                                icon: <LayoutGrid className="w-6 h-6 text-blue-400" />,
+                                title: language === 'zh' ? "专属书架" : "Personal Library",
+                                desc: language === 'zh' ? "构建个人音视频知识库，分类管理您的深度阅读内容。" : "Build your own video knowledge base and library."
+                            },
+                            {
+                                icon: <Sparkles className="w-6 h-6 text-indigo-400" />,
+                                title: language === 'zh' ? "优先处理" : "Priority Processing",
+                                desc: language === 'zh' ? "注册用户享受更快的处理速度，极速转录，无需等待。" : "Registered users get faster transcription and analysis."
+                            },
+                            {
+                                icon: <ShieldCheck className="w-6 h-6 text-emerald-400" />,
+                                title: language === 'zh' ? "跨端同步" : "Multi-device Sync",
+                                desc: language === 'zh' ? "在网页、手机和平板上同步进度，学习不间断。" : "Keep your progress synced across all your devices."
+                            }
+                        ].map((feat, i) => (
+                            <div key={i} className="flex gap-4 group cursor-default">
+                                <div className="shrink-0 w-12 h-12 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center group-hover:border-indigo-500/50 group-hover:bg-slate-800 transition-all">
+                                    {feat.icon}
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">{feat.title}</h3>
+                                    <p className="text-slate-500 text-sm leading-relaxed">{feat.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Main Card */}
-                <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl shadow-black/50 overflow-hidden group">
+                <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl shadow-black/50 overflow-hidden group relative">
                     <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
 
                     <div className="text-center mb-10">
@@ -171,13 +218,13 @@ export default function LoginPage() {
                         </button>
                     </div>
                 </div>
-
-                {/* Footer info */}
-                <p className="mt-8 text-center text-slate-500 text-xs flex items-center justify-center space-x-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500/50" />
-                    <span>{t("login.securityNote")}</span>
-                </p>
             </div>
+
+            {/* Footer info */}
+            <p className="mt-8 text-center text-slate-500 text-xs flex items-center justify-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-500/50" />
+                <span>{t("login.securityNote")}</span>
+            </p>
         </main>
     );
 }
