@@ -75,7 +75,7 @@ export default function MarketingPage() {
 
   useEffect(() => {
     fetchExplore(page, searchQuery);
-  }, [page, searchQuery]);
+  }, [page, searchQuery, limit]);
 
   const fetchExplore = async (pageNum: number, query: string) => {
     setIsLoading(true);
