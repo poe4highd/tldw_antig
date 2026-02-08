@@ -50,6 +50,7 @@ export default function MarketingPage() {
   const { theme, toggleTheme } = useTheme();
   const [viewMode, setViewMode] = useState<"thumb" | "text-single" | "text-double">("text-double");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [items, setItems] = useState<ExploreItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -78,8 +79,15 @@ export default function MarketingPage() {
   }, []);
 
   useEffect(() => {
-    fetchExplore(page, searchQuery);
-  }, [page, searchQuery, limit]);
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    fetchExplore(page, debouncedSearchQuery);
+  }, [page, debouncedSearchQuery, limit]);
 
   const fetchExplore = async (pageNum: number, query: string) => {
     setIsLoading(true);
@@ -309,14 +317,23 @@ export default function MarketingPage() {
         {/* Content */}
         <div className="relative z-10">
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-4">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-12 bg-slate-900/40 rounded-xl animate-pulse border border-slate-800/50" />
+            <div className={cn(
+              "gap-1.5",
+              viewMode === "text-double" ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col space-y-1"
+            )}>
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="flex items-center gap-3 p-2 bg-card-bg border border-card-border rounded-lg animate-pulse">
+                  <div className="hidden sm:block w-24 h-14 bg-slate-400/10 dark:bg-slate-800/50 rounded-md shrink-0" />
+                  <div className="flex-grow space-y-2">
+                    <div className="h-4 bg-slate-400/10 dark:bg-slate-800/50 rounded-md w-3/4" />
+                    <div className="h-3 bg-slate-400/10 dark:bg-slate-800/50 rounded-md w-1/2" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : items.length === 0 ? (
-            <div className="py-20 text-center bg-slate-900/20 border border-dashed border-slate-800 rounded-[2rem] flex flex-col items-center">
-              <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 text-slate-700">
+            <div className="py-20 text-center bg-card-bg border border-dashed border-card-border rounded-[2rem] flex flex-col items-center">
+              <div className="w-16 h-16 bg-background border border-card-border rounded-2xl flex items-center justify-center mb-6 text-slate-500">
                 <Search className="w-8 h-8" />
               </div>
               <p className="text-slate-400 font-bold text-lg">{t("explore.empty")}</p>
