@@ -461,7 +461,7 @@ export default function MarketingPage() {
                         <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-grow min-w-0 flex items-center gap-3">
-                        <h3 className="font-bold text-[11px] sm:text-xs text-foreground group-hover:text-indigo-400 transition-colors truncate flex-grow leading-none">
+                        <h3 className="font-bold text-xs sm:text-sm text-foreground group-hover:text-indigo-400 transition-colors truncate flex-grow leading-none">
                           {item.title}
                         </h3>
                         <div className="shrink-0 flex items-center gap-3 text-[9px] font-black text-slate-500 pr-1">
@@ -495,7 +495,7 @@ export default function MarketingPage() {
                       </div>
 
                       <div className="flex-grow min-w-0 flex flex-col justify-center gap-0.5">
-                        <h3 className="font-bold text-xs sm:text-sm text-foreground group-hover:text-indigo-400 transition-colors line-clamp-2 leading-tight">
+                        <h3 className="font-bold text-sm text-foreground group-hover:text-indigo-400 transition-colors line-clamp-2 leading-tight">
                           {item.title}
                         </h3>
                         <div className="flex items-center gap-3 text-[9px] sm:text-[10px] font-black text-slate-500">
@@ -542,7 +542,7 @@ export default function MarketingPage() {
                   </div>
 
                   <div className="p-4">
-                    <h3 className="font-bold text-lg leading-[0.85] line-clamp-2 mb-3 h-10 group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
+                    <h3 className="font-bold text-[18px] leading-tight line-clamp-2 mb-3 h-[48px] group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
                       {item.title}
                     </h3>
 

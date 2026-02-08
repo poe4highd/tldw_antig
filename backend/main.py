@@ -806,22 +806,33 @@ async def toggle_user_like(request: LikeRequest):
         return {"status": "error", "message": str(e)}
 
 @app.get("/bookshelf")
-async def get_bookshelf(user_id: str):
+async def get_bookshelf(user_id: str, limit: int = 40):
     if not supabase:
         return {"history": []}
     
     try:
-        # 1. Fetch user's submissions
-        sub_res = supabase.table("submissions") \
-            .select("video_id, created_at, videos(*)") \
-            .eq("user_id", user_id) \
-            .execute()
-        
-        # 2. Fetch user's likes
-        like_res = supabase.table("user_likes") \
-            .select("video_id, created_at, videos(*)") \
-            .eq("user_id", user_id) \
-            .execute()
+        # Define fetch functions for parallel execution
+        def fetch_submissions():
+            return supabase.table("submissions") \
+                .select("video_id, created_at, videos(*)") \
+                .eq("user_id", user_id) \
+                .order("created_at", desc=True) \
+                .limit(limit) \
+                .execute()
+
+        def fetch_likes():
+            return supabase.table("user_likes") \
+                .select("video_id, created_at, videos(*)") \
+                .eq("user_id", user_id) \
+                .order("created_at", desc=True) \
+                .limit(limit) \
+                .execute()
+
+        # Execute parallelly using asyncio.to_thread
+        sub_res, like_res = await asyncio.gather(
+            asyncio.to_thread(fetch_submissions),
+            asyncio.to_thread(fetch_likes)
+        )
         
         # Combine and deduplicate
         bookshelf_map = {}
@@ -836,6 +847,8 @@ async def get_bookshelf(user_id: str):
                     "thumbnail": video["thumbnail"],
                     "mtime": item["created_at"],
                     "status": video["status"],
+                    "summary": video.get("report_data", {}).get("summary") if video.get("report_data") else None,
+                    "keywords": video.get("report_data", {}).get("keywords") if video.get("report_data") else [],
                     "source": "submission"
                 }
 
@@ -851,6 +864,8 @@ async def get_bookshelf(user_id: str):
                         "thumbnail": video["thumbnail"],
                         "mtime": item["created_at"],
                         "status": video["status"],
+                        "summary": video.get("report_data", {}).get("summary") if video.get("report_data") else None,
+                        "keywords": video.get("report_data", {}).get("keywords") if video.get("report_data") else [],
                         "source": "like",
                         "is_liked": True
                     }
@@ -860,6 +875,10 @@ async def get_bookshelf(user_id: str):
         # Convert to list and sort by date
         sorted_items = sorted(bookshelf_map.values(), key=lambda x: x["mtime"], reverse=True)
         
+        # Apply limit
+        if limit > 0:
+            sorted_items = sorted_items[:limit]
+            
         return {"history": sorted_items}
     except Exception as e:
         print(f"Failed to fetch bookshelf: {e}")

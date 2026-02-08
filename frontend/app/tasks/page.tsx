@@ -4,10 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
-import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu } from "lucide-react";
+import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu, Sun, Moon, User } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { getApiBase } from "@/utils/api";
 import { useTranslation } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from "clsx";
+
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
 
 interface HistoryItem {
     id: string;
@@ -30,7 +38,8 @@ interface ActiveTask {
 }
 
 export default function TasksPage() {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
+    const { theme, toggleTheme } = useTheme();
     const [url, setUrl] = useState("");
     const [mode, setMode] = useState("local");
     const [status, setStatus] = useState("");
@@ -194,9 +203,9 @@ export default function TasksPage() {
 
     if (isLoading) {
         return (
-            <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+            <main className="min-h-screen bg-background flex items-center justify-center">
                 <div className="animate-pulse flex flex-col items-center">
-                    <div className="w-12 h-12 bg-slate-800 rounded-full mb-4"></div>
+                    <div className="w-12 h-12 bg-card-bg border border-card-border rounded-full mb-4"></div>
                     <p className="text-slate-500 font-medium">{t("tasks.verifyingIdentity")}</p>
                 </div>
             </main>
@@ -204,7 +213,7 @@ export default function TasksPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
+        <div className="min-h-screen bg-background text-foreground flex font-sans transition-colors duration-300">
             <Sidebar
                 user={user}
                 onSignOut={handleSignOut}
@@ -212,35 +221,68 @@ export default function TasksPage() {
                 onClose={() => setIsSidebarOpen(false)}
             />
 
-            <main className="flex-grow min-w-0 bg-slate-950 text-slate-50 font-sans pb-20 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-950 to-slate-950">
-                <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12">
-                    {/* Mobile Header */}
-                    <header className="flex items-center justify-between mb-8 md:hidden">
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="p-2 -ml-2 text-slate-400 hover:text-white"
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-                        <div className="flex items-center space-x-2">
-                            <img src="/icon.png" alt="Logo" className="w-6 h-6" />
-                            <span className="font-black tracking-tighter">Read-Tube</span>
-                        </div>
-                        <div className="w-10"></div>
-                    </header>
-
-                    <header className="mb-12 md:mb-16 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <Link href="/dashboard" className="p-3 bg-slate-900 border border-slate-800 rounded-2xl hover:border-indigo-500/50 transition-all group hidden md:block">
-                                <img src="/icon.png" alt="Read-Tube Logo" className="w-8 h-8 group-hover:scale-110 transition-transform" />
-                            </Link>
-                            <div>
-                                <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("tasks.title")}</h1>
-                                <p className="text-slate-400 font-medium">{t("tasks.subtitle")}</p>
+            <main className="flex-grow min-w-0 bg-transparent text-foreground font-sans pb-20 relative">
+                {/* Background Glows */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full" />
+                    <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 blur-[120px] rounded-full" />
+                </div>
+                {/* Header: Logo & Controls (Sticky) */}
+                <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border -mx-4 px-4 md:-mx-10 md:px-10 pb-2 pt-3 md:pt-4 mb-8">
+                    <div className="flex items-center justify-between gap-4">
+                        <Link href="/" className="flex items-center space-x-2 md:space-x-3 group shrink-0">
+                            <div className={cn(
+                                "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
+                                theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                            )}>
+                                <img src="/icon.png" alt="Logo" className="w-5 h-5" />
                             </div>
+                            <span className={cn(
+                                "text-lg md:text-xl font-black tracking-tighter",
+                                theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
+                            )}>
+                                {t("marketing.title")}
+                            </span>
+                        </Link>
+
+                        <div className="flex items-center gap-1.5 md:gap-3">
+                            <LanguageSwitcher />
+                            <button
+                                onClick={toggleTheme}
+                                className="p-2 bg-card-bg/50 backdrop-blur-md border border-card-border rounded-xl text-slate-400 hover:text-foreground transition-all shadow-lg"
+                            >
+                                {theme === 'dark' ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
+                            </button>
+                            <Link
+                                href="/login"
+                                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-lg active:scale-[0.98]"
+                            >
+                                <User className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                <span className="hidden sm:inline">{user ? "Profile" : t("login.title")}</span>
+                            </Link>
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="p-2 md:hidden text-slate-400 hover:text-foreground"
+                            >
+                                <Menu className="w-6 h-6" />
+                            </button>
                         </div>
-                        <Link href="/dashboard" className="text-slate-500 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                            {t("tasks.backToBookshelf")} <ArrowRight className="w-4 h-4" />
+                    </div>
+                </div>
+
+                <div className="max-w-6xl mx-auto px-4 md:px-6">
+                    <header className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                        <div>
+                            <h1 className={cn(
+                                "text-3xl md:text-4xl font-black tracking-tight mb-1",
+                                theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
+                            )}>
+                                {t("tasks.title")}
+                            </h1>
+                            <p className="text-slate-500 font-medium">{t("tasks.subtitle")}</p>
+                        </div>
+                        <Link href="/dashboard" className="text-indigo-500 hover:text-indigo-400 transition-colors text-sm font-bold uppercase tracking-widest flex items-center gap-2 group">
+                            {t("tasks.backToBookshelf")} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </Link>
                     </header>
 
@@ -256,8 +298,8 @@ export default function TasksPage() {
                     )}
 
                     {/* Input Section */}
-                    <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl mb-12 max-w-4xl mx-auto ring-1 ring-white/5 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <div className="bg-card-bg/50 backdrop-blur-xl border border-card-border p-8 rounded-[2.5rem] shadow-2xl mb-12 max-w-4xl mx-auto ring-1 ring-white/5 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-5 text-foreground">
                             <LayoutGrid className="w-40 h-40" />
                         </div>
 
@@ -266,20 +308,20 @@ export default function TasksPage() {
                                 <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-2">{t("tasks.submitNew")}</label>
                                 <div className="flex flex-col md:flex-row gap-4">
                                     <div className="flex-1 relative group">
-                                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-400 transition-colors">
+                                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                                             <Youtube className="w-5 h-5" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder={t("tasks.placeholder")}
-                                            className="w-full bg-slate-950 border border-slate-700/50 rounded-2xl pl-16 pr-6 py-5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-lg placeholder:text-slate-700 shadow-inner"
+                                            className="w-full bg-background border border-card-border rounded-2xl pl-16 pr-6 py-5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-lg placeholder:text-slate-500 text-foreground shadow-inner"
                                             value={url}
                                             onChange={(e) => setUrl(e.target.value)}
                                         />
                                     </div>
                                     <div className="flex gap-3">
                                         <select
-                                            className="bg-slate-950 border border-slate-700/50 rounded-2xl px-6 py-5 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-300 font-bold cursor-pointer shadow-inner"
+                                            className="bg-background border border-card-border rounded-2xl px-6 py-5 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-foreground font-bold cursor-pointer shadow-inner"
                                             value={mode}
                                             onChange={(e) => setMode(e.target.value)}
                                         >
@@ -291,7 +333,7 @@ export default function TasksPage() {
                                         <button
                                             onClick={startProcess}
                                             disabled={!url || !isBackendOnline || (!!status && !status.includes("Failed"))}
-                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-blue-900/20 active:scale-[0.98] whitespace-nowrap"
+                                            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-indigo-500/20 active:scale-[0.98] whitespace-nowrap"
                                         >
                                             {t("tasks.processNow")}
                                         </button>
@@ -300,15 +342,15 @@ export default function TasksPage() {
                             </div>
 
                             <div className="flex items-center gap-4 px-2">
-                                <div className="h-px flex-1 bg-slate-800/50"></div>
-                                <span className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{t("tasks.orUpload")}</span>
-                                <div className="h-px flex-1 bg-slate-800/50"></div>
+                                <div className="h-px flex-1 bg-card-border/50"></div>
+                                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t("tasks.orUpload")}</span>
+                                <div className="h-px flex-1 bg-card-border/50"></div>
                             </div>
 
                             <div className="flex justify-center">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="flex items-center gap-3 px-8 py-4 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-2xl text-slate-400 transition-all group hover:text-white"
+                                    className="flex items-center gap-3 px-8 py-4 bg-card-bg/50 hover:bg-card-bg/80 border border-card-border rounded-2xl text-slate-500 transition-all group hover:text-foreground"
                                 >
                                     <FileUp className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                     <span className="font-bold">{t("tasks.uploadButton")}</span>
@@ -324,22 +366,22 @@ export default function TasksPage() {
                         </div>
 
                         {status && (
-                            <div className="mt-12 pt-10 border-t border-slate-800/50 space-y-6 animate-in fade-in slide-in-from-top-4 duration-1000">
+                            <div className="mt-12 pt-10 border-t border-card-border/50 space-y-6 animate-in fade-in slide-in-from-top-4 duration-1000">
                                 <div className="flex justify-between items-end">
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
+                                            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
                                             <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{t("tasks.processingHeader")}</p>
                                         </div>
-                                        <p className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">{status}</p>
+                                        <p className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-blue-400 bg-clip-text text-transparent">{status}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-5xl font-black text-white font-mono leading-none tracking-tighter">{progress}%</p>
+                                        <p className="text-5xl font-black text-foreground font-mono leading-none tracking-tighter">{progress}%</p>
                                     </div>
                                 </div>
-                                <div className="w-full bg-slate-950/80 rounded-full h-5 overflow-hidden border border-slate-800 p-1.5 shadow-inner">
+                                <div className="w-full bg-background rounded-full h-5 overflow-hidden border border-card-border p-1.5 shadow-inner">
                                     <div
-                                        className="bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500 h-full transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(37,99,235,0.4)] rounded-full relative"
+                                        className="bg-gradient-to-r from-indigo-600 via-blue-500 to-emerald-500 h-full transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(79,70,229,0.4)] rounded-full relative"
                                         style={{ width: `${progress}%` }}
                                     >
                                         <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:40px_40px] animate-[slide_2s_linear_infinite]"></div>
@@ -366,24 +408,24 @@ export default function TasksPage() {
                             </div>
 
                             {activeTasks.length === 0 ? (
-                                <div className="bg-slate-900/20 border border-slate-800/50 rounded-3xl p-10 text-center">
-                                    <CheckCircle2 className="w-10 h-10 text-slate-700 mx-auto mb-4" />
+                                <div className="bg-card-bg/20 border border-dashed border-card-border rounded-3xl p-10 text-center">
+                                    <CheckCircle2 className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
                                     <p className="text-slate-500 text-sm font-bold">{t("tasks.noActiveTasks")}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
                                     {activeTasks.map((task) => (
-                                        <div key={task.id} className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl backdrop-blur-md group hover:border-indigo-500/30 transition-all">
+                                        <div key={task.id} className="bg-card-bg border border-card-border p-5 rounded-2xl backdrop-blur-md group hover:border-indigo-500/30 transition-all shadow-sm">
                                             <div className="flex justify-between items-start mb-3">
                                                 <div className="overflow-hidden">
                                                     <p className="text-[9px] text-slate-500 font-mono truncate mb-1">#{task.id}</p>
-                                                    <p className="text-xs font-black text-indigo-300 uppercase tracking-tighter truncate">{task.status}</p>
+                                                    <p className="text-xs font-black text-indigo-400 uppercase tracking-tighter truncate">{task.status}</p>
                                                 </div>
-                                                <p className="text-xl font-black text-white/50 group-hover:text-indigo-400 transition-colors">{task.progress}%</p>
+                                                <p className="text-xl font-black text-foreground/40 group-hover:text-indigo-500 transition-colors uppercase tracking-tight">{task.progress}%</p>
                                             </div>
-                                            <div className="w-full bg-slate-950 rounded-full h-1 overflow-hidden">
+                                            <div className="w-full bg-background border border-card-border/50 rounded-full h-1 overflow-hidden">
                                                 <div
-                                                    className="bg-indigo-500 h-full transition-all duration-1000"
+                                                    className="bg-indigo-500 h-full transition-all duration-1000 shadow-[0_0_10px_rgba(79,70,229,0.3)]"
                                                     style={{ width: `${task.progress}%` }}
                                                 />
                                             </div>
@@ -405,12 +447,12 @@ export default function TasksPage() {
                                     <div
                                         key={item.id}
                                         onClick={() => router.push(`/result/${item.id}`)}
-                                        className="group bg-slate-900/30 border border-slate-800/50 rounded-3xl overflow-hidden cursor-pointer hover:border-emerald-500/30 transition-all hover:-translate-y-1 shadow-xl"
+                                        className="group bg-card-bg/50 border border-card-border rounded-3xl overflow-hidden cursor-pointer hover:border-indigo-500/30 transition-all hover:-translate-y-1 shadow-md hover:shadow-indigo-500/10"
                                     >
                                         <div className="aspect-video relative overflow-hidden">
                                             {item.thumbnail?.startsWith("#") ? (
-                                                <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                                                    <Youtube className="w-8 h-8 text-white/20" />
+                                                <div className="w-full h-full flex items-center justify-center bg-card-bg">
+                                                    <Youtube className="w-8 h-8 text-slate-400/20" />
                                                 </div>
                                             ) : (
                                                 <img
@@ -419,10 +461,10 @@ export default function TasksPage() {
                                                     className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
                                                 />
                                             )}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60"></div>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60"></div>
                                         </div>
                                         <div className="p-5">
-                                            <h3 className="font-bold text-xs line-clamp-2 text-slate-200 group-hover:text-emerald-400 transition-colors leading-relaxed">
+                                            <h3 className="font-bold text-xs line-clamp-2 text-foreground group-hover:text-indigo-500 transition-colors leading-relaxed">
                                                 {item.title}
                                             </h3>
                                         </div>
@@ -431,7 +473,7 @@ export default function TasksPage() {
                             </div>
 
                             {history.length > 6 && (
-                                <Link href="/dashboard" className="block text-center py-4 bg-slate-900/20 border border-slate-800 rounded-2xl text-slate-500 text-xs font-black uppercase tracking-widest hover:bg-slate-900/40 transition-all hover:text-slate-300">
+                                <Link href="/dashboard" className="block text-center py-4 bg-card-bg/30 border border-card-border rounded-2xl text-slate-500 text-xs font-black uppercase tracking-widest hover:bg-card-bg/50 transition-all hover:text-foreground">
                                     {t("tasks.viewAll")}
                                 </Link>
                             )}
