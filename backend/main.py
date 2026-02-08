@@ -21,6 +21,14 @@ from db import get_db
 
 supabase = get_db()
 
+# ========== 后台调度器配置 ==========
+CHANNEL_CHECK_INTERVAL_HOURS = 1  # 每小时检查一次频道更新
+MAX_VIDEOS_PER_HOUR = 5           # 每小时最多处理5个新视频
+MAX_VIDEOS_PER_DAY = 50           # 每天最多处理50个视频
+_daily_video_count = 0
+_last_reset_day = None
+_scheduler_started = False
+
 app = FastAPI()
 
 app.add_middleware(
@@ -1069,6 +1077,89 @@ async def dev_compare_subtitles(video_id: str):
         "media_path": media_path,
         "models": models_data
     }
+
+# ========== 后台调度任务 ==========
+async def run_channel_tracker():
+    """异步运行频道追踪脚本"""
+    global _daily_video_count, _last_reset_day
+    
+    from datetime import date
+    import subprocess
+    
+    # 每日重置计数器
+    today = date.today()
+    if _last_reset_day != today:
+        _daily_video_count = 0
+        _last_reset_day = today
+        print(f"[Scheduler] 新的一天，重置每日视频计数器")
+    
+    # 检查每日限额
+    if _daily_video_count >= MAX_VIDEOS_PER_DAY:
+        print(f"[Scheduler] 已达每日处理上限 ({MAX_VIDEOS_PER_DAY})，跳过本次检查")
+        return
+    
+    print(f"[Scheduler] 开始检查频道更新... (今日已处理: {_daily_video_count}/{MAX_VIDEOS_PER_DAY})")
+    
+    try:
+        # 运行 channel_tracker.py
+        script_path = os.path.join(os.path.dirname(__file__), "scripts", "channel_tracker.py")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.path.dirname(__file__)
+        
+        result = subprocess.run(
+            ["python3", script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(__file__),
+            env=env,
+            timeout=300  # 5分钟超时
+        )
+        
+        if result.returncode == 0:
+            # 解析添加了多少新视频
+            import re
+            match = re.search(r"Added (\d+) new tasks", result.stdout)
+            if match:
+                added = int(match.group(1))
+                _daily_video_count += added
+                print(f"[Scheduler] 频道检查完成，新增 {added} 个视频任务")
+        else:
+            print(f"[Scheduler] 频道检查失败: {result.stderr}")
+    except subprocess.TimeoutExpired:
+        print(f"[Scheduler] 频道检查超时")
+    except Exception as e:
+        print(f"[Scheduler] 频道检查异常: {e}")
+
+
+async def scheduler_loop():
+    """后台调度循环"""
+    global _scheduler_started
+    
+    if _scheduler_started:
+        return
+    _scheduler_started = True
+    
+    print(f"[Scheduler] 启动后台调度器，间隔: {CHANNEL_CHECK_INTERVAL_HOURS}小时")
+    
+    # 首次启动延迟5分钟，避免与服务启动冲突
+    await asyncio.sleep(300)
+    
+    while True:
+        try:
+            await run_channel_tracker()
+        except Exception as e:
+            print(f"[Scheduler] 调度循环异常: {e}")
+        
+        # 等待下一个周期
+        await asyncio.sleep(CHANNEL_CHECK_INTERVAL_HOURS * 3600)
+
+
+@app.on_event("startup")
+async def start_scheduler():
+    """FastAPI 启动时启动后台调度器"""
+    asyncio.create_task(scheduler_loop())
+    print("[Scheduler] 后台调度任务已注册")
+
 
 if __name__ == "__main__":
     import uvicorn
