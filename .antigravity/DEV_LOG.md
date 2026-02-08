@@ -1,5 +1,23 @@
 # 开发日志 (2026-02-08)
 
+## 任务：修复首页滚动遮挡问题
+
+### 1. 需求
+- 主页视频容器向上滚动时，应该在搜索条下面就被遮挡，而不应该出现在搜索条上面又出现的情况。
+
+### 2. 实施
+- **前端 (`page.tsx`)**:
+  - 提升了 Global Header 的 `z-index` (50 -> 60) 和背景不透明度 (`bg-background/80` -> `bg-background`)。
+  - 提升了 Toolbar 的 `z-index` (40 -> 50) 和背景不透明度 (`bg-background/50` -> `bg-background`)。
+  - 调整了 Toolbar 的 `top` 偏移量以适配 Header 的微调，消除了物理间隙。
+
+### 3. 回顾
+- **结果**: 视频卡片现在在滚动过程中会被工具栏完美遮挡，解决了内容漏出问题。
+- **改动文件**: `frontend/app/page.tsx`, `.antigravity/DEV_LOG.md`, `.antigravity/PROJECT_HISTORY.md`。
+
+---
+
+
 ## 任务：全链路视频隐私控制实现
 
 ### 1. 需求
