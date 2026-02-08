@@ -271,8 +271,8 @@ export default function MarketingPage() {
         {/* Consolidate Toolbar (Sticky below hero) */}
         <div className="sticky top-[60px] md:top-[76px] z-40 bg-background/50 backdrop-blur-lg border-y border-card-border -mx-3 px-3 md:-mx-8 md:px-8 py-2 md:py-3 transition-all duration-300">
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 md:gap-4">
-            {/* Search Bar: Desktop Order 1, 50% Width | Mobile Order 2 */}
-            <div className="order-2 lg:order-1 flex-grow lg:flex-none lg:w-1/2 relative group">
+            {/* Search Bar: Desktop Order 1, 30% Width | Mobile Order 2 */}
+            <div className="order-2 lg:order-1 flex-grow lg:flex-none lg:w-[30%] relative group">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                 <Search className="w-3.5 h-3.5" />
               </div>
