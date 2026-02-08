@@ -232,25 +232,8 @@ export default function MarketingPage() {
               </p>
             </div>
 
-            {/* Pagination Limit Selector & Compact View Switcher */}
-            <div className="flex flex-col items-end gap-2 mb-2">
-              <div className="flex items-center bg-slate-900/40 border border-slate-800/50 p-0.5 rounded-lg shadow-inner">
-                {[20, 40, 80].map((l) => (
-                  <button
-                    key={l}
-                    onClick={() => {
-                      setLimit(l);
-                      setPage(1);
-                    }}
-                    className={cn(
-                      "px-2 py-1 rounded text-[10px] font-bold transition-all",
-                      limit === l ? "bg-white text-slate-950" : "text-slate-500 hover:text-slate-300"
-                    )}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
+            {/* Compact View Switcher */}
+            <div className="flex items-center bg-slate-900/40 border border-slate-800/50 p-1 rounded-xl shadow-inner mb-2">
               <button
                 onClick={() => toggleViewMode("text-double")}
                 className={cn(
@@ -432,24 +415,50 @@ export default function MarketingPage() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="mt-12 flex items-center justify-center gap-4">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1 || isLoading}
-                className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {language === 'zh' ? '上一页' : 'Previous'}
-              </button>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                {language === 'zh' ? `第 ${page} / ${totalPages} 页` : `Page ${page} of ${totalPages}`}
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 py-6 border-y border-slate-900/30">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || isLoading}
+                  className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {language === 'zh' ? '上一页' : 'Previous'}
+                </button>
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest min-w-[100px] text-center">
+                  {language === 'zh' ? `第 ${page} / ${totalPages} 页` : `Page ${page} of ${totalPages}`}
+                </div>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages || isLoading}
+                  className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {language === 'zh' ? '下一页' : 'Next'}
+                </button>
               </div>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages || isLoading}
-                className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {language === 'zh' ? '下一页' : 'Next'}
-              </button>
+
+              {/* Limit Selector - Integrated into the same row */}
+              <div className="flex items-center gap-3 bg-slate-950 border border-slate-900 p-1 rounded-xl shadow-lg">
+                <span className="text-[9px] font-black text-slate-600 px-2 uppercase tracking-tighter">
+                  {language === 'zh' ? '每页显示' : 'Limit'}
+                </span>
+                <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+                  {[20, 40, 80].map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => {
+                        setLimit(l);
+                        setPage(1);
+                      }}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-[10px] font-bold transition-all",
+                        limit === l ? "bg-white text-slate-950 shadow-md scale-105" : "text-slate-500 hover:text-slate-300"
+                      )}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
