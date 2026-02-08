@@ -227,11 +227,14 @@ export default function MarketingPage() {
             <Link href="/" className="flex items-center space-x-3 group animate-in fade-in slide-in-from-left-4 duration-700">
               <div className={cn(
                 "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
-                theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-indigo-500/5"
               )}>
                 <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
               </div>
-              <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent">
+              <span className={cn(
+                "text-xl font-black tracking-tighter transition-colors duration-300",
+                theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
+              )}>
                 {t("marketing.title")}
               </span>
             </Link>
@@ -257,10 +260,16 @@ export default function MarketingPage() {
           </div>
           <div className="flex items-end justify-between gap-4">
             <div className="flex-grow">
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent leading-[1.1]">
+              <h1 className={cn(
+                "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1] transition-colors duration-300",
+                theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
+              )}>
                 {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
               </h1>
-              <p className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-sm md:text-base font-medium leading-snug hidden sm:block">
+              <p className={cn(
+                "text-sm md:text-base font-medium leading-snug hidden sm:block transition-colors duration-300",
+                theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
+              )}>
                 {t("marketing.description")}
               </p>
             </div>
@@ -269,24 +278,24 @@ export default function MarketingPage() {
             <div className="flex items-center bg-card-bg border border-card-border p-1 rounded-xl shadow-inner mb-2 gap-1">
               {/* Density Toggle (only for list views) */}
               {(viewMode === "text-single" || viewMode === "text-double") && (
-                <div className="flex items-center bg-background/50 rounded-lg p-0.5 border border-card-border mr-2">
+                <div className="flex items-center bg-background/50 rounded-lg p-0.5 border border-card-border mr-1">
                   <button
                     onClick={() => toggleDensity("compact")}
                     className={cn(
-                      "px-2 py-1 rounded-md text-[9px] font-bold transition-all",
+                      "px-1.5 py-0.5 rounded-md text-[8px] font-black transition-all",
                       density === "compact" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
-                    {language === 'zh' ? '单行' : '1-Line'}
+                    1L
                   </button>
                   <button
                     onClick={() => toggleDensity("detailed")}
                     className={cn(
-                      "px-2 py-1 rounded-md text-[9px] font-bold transition-all",
+                      "px-1.5 py-0.5 rounded-md text-[8px] font-black transition-all",
                       density === "detailed" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
                     )}
                   >
-                    {language === 'zh' ? '3行' : '3-Line'}
+                    3L
                   </button>
                 </div>
               )}
