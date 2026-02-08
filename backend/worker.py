@@ -17,6 +17,7 @@ os.environ['KMP_BLOCKTIME'] = '0'
 
 from transcriber import transcribe_audio
 from processor import split_into_paragraphs
+from sub_utils import find_downloaded_subtitles, parse_vtt_srt
 
 RESULTS_DIR = "results"
 CACHE_DIR = "cache"
@@ -54,27 +55,40 @@ def main():
             with open(cache_sub_path, "r", encoding="utf-8") as rf:
                 raw_subtitles = json.load(rf)
         else:
-            # 执行转录
-            save_status(
-                args.task_id, 
-                f"正在进行 AI 语音转录 ({'云端模式' if args.mode == 'cloud' else '本地精调模式'})...", 
-                60, 
-                eta=25 if args.mode == 'cloud' else 120
-            )
-            print(f"[Worker] 开始转录: {args.file} (模式: {args.mode}, 模型: {args.model})")
-            print(f"[Worker] 提示词: {args.title}")
+            # 尝试拦截现有字幕
+            hijacked_sub_path = find_downloaded_subtitles(args.video_id) if args.video_id else None
             
-            raw_subtitles = transcribe_audio(
-                args.file, 
-                mode=args.mode, 
-                initial_prompt=args.title,
-                model_size=args.model
-            )
+            if hijacked_sub_path:
+                save_status(args.task_id, f"发现现有字幕 ({os.path.basename(hijacked_sub_path)}), 正在导入...", 55, eta=5)
+                print(f"[Worker] 拦截到字幕文件: {hijacked_sub_path}")
+                raw_subtitles = parse_vtt_srt(hijacked_sub_path)
+                
+                if not raw_subtitles:
+                    print(f"[Worker] 警告: 字幕文件解析为空，将回退至正常转录流程")
+                    hijacked_sub_path = None
+            
+            if not hijacked_sub_path:
+                # 执行转录
+                save_status(
+                    args.task_id, 
+                    f"正在进行 AI 语音转录 ({'云端模式' if args.mode == 'cloud' else '本地精调模式'})...", 
+                    60, 
+                    eta=25 if args.mode == 'cloud' else 120
+                )
+                print(f"[Worker] 开始转录: {args.file} (模式: {args.mode}, 模型: {args.model})")
+                print(f"[Worker] 提示词: {args.title}")
+                
+                raw_subtitles = transcribe_audio(
+                    args.file, 
+                    mode=args.mode, 
+                    initial_prompt=args.title,
+                    model_size=args.model
+                )
             
             # 保存缓存
             with open(cache_sub_path, "w", encoding="utf-8") as wf:
                 json.dump(raw_subtitles, wf, ensure_ascii=False)
-            print(f"[Worker] 转录完成,已保存缓存")
+            print(f"[Worker] 转录/导入完成,已保存缓存")
         
         # LLM 处理
         duration = raw_subtitles[-1]["end"] if raw_subtitles else 0

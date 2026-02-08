@@ -160,5 +160,21 @@
         "live": "实时",
         "keyInterest": "重点关注区域",
         "analyticsAdvice": "本视频的互动区域如下，建议重点阅读。"
+    },
+    "pending": {
+        "title": "处理队列",
+        "subtitle": "正在按顺序处理的视频任务",
+        "empty": "当前队列为空",
+        "goSubmit": "去提交几个视频？",
+        "noteTitle": "处理说明",
+        "note1": "为了保证系统稳定性，视频将按提交顺序逐个处理。",
+        "note2": "带有官方字幕的视频处理速度将快 10 倍以上。",
+        "note3": "本页面每 5 秒自动刷新状态。",
+        "viewReport": "查看报告",
+        "recentTitle": "最近处理记录",
+        "recentSubtitle": "展示最近 50 个任务的状态与耗时",
+        "processedTime": "处理时间",
+        "duration": "视频时长",
+        "seconds": "秒"
     }
 }

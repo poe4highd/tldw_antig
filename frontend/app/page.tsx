@@ -12,6 +12,7 @@ import {
   Eye,
   Calendar,
   User,
+  Clock,
   Sparkles,
   Settings,
   TrendingUp,
@@ -150,6 +151,13 @@ export default function MarketingPage() {
         {/* Desktop & Mobile Top Header (Settings/Lang) */}
         <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20 flex items-center gap-3">
           <LanguageSwitcher />
+          <Link
+            href="/pending"
+            className="p-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg group"
+            title="Queue / 待处理"
+          >
+            <Clock className="w-5 h-5 group-hover:animate-pulse" />
+          </Link>
           <Link
             href="/settings"
             className="p-2.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-indigo-500/50 transition-all shadow-lg"

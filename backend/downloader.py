@@ -28,6 +28,11 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
             'Accept-Language': 'en-US,en;q=0.9',
             'Referer': 'https://www.youtube.com/',
         },
+        # 字幕下载配置
+        'writesubtitles': True,
+        'writeautomaticsub': True,
+        'subtitleslangs': ['zh.*', 'en.*'], # 优先下载中文或英文
+        'subtitlesformat': 'vtt/srt/best',
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

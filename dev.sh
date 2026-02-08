@@ -16,10 +16,14 @@ log_frontend() {
     sed "s/^/${GREEN}[FRONTEND]${NC} /"
 }
 
+log_scheduler() {
+    sed "s/^/${YELLOW}[SCHEDULER]${NC} /"
+}
+
 # 停止所有进程的函数
 cleanup() {
     printf "\n${NC}正在停止开发服务...${NC}\n"
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    kill $BACKEND_PID $FRONTEND_PID $SCHEDULER_PID 2>/dev/null
     exit
 }
 
@@ -69,6 +73,15 @@ BACKEND_PID=$!
 printf "${GREEN}启动前端服务 (Next.js)...${NC}\n"
 (cd frontend && npm run dev) 2>&1 | log_frontend &
 FRONTEND_PID=$!
+
+# 3. 启动任务调度器 (顺序处理)
+printf "${YELLOW}启动任务调度器 (Scheduler)...${NC}\n"
+if [ -d "backend/venv" ]; then
+    (cd backend && source venv/bin/activate && python3 -u scheduler.py) 2>&1 | log_scheduler &
+else
+    (cd backend && python3 -u scheduler.py) 2>&1 | log_scheduler &
+fi
+SCHEDULER_PID=$!
 
 # 等待所有后台进程
 wait

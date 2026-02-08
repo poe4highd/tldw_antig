@@ -328,7 +328,39 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
         task_id = str(int(time.time()))
     
     save_status(task_id, "queued", 0)
-    background_tasks.add_task(background_process, task_id, request.mode, url=request.url, user_id=request.user_id)
+    
+    # 记录到 Supabase，以便 Scheduler 认领
+    if supabase:
+        try:
+            # 尝试提取视频基本信息
+            name = "YouTube Video"
+            if len(task_id) == 11:
+                # 简单占位，真正的信息由 process_task.py 异步获取
+                name = f"YouTube: {task_id}"
+            
+            video_data = {
+                "id": task_id,
+                "title": name,
+                "status": "queued",
+                "report_data": {
+                    "url": request.url,
+                    "mode": request.mode,
+                    "user_id": request.user_id
+                }
+            }
+            supabase.table("videos").upsert(video_data).execute()
+            
+            if request.user_id:
+                supabase.table("submissions").upsert({
+                    "user_id": request.user_id,
+                    "video_id": task_id,
+                    "task_id": task_id
+                }, on_conflict="task_id").execute()
+        except Exception as e:
+            print(f"Failed to create queued record in Supabase: {e}")
+
+    # 不再直接启动 BackgroundTasks，由外部 scheduler.py 轮关注
+    # background_tasks.add_task(background_process, task_id, request.mode, url=request.url, user_id=request.user_id)
     return {"task_id": task_id}
 
 @app.post("/upload")
@@ -351,7 +383,33 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
     random_color = random.choice(colors)
     
     save_status(task_id, "queued", 0)
-    background_tasks.add_task(background_process, task_id, mode, local_file=file_path, title=file.filename, thumbnail=random_color, user_id=user_id)
+    # 记录到 Supabase
+    if supabase:
+        try:
+            video_data = {
+                "id": task_id,
+                "title": file.filename,
+                "thumbnail": random_color,
+                "media_path": os.path.basename(file_path),
+                "status": "queued",
+                "report_data": {
+                    "mode": mode,
+                    "user_id": user_id,
+                    "local_file": file_path
+                }
+            }
+            supabase.table("videos").upsert(video_data).execute()
+            
+            if user_id:
+                supabase.table("submissions").upsert({
+                    "user_id": user_id,
+                    "video_id": task_id,
+                    "task_id": task_id
+                }, on_conflict="task_id").execute()
+        except Exception as e:
+            print(f"Failed to create queued record in Supabase: {e}")
+
+    # background_tasks.add_task(background_process, mode, local_file=file_path, title=file.filename, thumbnail=random_color, user_id=user_id)
     
     return {"task_id": task_id}
 
@@ -422,12 +480,38 @@ async def get_history(user_id: str = None):
     total_stats = {"total_duration": 0, "total_cost": 0, "video_count": 0}
     active_tasks = []
 
+    active_taskId_set = set()
+
     # 1. Fetch from Supabase if available
     if supabase:
+        print(f"[DEBUG] Supabase connected, user_id: {user_id}")
         try:
+            # First, fetch queued/processing videos for active_tasks
+            active_vid_res = supabase.table("videos").select("id, status, created_at").order("created_at", desc=True).limit(100).execute()
+            print(f"[DEBUG] Raw videos count from Supabase: {len(active_vid_res.data)}")
+            for v in active_vid_res.data:
+                if v["status"] in ["queued", "processing"]:
+                    print(f"[DEBUG] Adding active task: {v['id']} ({v['status']})")
+                    active_tasks.append({
+                        "id": v["id"],
+                        "status": v["status"],
+                        "progress": 5 if v["status"] == "processing" else 0,
+                        "mtime": v["created_at"]
+                    })
+                    active_taskId_set.add(v["id"])
+
+            # Then fetch history
             query = supabase.table("submissions").select("created_at, videos(id, title, thumbnail, usage)")
             if user_id:
-                query = query.eq("user_id", user_id)
+                # Basic UUID check to avoid Supabase error
+                import re
+                is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', user_id.lower())
+                if is_uuid:
+                    query = query.eq("user_id", user_id)
+                else:
+                    # If not UUID, it won't match anyway in submissions table (usually)
+                    # For now just don't add the filter if it's "1" or similar
+                    pass
             
             response = query.order("created_at", desc=True).execute()
             
@@ -435,6 +519,12 @@ async def get_history(user_id: str = None):
             for item in response.data:
                 video = item.get("videos")
                 if not video or video["id"] in seen_video_ids: continue
+                # Skip non-completed for history main list if needed, 
+                # but usually history shows everything the user did.
+                # However, for consistency with the prompt, let's focus on completed for main display.
+                if video.get("status") != "completed":
+                    continue
+                    
                 seen_video_ids.add(video["id"])
                 
                 usage = video.get("usage", {})
@@ -505,27 +595,65 @@ async def get_history(user_id: str = None):
         status_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith("_status.json")]
         for sf in status_files:
             tid = sf.replace("_status.json", "")
+            if tid in active_taskId_set:
+                continue # Already added from Supabase
+                
             if not os.path.exists(f"{RESULTS_DIR}/{tid}.json") and not os.path.exists(f"{RESULTS_DIR}/{tid}_error.json"):
                 mtime = os.path.getmtime(f"{RESULTS_DIR}/{sf}")
-                if time.time() - mtime < 3600:
-                    try:
-                        with open(f"{RESULTS_DIR}/{sf}", "r") as f:
-                            status_data = json.load(f)
+                from datetime import datetime
+                mtime_str = datetime.fromtimestamp(mtime).isoformat()
+                # For queued/processing, don't limit to 3600s if it's recently submitted
+                try:
+                    with open(f"{RESULTS_DIR}/{sf}", "r") as f:
+                        status_data = json.load(f)
+                        status = status_data.get("status", "pending")
+                        # If it's queued or processing, show it regardless of 1-hour limit (maybe up to 24h)
+                        if status in ["queued", "processing"] or (time.time() - mtime < 3600):
                             active_tasks.append({
-                                "id": tid, "status": status_data.get("status", "pending"),
-                                "progress": status_data.get("progress", 0), "mtime": mtime
+                                "id": tid, "status": status,
+                                "progress": status_data.get("progress", 0), "mtime": mtime_str
                             })
-                    except: pass
+                except: pass
                 
-    return {
-        "items": history_items,
-        "history": history_items, # Alias for dashboard compatibility
-        "active_tasks": sorted(active_tasks, key=lambda x: x["mtime"], reverse=True),
-        "summary": {
-            "total_duration": total_stats["total_duration"],
-            "total_cost": round(total_stats["total_cost"], 4),
-            "video_count": total_stats["video_count"]
+        # 3. Fetch recent processing history (last 50, all statuses)
+        recent_records = []
+        try:
+            recent_vid_res = supabase.table("videos") \
+                .select("id, title, status, created_at, usage") \
+                .order("created_at", desc=True) \
+                .limit(50) \
+                .execute()
+            
+            for v in recent_vid_res.data:
+                usage = v.get("usage") or {}
+                recent_records.append({
+                    "id": v["id"],
+                    "title": v.get("title") or v["id"],
+                    "status": v["status"],
+                    "mtime": v["created_at"],
+                    "duration": round(usage.get("duration", 0), 1)
+                })
+        except Exception as e:
+            print(f"Failed to fetch recent records: {e}")
+
+        return {
+            "items": history_items,
+            "history": history_items,
+            "active_tasks": sorted(active_tasks, key=lambda x: x["mtime"], reverse=True),
+            "recent_tasks": recent_records,
+            "summary": {
+                "total_duration": total_stats["total_duration"],
+                "total_cost": round(total_stats["total_cost"], 4),
+                "video_count": total_stats["video_count"]
+            }
         }
+    
+    # Fallback if no supabase
+    return {
+        "items": [],
+        "active_tasks": [],
+        "recent_tasks": [],
+        "summary": {"total_duration": 0, "total_cost": 0, "video_count": 0}
     }
 
 @app.get("/explore")
@@ -540,7 +668,8 @@ async def get_explore():
         # Fetch videos from Supabase - Optimized to only get needed metadata
         # Large fields like raw_subtitles are excluded for performance
         response = supabase.table("videos") \
-            .select("id, title, thumbnail, created_at, view_count, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords") \
+            .select("id, title, thumbnail, created_at, view_count, status, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords") \
+            .eq("status", "completed") \
             .order("created_at", desc=True) \
             .limit(100) \
             .execute()

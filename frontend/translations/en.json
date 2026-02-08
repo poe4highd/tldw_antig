@@ -160,5 +160,21 @@
         "live": "LIVE",
         "keyInterest": "Key Interest Area",
         "analyticsAdvice": "The interaction is highest in the area, highly recommended to read."
+    },
+    "pending": {
+        "title": "Processing Queue",
+        "subtitle": "Video tasks being processed in sequence",
+        "empty": "Current queue is empty",
+        "goSubmit": "How about submitting a few videos?",
+        "noteTitle": "Processing Instructions",
+        "note1": "To ensure system stability, videos will be processed one by one in order of submission.",
+        "note2": "Videos with official subtitles will be processed more than 10 times faster.",
+        "note3": "This page automatically refreshes every 5 seconds.",
+        "viewReport": "View Report",
+        "recentTitle": "Recent Records",
+        "recentSubtitle": "Status and duration of the last 50 tasks",
+        "processedTime": "Processed at",
+        "duration": "Video duration",
+        "seconds": "s"
     }
 }
