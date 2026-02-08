@@ -270,9 +270,23 @@ export default function MarketingPage() {
 
         {/* Consolidate Toolbar (Sticky below hero) */}
         <div className="sticky top-[60px] md:top-[76px] z-40 bg-background/50 backdrop-blur-lg border-y border-card-border -mx-3 px-3 md:-mx-8 md:px-8 py-2 md:py-3 transition-all duration-300">
-          <div className="flex flex-col lg:flex-row items-center gap-3 md:gap-4">
-            {/* Row 1 for Mobile / Part of the row for Desktop: Keywords */}
-            <div className="w-full lg:w-auto flex-grow overflow-hidden relative group h-8">
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 md:gap-4">
+            {/* Search Bar: Desktop Order 1, 50% Width | Mobile Order 2 */}
+            <div className="order-2 lg:order-1 flex-grow lg:flex-none lg:w-1/2 relative group">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                <Search className="w-3.5 h-3.5" />
+              </div>
+              <input
+                type="text"
+                placeholder={t("explore.searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full bg-card-bg/50 border border-card-border rounded-xl py-1.5 pl-9 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
+              />
+            </div>
+
+            {/* Keywords: Desktop Order 2, Flexible | Mobile Order 1, Full Width */}
+            <div className="order-1 lg:order-2 w-full lg:w-auto lg:flex-1 overflow-hidden relative group h-8">
               <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] h-full">
                 {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
                   <button
@@ -293,22 +307,8 @@ export default function MarketingPage() {
               <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
             </div>
 
-            {/* Row 2 for Mobile / Part of the row for Desktop: Search & Switchers */}
-            <div className="w-full lg:w-3/5 flex items-center justify-between gap-2 md:gap-3">
-              {/* Search Bar */}
-              <div className="flex-grow relative group">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                  <Search className="w-3.5 h-3.5" />
-                </div>
-                <input
-                  type="text"
-                  placeholder={t("explore.searchPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-full bg-card-bg/50 border border-card-border rounded-xl py-1.5 pl-9 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
-                />
-              </div>
-
+            {/* View & Pagination Switchers: Desktop Order 3 | Mobile Order 3 */}
+            <div className="order-3 flex items-center gap-2">
               {/* View Switchers */}
               <div className="flex items-center bg-card-bg/30 border border-card-border p-0.5 rounded-lg gap-0.5 shrink-0">
                 {(viewMode === "text-single" || viewMode === "text-double") && (
