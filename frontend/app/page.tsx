@@ -59,6 +59,15 @@ export default function MarketingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [density, setDensity] = useState<"detailed" | "compact">("detailed");
   const [user, setUser] = useState<any>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 40);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     // Read preference
@@ -186,7 +195,7 @@ export default function MarketingPage() {
 
   return (
     <div className="min-h-screen bg-transparent text-foreground font-sans selection:bg-indigo-500/30">
-      <main className="max-w-7xl mx-auto p-4 md:p-8 relative">
+      <main className="max-w-7xl mx-auto p-3 md:p-8 relative">
         {/* Background Glows */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full" />
@@ -194,7 +203,7 @@ export default function MarketingPage() {
         </div>
 
         {/* Desktop & Mobile Top Header (Settings/Lang) */}
-        <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20 flex items-center gap-3">
+        <div className="absolute top-3 right-3 md:top-8 md:right-8 z-20 flex items-center gap-2 md:gap-3">
           <LanguageSwitcher />
           <Link
             href="/pending"
@@ -228,48 +237,51 @@ export default function MarketingPage() {
 
 
 
-        {/* Compact Hero Section */}
-        <div className="relative z-10 mb-6">
-          <div className="flex items-center gap-4 mb-2 flex-wrap">
-            <Link href="/" className="flex items-center space-x-3 group animate-in fade-in slide-in-from-left-4 duration-700">
-              <div className={cn(
-                "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
-                theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-indigo-500/5"
-              )}>
-                <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
+        {/* Responsive Header & Hero Section */}
+        <div className={cn(
+          "relative z-10 transition-all duration-500",
+          isScrolled ? "mb-2" : "mb-6"
+        )}>
+          {/* Title Row */}
+          <div className="flex items-center justify-between gap-4 mb-3 flex-wrap lg:flex-nowrap">
+            <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+              <Link href="/" className="flex items-center space-x-3 group shrink-0">
+                <div className={cn(
+                  "p-1.5 border rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl",
+                  theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                )}>
+                  <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
+                </div>
+                <span className={cn(
+                  "text-xl font-black tracking-tighter",
+                  theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
+                )}>
+                  {t("marketing.title")}
+                </span>
+              </Link>
+              <div className="h-4 w-px bg-slate-800/50 mx-1 hidden sm:block" />
+              <div className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase shrink-0">
+                <Sparkles className="w-2.5 h-2.5 mr-1" />
+                {t("marketing.tagline")}
               </div>
-              <span className={cn(
-                "text-xl font-black tracking-tighter transition-colors duration-300",
-                theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
-              )}>
-                {t("marketing.title")}
-              </span>
-            </Link>
-            <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
-            <div className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase">
-              <Sparkles className="w-2.5 h-2.5 mr-1" />
-              {t("marketing.tagline")}
             </div>
-          </div>
-          <div className="flex items-end justify-between gap-4">
-            <div className="flex-grow">
-              <h1 className={cn(
-                "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1] transition-colors duration-300",
-                theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
-              )}>
-                {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
-              </h1>
-              <p className={cn(
-                "text-sm md:text-base font-medium leading-snug hidden sm:block transition-colors duration-300",
-                theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
-              )}>
-                {t("marketing.description")}
-              </p>
+
+            {/* Desktop Search Bar Integration */}
+            <div className="hidden lg:flex flex-grow max-w-xl mx-4 relative group">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                <Search className="w-3.5 h-3.5" />
+              </div>
+              <input
+                type="text"
+                placeholder={t("explore.searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full bg-card-bg/50 border border-card-border rounded-xl py-2 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md"
+              />
             </div>
 
             {/* Compact View Switcher */}
-            <div className="flex items-center bg-card-bg border border-card-border p-1 rounded-xl shadow-inner mb-2 gap-1">
-              {/* Density Toggle (only for list views) */}
+            <div className="flex items-center bg-card-bg border border-card-border p-1 rounded-xl shadow-inner gap-1 shrink-0">
               {(viewMode === "text-single" || viewMode === "text-double") && (
                 <div className="flex items-center bg-background/50 rounded-lg p-0.5 border border-card-border mr-1">
                   <button
@@ -327,25 +339,51 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Integrated Search Bar (Moved contextually) */}
-        <div className="relative z-10 mb-4 max-w-xl mx-auto group">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-            <Search className="w-4 h-4" />
+          {/* Hero Content with Scroll-to-Hide */}
+          <div className={cn(
+            "flex flex-col overflow-hidden transition-all duration-700 ease-in-out",
+            isScrolled ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-2"
+          )}>
+            <h1 className={cn(
+              "text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 leading-[1.1]",
+              theme === 'dark' ? "bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent" : "text-indigo-900"
+            )}>
+              {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
+            </h1>
+            <p className={cn(
+              "text-sm md:text-base font-medium leading-snug hidden sm:block",
+              theme === 'dark' ? "text-slate-500" : "text-indigo-950/60"
+            )}>
+              {t("marketing.description")}
+            </p>
           </div>
-          <input
-            type="text"
-            placeholder={t("explore.searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full bg-card-bg border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md shadow-xl"
-          />
         </div>
 
+        {/* Mobile Search Bar (lg:hidden) */}
+        <div className={cn(
+          "relative z-10 transition-all duration-500 lg:hidden",
+          isScrolled ? "mb-4" : "mb-6"
+        )}>
+          <div className="max-w-xl mx-auto group relative">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              placeholder={t("explore.searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full bg-card-bg border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md shadow-xl"
+            />
+          </div>
+        </div>
 
-        {/* Auto-Scrolling Keywords */}
-        <div className="relative z-10 mb-8 overflow-hidden group border-y border-card-border py-2">
+        {/* Space Optimization for Keywords */}
+        <div className={cn(
+          "relative z-10 overflow-hidden group border-y border-card-border py-1.5 transition-all duration-500",
+          isScrolled ? "mb-4" : "mb-8"
+        )}>
           <div className="flex items-center gap-4">
             <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] cursor-pointer">
               {/* Duplicate array for seamless loop */}
