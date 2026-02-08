@@ -175,6 +175,12 @@
         "recentSubtitle": "展示最近 50 个任务的状态与耗时",
         "processedTime": "处理时间",
         "duration": "视频时长",
-        "seconds": "秒"
+        "seconds": "秒",
+        "queueLabel": "队列",
+        "noRecent": "— 暂无最近记录 —",
+        "statusQueued": "排队中",
+        "statusProcessing": "处理中",
+        "statusCompleted": "已完成",
+        "statusFailed": "处理失败"
     }
 }

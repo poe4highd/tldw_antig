@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/utils/api";
 import { useTranslation } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { twMerge } from "tailwind-merge";
 import { clsx, type ClassValue } from "clsx";
 
@@ -71,7 +72,7 @@ export default function PendingPage() {
                         </Link>
                         <div>
                             <h1 className="text-3xl font-black tracking-tight text-white mb-1">
-                                {t("pending.title")} <span className="text-indigo-500">Queue</span>
+                                {t("pending.title")} <span className="text-indigo-500">{t("pending.queueLabel")}</span>
                             </h1>
                             <p className="text-slate-500 text-sm font-medium">
                                 {t("pending.subtitle")}
@@ -79,12 +80,15 @@ export default function PendingPage() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={fetchTasks}
-                        className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 hover:bg-indigo-500/20 transition-all"
-                    >
-                        <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <LanguageSwitcher />
+                        <button
+                            onClick={fetchTasks}
+                            className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 hover:bg-indigo-500/20 transition-all"
+                        >
+                            <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
+                        </button>
+                    </div>
                 </div>
 
                 {tasks.length === 0 && !isLoading ? (
@@ -133,7 +137,10 @@ export default function PendingPage() {
                                                         task.status === 'completed' ? "bg-emerald-500/20 text-emerald-400" :
                                                             "bg-red-500/20 text-red-400"
                                             )}>
-                                                {task.status}
+                                                {task.status === 'processing' ? t("pending.statusProcessing") :
+                                                    task.status === 'queued' ? t("pending.statusQueued") :
+                                                        task.status === 'completed' ? t("pending.statusCompleted") :
+                                                            t("pending.statusFailed")}
                                             </span>
                                         </div>
 
@@ -188,7 +195,7 @@ export default function PendingPage() {
                     <div className="bg-slate-900/20 border border-slate-800/50 rounded-3xl p-2 space-y-1">
                         {recentRecords.length === 0 ? (
                             <div className="py-8 text-center text-slate-600 text-sm italic">
-                                — No recent records —
+                                {t("pending.noRecent")}
                             </div>
                         ) : (
                             recentRecords.map((item) => (
@@ -211,7 +218,9 @@ export default function PendingPage() {
                                                         item.status === 'failed' ? "bg-red-500/10 text-red-500/80" :
                                                             "bg-slate-800 text-slate-500"
                                                 )}>
-                                                    {item.status}
+                                                    {item.status === 'completed' ? t("pending.statusCompleted") :
+                                                        item.status === 'failed' ? t("pending.statusFailed") :
+                                                            item.status}
                                                 </span>
                                                 <span className="text-slate-600 text-[10px] font-medium flex items-center gap-1">
                                                     <Clock size={10} />

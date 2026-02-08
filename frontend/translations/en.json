@@ -175,6 +175,12 @@
         "recentSubtitle": "Status and duration of the last 50 tasks",
         "processedTime": "Processed at",
         "duration": "Video duration",
-        "seconds": "s"
+        "seconds": "s",
+        "queueLabel": "Queue",
+        "noRecent": "— No recent records —",
+        "statusQueued": "Queued",
+        "statusProcessing": "Processing",
+        "statusCompleted": "Completed",
+        "statusFailed": "Failed"
     }
 }

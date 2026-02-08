@@ -315,7 +315,7 @@ export default function MarketingPage() {
                   </div>
 
                   <div className="flex-grow min-w-0">
-                    <h3 className="font-bold text-xs text-slate-100 group-hover:text-indigo-400 transition-colors truncate">
+                    <h3 className="font-bold text-base text-slate-100 group-hover:text-indigo-400 transition-colors truncate">
                       {item.title}
                     </h3>
                   </div>
@@ -344,7 +344,7 @@ export default function MarketingPage() {
                   </div>
 
                   <div className="p-4">
-                    <h3 className="font-bold text-sm line-clamp-2 mb-3 h-10 group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
+                    <h3 className="font-bold text-lg leading-[0.85] line-clamp-2 mb-3 h-10 group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
                       {item.title}
                     </h3>
 

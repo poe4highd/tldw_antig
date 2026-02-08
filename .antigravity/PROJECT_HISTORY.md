@@ -78,3 +78,4 @@
 [2026-01-16 Part 1] | [Feature] | 仪表盘、登录页与全站重构 | 实现 Landing Page、用户 Dashboard 及运营看板 | archive/log_20260116_1.md
 [2026-01-16 Part 2] | [Style] | 品牌视觉精修 | 正式定名 Read-Tube，完成多轮图标迭代与透明度修复 | archive/log_20260116_2.md
 [2026-01-18 Part 1] | FEATURE | 报告页真实数据与UI优化 | 实现阅读数、点赞、讨论区真实数据，按钮移动至视频下方，恢复无抖动字幕高亮 | walkthrough.md
+2026-02-07 | UI/UX | Pending 页双语与主页排版 | 集成语言切换组件，优化主页视频列表标题行距与字号 | walkthrough.md
