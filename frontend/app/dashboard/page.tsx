@@ -88,9 +88,11 @@ const MOCK_VIDEOS = [
 ];
 
 import { useTranslation } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function DashboardPage() {
     const { t, language } = useTranslation();
+    const { theme } = useTheme();
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [searchQuery, setSearchQuery] = useState("");
     const [user, setUser] = useState<{
@@ -184,7 +186,7 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-50 flex font-sans">
+        <div className="min-h-screen bg-background text-foreground flex font-sans transition-colors duration-300">
             <Sidebar
                 user={user}
                 onSignOut={handleSignOut}
@@ -193,12 +195,18 @@ export default function DashboardPage() {
             />
 
             {/* Main Content */}
-            <main className="flex-grow min-w-0 p-4 md:p-10 bg-slate-950 relative">
+            <main className="flex-grow min-w-0 p-4 md:p-10 bg-transparent relative">
+                {/* Background Glows */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full" />
+                    <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 blur-[120px] rounded-full" />
+                </div>
+
                 {/* Mobile Header */}
                 <header className="flex items-center justify-between mb-8 md:hidden">
                     <button
                         onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 -ml-2 text-slate-400 hover:text-white"
+                        className="p-2 -ml-2 text-slate-400 hover:text-foreground hover:bg-card-bg rounded-xl transition-all"
                     >
                         <Menu className="w-6 h-6" />
                     </button>
@@ -210,142 +218,153 @@ export default function DashboardPage() {
                 </header>
 
                 {/* Header Section */}
-                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-10">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">{t("nav.bookshelf")}</h1>
+                        <h1 className={cn(
+                            "text-3xl md:text-4xl font-black tracking-tight mb-2",
+                            theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-900"
+                        )}>
+                            {t("nav.bookshelf")}
+                        </h1>
                         <p className="text-slate-500 text-sm font-medium">{t("dashboard.subtitle")}</p>
                     </div>
-                    <Link href="/tasks" className="flex items-center justify-center space-x-2 px-6 py-3 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:scale-[1.05] transition-all shadow-xl shadow-white/5 active:scale-95">
+                    <Link href="/tasks" className="flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-indigo-500/20 active:scale-95">
                         <Plus className="w-5 h-5" />
                         <span>{t("dashboard.newTask")}</span>
                     </Link>
                 </header>
 
-                {/* Filters & View Toggle */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
-                    <div className="relative w-full md:max-w-md group">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                            <Search className="w-4 h-4" />
+                {/* Filters & View Toggle (Sticky) */}
+                <div className="sticky top-0 z-40 bg-background/50 backdrop-blur-lg border-y border-card-border -mx-4 px-4 md:-mx-10 md:px-10 py-3 mb-8 transition-all duration-300">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="relative w-full md:max-w-md group">
+                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                <Search className="w-4 h-4" />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder={t("dashboard.searchPlaceholder")}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-card-bg/30 border border-card-border rounded-xl py-2 pl-12 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md text-foreground"
+                            />
                         </div>
-                        <input
-                            type="text"
-                            placeholder={t("dashboard.searchPlaceholder")}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-600 transition-all"
-                        />
-                    </div>
 
-                    <div className="flex items-center bg-slate-900/50 border border-slate-800 p-1 rounded-xl">
-                        <button
-                            onClick={() => setViewMode("grid")}
-                            className={cn(
-                                "p-2 rounded-lg transition-all",
-                                viewMode === "grid" ? "bg-slate-800 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"
-                            )}
-                        >
-                            <LayoutGrid className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => setViewMode("list")}
-                            className={cn(
-                                "p-2 rounded-lg transition-all",
-                                viewMode === "list" ? "bg-slate-800 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"
-                            )}
-                        >
-                            <List className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-card-bg/30 border border-card-border p-0.5 rounded-lg backdrop-blur-md">
+                                <button
+                                    onClick={() => setViewMode("grid")}
+                                    className={cn(
+                                        "p-2 rounded-lg transition-all",
+                                        viewMode === "grid" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                                    )}
+                                >
+                                    <LayoutGrid className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode("list")}
+                                    className={cn(
+                                        "p-2 rounded-lg transition-all",
+                                        viewMode === "list" ? "bg-foreground text-background shadow-sm" : "text-slate-500 hover:text-indigo-400"
+                                    )}
+                                >
+                                    <List className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Content Area */}
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                        <div className="w-12 h-12 bg-slate-900 rounded-full mb-4" />
-                        <div className="h-4 w-48 bg-slate-900 rounded" />
-                    </div>
-                ) : videos.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-900/10 border border-dashed border-slate-800 rounded-[2.5rem] flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-4 text-slate-700">
-                            <Plus className="w-8 h-8" />
+                <div className="relative z-10">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                            <div className="w-12 h-12 bg-card-bg rounded-full mb-4" />
+                            <div className="h-4 w-48 bg-card-bg rounded" />
                         </div>
-                        <p className="text-slate-400 font-bold text-lg mb-2">{t("dashboard.emptyTitle")}</p>
-                        <p className="text-slate-600 text-sm mb-8 font-medium">{t("dashboard.emptyDesc")}</p>
-                        <Link href="/tasks" className="flex items-center justify-center space-x-2 px-8 py-3.5 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:scale-[1.05] transition-all shadow-xl shadow-indigo-500/20 active:scale-95 leading-none">
-                            <Plus className="w-5 h-5" />
-                            <span>{t("dashboard.addFirstTask")}</span>
-                        </Link>
-                    </div>
-                ) : viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase())).map((video) => (
-                            <div key={video.id} className="group relative bg-slate-900/30 border border-slate-800/50 rounded-3xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
-                                <div className="aspect-video relative overflow-hidden">
-                                    <img src={video.thumbnail} alt={video.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
-
-                                    {/* Source Badge */}
-                                    <div className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10 group-hover:border-white/20 transition-colors">
-                                        {video.source === "youtube" ? <Youtube className="w-4 h-4 text-red-500" /> : <FileUp className="w-4 h-4 text-blue-400" />}
-                                    </div>
-
-                                    {/* Privacy Badge */}
-                                    <div className="absolute top-4 right-4 flex items-center space-x-2">
-                                        {video.isPublic ? (
-                                            <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full backdrop-blur-md flex items-center space-x-1">
-                                                <Share2 className="w-3 h-3" />
-                                                <span>{t("dashboard.public")}</span>
-                                            </div>
-                                        ) : (
-                                            <div className="px-3 py-1 bg-slate-500/20 border border-white/5 text-slate-400 text-[10px] font-bold rounded-full backdrop-blur-md flex items-center space-x-1">
-                                                <Lock className="w-3 h-3" />
-                                                <span>{t("dashboard.private")}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="p-6">
-                                    <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors">{video.title}</h3>
-                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                        <span>{video.date}</span>
-                                        <span className="flex items-center space-x-1">
-                                            <ArrowRight className="w-3 h-3" />
-                                            <span>{t("dashboard.viewReport")}</span>
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Click Overlay */}
-                                <Link href={`/result/${video.id}`} className="absolute inset-0 z-10" aria-label="View report" />
+                    ) : videos.length === 0 ? (
+                        <div className="text-center py-20 bg-card-bg border border-dashed border-card-border rounded-[2.5rem] flex flex-col items-center justify-center shadow-xl">
+                            <div className="w-16 h-16 bg-background border border-card-border rounded-2xl flex items-center justify-center mb-4 text-slate-500 shadow-xl">
+                                <Plus className="w-8 h-8" />
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase())).map((video) => (
-                            <Link
-                                key={video.id}
-                                href={`/result/${video.id}`}
-                                className="flex items-center justify-between p-5 bg-slate-900/40 border border-slate-800 rounded-2xl hover:border-indigo-500/50 hover:bg-slate-900/60 transition-all group"
-                            >
-                                <div className="flex items-center space-x-6 overflow-hidden">
-                                    <span className="p-2 bg-slate-950 border border-slate-800 rounded-lg group-hover:text-indigo-400 transition-colors">
-                                        {video.source === "youtube" ? <Youtube className="w-4 h-4" /> : <FileUp className="w-4 h-4" />}
-                                    </span>
-                                    <span className="font-bold text-sm truncate">{video.title}</span>
-                                </div>
-                                <div className="flex items-center space-x-8 flex-shrink-0 ml-4">
-                                    <div className="hidden sm:flex items-center space-x-4">
-                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{video.date}</span>
-                                        {video.isPublic ? <Share2 className="w-4 h-4 text-emerald-500/50" /> : <Lock className="w-4 h-4 text-slate-600" />}
-                                    </div>
-                                    <ArrowRight className="w-4 h-4 text-slate-700 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
-                                </div>
+                            <p className="text-foreground font-bold text-lg mb-2">{t("dashboard.emptyTitle")}</p>
+                            <p className="text-slate-500 text-sm mb-8 font-medium">{t("dashboard.emptyDesc")}</p>
+                            <Link href="/tasks" className="flex items-center justify-center space-x-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:scale-[1.05] transition-all shadow-xl shadow-indigo-500/20 active:scale-95 leading-none">
+                                <Plus className="w-5 h-5" />
+                                <span>{t("dashboard.addFirstTask")}</span>
                             </Link>
-                        ))}
-                    </div>
-                )}
+                        </div>
+                    ) : viewMode === "grid" ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            {videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase())).map((video) => (
+                                <div key={video.id} className="group relative bg-card-bg border border-card-border rounded-3xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
+                                    <div className="aspect-video relative overflow-hidden">
+                                        <img src={video.thumbnail} alt={video.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent dark:block hidden" />
+
+                                        {/* Source Badge */}
+                                        <div className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10 group-hover:border-white/20 transition-colors">
+                                            {video.source === "youtube" ? <Youtube className="w-4 h-4 text-red-500" /> : <FileUp className="w-4 h-4 text-blue-400" />}
+                                        </div>
+
+                                        {/* Privacy Badge */}
+                                        <div className="absolute top-4 right-4 flex items-center space-x-2">
+                                            {video.isPublic ? (
+                                                <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full backdrop-blur-md flex items-center space-x-1">
+                                                    <Share2 className="w-3 h-3" />
+                                                    <span>{t("dashboard.public")}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="px-3 py-1 bg-slate-500/20 border border-white/5 text-slate-400 text-[10px] font-bold rounded-full backdrop-blur-md flex items-center space-x-1">
+                                                    <Lock className="w-3 h-3" />
+                                                    <span>{t("dashboard.private")}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6">
+                                        <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors text-foreground">{video.title}</h3>
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                            <span>{video.date}</span>
+                                            <span className="flex items-center space-x-1">
+                                                <ArrowRight className="w-3 h-3" />
+                                                <span>{t("dashboard.viewReport")}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Click Overlay */}
+                                    <Link href={`/result/${video.id}`} className="absolute inset-0 z-10" aria-label="View report" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase())).map((video) => (
+                                <Link
+                                    key={video.id}
+                                    href={`/result/${video.id}`}
+                                    className="flex items-center justify-between p-5 bg-card-bg border border-card-border rounded-2xl hover:border-indigo-500/50 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-all group"
+                                >
+                                    <div className="flex items-center space-x-6 overflow-hidden">
+                                        <span className="p-2 bg-background border border-card-border rounded-lg group-hover:text-indigo-400 transition-colors">
+                                            {video.source === "youtube" ? <Youtube className="w-4 h-4" /> : <FileUp className="w-4 h-4" />}
+                                        </span>
+                                        <span className="font-bold text-sm truncate text-foreground">{video.title}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-8 flex-shrink-0 ml-4">
+                                        <div className="hidden sm:flex items-center space-x-4">
+                                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{video.date}</span>
+                                            {video.isPublic ? <Share2 className="w-4 h-4 text-emerald-500/50" /> : <Lock className="w-4 h-4 text-slate-600" />}
+                                        </div>
+                                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );

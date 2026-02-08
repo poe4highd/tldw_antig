@@ -82,23 +82,23 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
 
             <aside
                 className={cn(
-                    "fixed top-0 left-0 z-50 w-64 h-screen bg-slate-950 border-r border-slate-900 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 md:static",
+                    "fixed top-0 left-0 z-50 w-64 h-screen bg-background border-r border-card-border flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 md:static",
                     isOpen ? "translate-x-0" : "-translate-x-full"
                 )}
             >
                 <div className="p-8 flex flex-col h-full overflow-y-auto">
                     <div className="flex items-center justify-between mb-12">
                         <Link href="/?noredirect=1" className="flex items-center space-x-3 group text-left">
-                            <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300">
+                            <div className="p-2 bg-card-bg border border-card-border rounded-xl group-hover:border-indigo-500/50 transition-all duration-300">
                                 <img src="/icon.png" alt="Read-Tube Logo" className="w-6 h-6" />
                             </div>
-                            <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                            <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent">
                                 {t("marketing.title")}
                             </span>
                         </Link>
                         <button
                             onClick={onClose}
-                            className="p-2 text-slate-500 hover:text-white md:hidden"
+                            className="p-2 text-slate-500 hover:text-foreground md:hidden"
                         >
                             <X className="w-6 h-6" />
                         </button>
@@ -122,7 +122,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                                                     "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
                                                     isActive
                                                         ? "bg-indigo-500/10 text-indigo-400 font-bold"
-                                                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                                                        : "text-slate-400 hover:bg-card-bg hover:text-foreground"
                                                 )}
                                             >
                                                 <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -151,7 +151,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                                                     "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
                                                     isActive
                                                         ? "bg-indigo-500/10 text-indigo-400 font-bold"
-                                                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                                                        : "text-slate-400 hover:bg-card-bg hover:text-foreground"
                                                 )}
                                             >
                                                 <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -165,7 +165,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                     </nav>
 
                     {user && (
-                        <div className="mt-auto pt-6 border-t border-slate-900 flex flex-col gap-6">
+                        <div className="mt-auto pt-6 border-t border-card-border flex flex-col gap-6">
                             <div className="flex items-center space-x-3 px-2">
                                 {user?.user_metadata?.avatar_url ? (
                                     <img
@@ -179,7 +179,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                                     </div>
                                 )}
                                 <div className="overflow-hidden">
-                                    <p className="text-sm font-bold truncate">
+                                    <p className="text-sm font-bold truncate text-foreground">
                                         {user?.user_metadata?.full_name || user?.email?.split('@')[0] || t("sidebar.signedIn")}
                                     </p>
                                     <div className="flex items-center gap-1.5">
@@ -200,7 +200,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                                         onSignOut();
                                         onClose();
                                     }}
-                                    className="flex-1 flex items-center justify-center space-x-2 py-3 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
+                                    className="flex-1 flex items-center justify-center space-x-2 py-3 border border-card-border hover:border-red-500/50 hover:bg-red-500/5 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>{t("common.logout")}</span>
@@ -210,7 +210,7 @@ export function Sidebar({ user, onSignOut, isOpen, onClose }: SidebarProps) {
                         </div>
                     )}
                     {!user && (
-                        <div className="mt-auto pt-6 border-t border-slate-900 flex justify-center">
+                        <div className="mt-auto pt-6 border-t border-card-border flex justify-center">
                             <LanguageSwitcher />
                         </div>
                     )}

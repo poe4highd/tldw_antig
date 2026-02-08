@@ -78,7 +78,11 @@
         "securityNote": "您的数据安全受高级加密保护",
         "magicLinkSent": "神奇链接已发送！请检查您的收件箱。",
         "sendFailed": "发送失败: ",
-        "loginFailed": "登录失败: "
+        "loginFailed": "登录失败: ",
+        "featureSubmitTitle": "提交新视频",
+        "featureSubmitDesc": "支持任意 YouTube 链接或本地音视频文件，极速转录处理。",
+        "featurePersonalTitle": "个人数字化书架",
+        "featurePersonalDesc": "管理所有选中的视频，随时回溯处理过的深度视频报告。"
     },
     "history": {
         "title": "项目更新历史",

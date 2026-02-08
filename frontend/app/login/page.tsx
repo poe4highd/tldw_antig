@@ -2,15 +2,23 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Mail, ArrowRight, Chrome, ShieldCheck, Clock, LayoutGrid, Sparkles } from "lucide-react";
+import { Mail, ArrowRight, Chrome, ShieldCheck, Clock, LayoutGrid, Sparkles, FileUp } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { getSiteUrl } from "@/utils/api";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
 
 import { useTranslation } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function LoginPage() {
     const { t, language } = useTranslation();
+    const { theme } = useTheme();
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -70,24 +78,27 @@ export default function LoginPage() {
     };
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-indigo-500/30 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <main className="min-h-screen bg-transparent text-foreground font-sans selection:bg-indigo-500/30 flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300">
             {/* Background Glows */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
             </div>
 
-            {/* Language Switcher */}
-            <div className="absolute top-8 right-8 z-30">
+            {/* Language Switcher & Theme Toggle */}
+            <div className="absolute top-8 right-8 z-30 flex items-center gap-3">
                 <LanguageSwitcher />
             </div>
 
             {/* Top Logo (Navigator back to Home) */}
             <Link href="/" className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center space-x-3 group z-20">
-                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300">
+                <div className="p-2 bg-card-bg border border-card-border rounded-xl group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
                     <img src="/icon.png" alt="Read-Tube Logo" className="w-8 h-8" />
                 </div>
-                <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                <span className={cn(
+                    "text-2xl font-black tracking-tighter",
+                    theme === 'dark' ? "bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent" : "text-indigo-600"
+                )}>
                     Read-Tube
                 </span>
             </Link>
@@ -96,10 +107,10 @@ export default function LoginPage() {
                 {/* Left side: Feature List */}
                 <div className="hidden lg:flex flex-col space-y-8">
                     <div className="space-y-2">
-                        <h2 className="text-4xl font-black tracking-tight text-white leading-tight">
+                        <h2 className="text-4xl font-black tracking-tight leading-tight">
                             {language === 'zh' ? "探索 Read-Tube 完整体验" : "Experience the Full Power"}
                         </h2>
-                        <p className="text-slate-400 text-lg">
+                        <p className="text-slate-500 text-lg">
                             {language === 'zh' ? "登录后解锁更多专为深度学习者设计的功能" : "Unlock premium features designed for deep learners"}
                         </p>
                     </div>
@@ -107,19 +118,19 @@ export default function LoginPage() {
                     <div className="grid grid-cols-1 gap-6">
                         {[
                             {
-                                icon: <Clock className="w-6 h-6 text-indigo-400" />,
-                                title: language === 'zh' ? "云端历史" : "Cloud History",
-                                desc: language === 'zh' ? "永久保存您的所有音视频转录与阅读记录，随时随地回溯。" : "Save all transcriptions and reading history permanently."
+                                icon: <FileUp className="w-6 h-6 text-indigo-400" />,
+                                title: t("login.featureSubmitTitle"),
+                                desc: t("login.featureSubmitDesc")
                             },
                             {
                                 icon: <LayoutGrid className="w-6 h-6 text-blue-400" />,
-                                title: language === 'zh' ? "专属书架" : "Personal Library",
-                                desc: language === 'zh' ? "构建个人音视频知识库，分类管理您的深度阅读内容。" : "Build your own video knowledge base and library."
+                                title: t("login.featurePersonalTitle"),
+                                desc: t("login.featurePersonalDesc")
                             },
                             {
-                                icon: <Sparkles className="w-6 h-6 text-indigo-400" />,
-                                title: language === 'zh' ? "优先处理" : "Priority Processing",
-                                desc: language === 'zh' ? "注册用户享受更快的处理速度，极速转录，无需等待。" : "Registered users get faster transcription and analysis."
+                                icon: <Clock className="w-6 h-6 text-indigo-400" />,
+                                title: language === 'zh' ? "云端历史" : "Cloud History",
+                                desc: language === 'zh' ? "永久保存您的所有音视频转录与阅读记录，随时随地回溯。" : "Save all transcriptions and reading history permanently."
                             },
                             {
                                 icon: <ShieldCheck className="w-6 h-6 text-emerald-400" />,
@@ -128,11 +139,11 @@ export default function LoginPage() {
                             }
                         ].map((feat, i) => (
                             <div key={i} className="flex gap-4 group cursor-default">
-                                <div className="shrink-0 w-12 h-12 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center group-hover:border-indigo-500/50 group-hover:bg-slate-800 transition-all">
+                                <div className="shrink-0 w-12 h-12 bg-card-bg border border-card-border rounded-2xl flex items-center justify-center group-hover:border-indigo-500/50 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-all shadow-lg">
                                     {feat.icon}
                                 </div>
                                 <div className="space-y-1">
-                                    <h3 className="font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">{feat.title}</h3>
+                                    <h3 className="font-bold text-foreground group-hover:text-indigo-400 transition-colors">{feat.title}</h3>
                                     <p className="text-slate-500 text-sm leading-relaxed">{feat.desc}</p>
                                 </div>
                             </div>
@@ -141,28 +152,28 @@ export default function LoginPage() {
                 </div>
 
                 {/* Main Card */}
-                <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl shadow-black/50 overflow-hidden group relative">
+                <div className="bg-card-bg backdrop-blur-2xl border border-card-border rounded-[2.5rem] p-10 shadow-2xl shadow-black/5 flex flex-col group relative">
                     <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
 
                     <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold tracking-tight mb-2">{t("login.title")}</h2>
-                        <p className="text-slate-400 text-sm">{t("login.subtitle")}</p>
+                        <h2 className="text-3xl font-bold tracking-tight mb-2 text-foreground">{t("login.title")}</h2>
+                        <p className="text-slate-500 text-sm">{t("login.subtitle")}</p>
                     </div>
 
                     <div className="space-y-4">
                         {/* Google Login */}
                         <button
                             onClick={handleGoogleLogin}
-                            className="w-full flex items-center justify-center space-x-3 py-4 bg-white text-slate-950 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-[0.98] shadow-lg shadow-white/5"
+                            className="w-full flex items-center justify-center space-x-3 py-4 bg-foreground text-background rounded-2xl font-bold text-sm hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-black/5"
                         >
                             <Chrome className="w-5 h-5" />
                             <span>{t("login.googleTitle")}</span>
                         </button>
 
                         <div className="relative py-4 flex items-center">
-                            <div className="flex-grow border-t border-slate-800"></div>
+                            <div className="flex-grow border-t border-card-border"></div>
                             <span className="flex-shrink mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">{t("login.or")}</span>
-                            <div className="flex-grow border-t border-slate-800"></div>
+                            <div className="flex-grow border-t border-card-border"></div>
                         </div>
 
                         {/* Email Login */}
@@ -177,7 +188,7 @@ export default function LoginPage() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-14 pr-5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
+                                    className="w-full bg-background/50 border border-card-border rounded-2xl py-4 pl-14 pr-5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/50 transition-all placeholder:text-slate-600 text-foreground"
                                 />
                             </div>
 
@@ -193,11 +204,11 @@ export default function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={loading || !email}
-                                className="w-full py-4 bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
+                                className="w-full py-4 bg-card-bg border border-card-border hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-foreground rounded-2xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
                             >
                                 {loading ? (
                                     <>
-                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
                                         <span>{t("login.sending")}</span>
                                     </>
                                 ) : (
@@ -208,10 +219,10 @@ export default function LoginPage() {
                     </div>
 
                     {/* Guest Entry */}
-                    <div className="mt-10 pt-8 border-t border-slate-800/50 text-center">
+                    <div className="mt-10 pt-8 border-t border-card-border text-center">
                         <button
                             onClick={handleGuestEntry}
-                            className="inline-flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 font-bold text-sm group transition-colors"
+                            className="inline-flex items-center space-x-2 text-indigo-500 hover:text-indigo-400 font-bold text-sm group transition-colors"
                         >
                             <span>{t("login.guestEntry")}</span>
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

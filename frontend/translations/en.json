@@ -78,7 +78,11 @@
         "securityNote": "Your data is protected by advanced encryption",
         "magicLinkSent": "Magic link sent! Please check your inbox.",
         "sendFailed": "Send failed: ",
-        "loginFailed": "Login failed: "
+        "loginFailed": "Login failed: ",
+        "featureSubmitTitle": "Submit New Videos",
+        "featureSubmitDesc": "Support any YouTube link or local file for fast transcription.",
+        "featurePersonalTitle": "Personal Digital Bookshelf",
+        "featurePersonalDesc": "Manage selected videos and re-visit processed reports."
     },
     "history": {
         "title": "Project History",
