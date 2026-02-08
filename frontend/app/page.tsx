@@ -413,9 +413,9 @@ export default function MarketingPage() {
             </div>
           )}
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 py-6 border-y border-slate-900/30">
+          {/* Pagination Controls - Always show the row to provide the limit selector */}
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 py-6 border-y border-slate-900/30">
+            {totalPages > 1 && (
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -435,32 +435,32 @@ export default function MarketingPage() {
                   {language === 'zh' ? '下一页' : 'Next'}
                 </button>
               </div>
+            )}
 
-              {/* Limit Selector - Integrated into the same row */}
-              <div className="flex items-center gap-3 bg-slate-950 border border-slate-900 p-1 rounded-xl shadow-lg">
-                <span className="text-[9px] font-black text-slate-600 px-2 uppercase tracking-tighter">
-                  {language === 'zh' ? '每页显示' : 'Limit'}
-                </span>
-                <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
-                  {[20, 40, 80].map((l) => (
-                    <button
-                      key={l}
-                      onClick={() => {
-                        setLimit(l);
-                        setPage(1);
-                      }}
-                      className={cn(
-                        "px-3 py-1 rounded-md text-[10px] font-bold transition-all",
-                        limit === l ? "bg-white text-slate-950 shadow-md scale-105" : "text-slate-500 hover:text-slate-300"
-                      )}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
+            {/* Limit Selector - Always visible */}
+            <div className="flex items-center gap-3 bg-slate-950 border border-slate-900 p-1 rounded-xl shadow-lg">
+              <span className="text-[9px] font-black text-slate-600 px-2 uppercase tracking-tighter">
+                {language === 'zh' ? '每页显示' : 'Limit'}
+              </span>
+              <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+                {[20, 40, 80].map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      setLimit(l);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-[10px] font-bold transition-all",
+                      limit === l ? "bg-white text-slate-950 shadow-md scale-105" : "text-slate-500 hover:text-slate-300"
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer Link */}
