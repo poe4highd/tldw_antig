@@ -91,7 +91,7 @@ export default function ProjectHistoryPage() {
                             </Link>
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("history.title")}</h1>
-                                <p className="text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{t("history.subtitle")} · .antigravity/PROJECT_HISTORY.md</p>
+                                <p className="text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{t("history.subtitle")}</p>
                             </div>
                         </div>
                     </header>

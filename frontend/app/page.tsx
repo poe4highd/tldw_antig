@@ -214,7 +214,7 @@ export default function MarketingPage() {
         <div className="relative z-10 mb-6">
           <div className="flex items-center gap-4 mb-2 flex-wrap">
             <Link href="/" className="flex items-center space-x-3 group animate-in fade-in slide-in-from-left-4 duration-700">
-              <div className="p-1.5 bg-slate-900 dark:bg-slate-900 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
+              <div className="p-1.5 bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
                 <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
               </div>
               <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-foreground to-slate-400 bg-clip-text text-transparent">
@@ -347,32 +347,20 @@ export default function MarketingPage() {
                 <Link
                   key={item.id}
                   href={`/result/${item.id}`}
-                  className="group flex items-start sm:items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 bg-card-bg border border-card-border rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
+                  className="group flex items-center gap-2 sm:gap-4 p-1.5 sm:p-2 bg-card-bg border border-card-border rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
                 >
-                  {/* Thumbnail for Mobile/List */}
-                  <div className="shrink-0 w-24 sm:w-auto h-auto sm:h-auto">
-                    <div className="aspect-video sm:hidden rounded-md overflow-hidden bg-slate-900 border border-slate-800/50 mb-0">
-                      <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div
-                      className="hidden sm:flex w-6 h-6 rounded-full items-center justify-center p-[1px] shadow-sm group-hover:scale-105 transition-transform"
-                      style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
-                    >
-                      <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
-                        {item.channel_avatar ? (
-                          <img src={item.channel_avatar} alt={item.channel} className="w-full h-full object-cover" />
-                        ) : (
-                          <img src={getAvatarUrl(item.channel || "YT")!} alt={item.channel} className="w-full h-full object-cover" />
-                        )}
-                      </div>
+                  {/* Thumbnail - Now always visible */}
+                  <div className="shrink-0 w-24 sm:w-28 h-auto">
+                    <div className="aspect-video rounded-md overflow-hidden bg-slate-900 border border-card-border">
+                      <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     </div>
                   </div>
 
-                  <div className="flex-grow min-w-0 flex flex-col justify-center h-full">
-                    <h3 className="font-bold text-sm sm:text-base text-foreground group-hover:text-indigo-400 transition-colors line-clamp-2 sm:truncate leading-tight mb-1 sm:mb-0">
+                  <div className="flex-grow min-w-0 flex flex-col justify-center gap-0.5">
+                    <h3 className="font-bold text-xs sm:text-sm text-foreground group-hover:text-indigo-400 transition-colors line-clamp-2 leading-tight">
                       {item.title}
                     </h3>
-                    <div className="flex sm:hidden items-center gap-3 text-[10px] font-black text-slate-600">
+                    <div className="flex items-center gap-3 text-[9px] sm:text-[10px] font-black text-slate-500">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-2.5 h-2.5" />
                         {formatDate(item.date)}
@@ -384,12 +372,8 @@ export default function MarketingPage() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 hidden sm:flex items-center gap-4 pr-1">
-                    <div className="flex items-center gap-1 text-[9px] font-black text-slate-500 group-hover:text-slate-400">
-                      <Eye className="w-2.5 h-2.5" />
-                      {item.views.toLocaleString()}
-                    </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-800 group-hover:text-indigo-400 transition-all" />
+                  <div className="shrink-0 hidden sm:flex items-center pr-2">
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </Link>
               ))}
@@ -397,7 +381,7 @@ export default function MarketingPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((item) => (
-                <div key={item.id} className="group relative bg-slate-900/30 border border-slate-800/50 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
+                <div key={item.id} className="group relative bg-card-bg border border-card-border rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
                   <div className="aspect-video relative overflow-hidden">
                     <img src={item.thumbnail} alt={item.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
