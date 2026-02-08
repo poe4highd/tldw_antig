@@ -1,3 +1,4 @@
+[2026-02-07] | [UI/UX] | 主页标题行距与关键词过滤优化 | 将 Hero 标题 `leading-[1.1]` 改为 `leading-[0.8]`，扩展 `filteredItems` 搜索范围至 `summary` 和 `keywords` 数组 | DEV_LOG.md
 [2026-02-07] | [FEATURE] | Pending 历史记录增强与频道自动化追踪 | 实现 Pending 页面展示最近 50 条处理记录（双语），并开发 channel_tracker.py 自动追踪已处理频道的最新内容并入队 | walkthrough.md
 [2026-02-07] | [FEATURE] | 顺序处理、字幕优化与频道追踪系统 | 实现视频队列顺序处理、YouTube 字幕自动拦截（加速 10x+）、频道最新视频自动发现及其进度可视化页面 | walkthrough.md
 [2026-02-07] | [UI/UX] | 界面极致简约与密度重构 | 整合搜索框至 Banner，视图切换图标化，视频条目单行展示，整体信息密度提升约 60% | walkthrough.md

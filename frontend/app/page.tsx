@@ -36,6 +36,8 @@ interface ExploreItem {
   channel?: string;
   channel_id?: string;
   channel_avatar?: string;
+  summary?: string;
+  keywords?: string[];
   date: string;
   views: number;
 }
@@ -107,10 +109,14 @@ export default function MarketingPage() {
     localStorage.setItem("rt-explore-view-mode", mode);
   };
 
-  const filteredItems = items.filter(item =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (item.channel && item.channel.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredItems = items.filter(item => {
+    const q = searchQuery.toLowerCase();
+    if (item.title.toLowerCase().includes(q)) return true;
+    if (item.channel && item.channel.toLowerCase().includes(q)) return true;
+    if (item.summary && item.summary.toLowerCase().includes(q)) return true;
+    if (item.keywords && item.keywords.some(kw => kw.toLowerCase().includes(q))) return true;
+    return false;
+  });
 
   const formatDate = (dateStr: string) => {
     try {
@@ -202,7 +208,7 @@ export default function MarketingPage() {
           </div>
           <div className="flex items-end justify-between gap-4">
             <div className="flex-grow">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-[1.1]">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-[0.8]">
                 {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
               </h1>
               <p className="text-slate-500 text-sm md:text-base font-medium leading-snug">
@@ -255,7 +261,7 @@ export default function MarketingPage() {
               {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
                 <button
                   key={`${kw}-${idx}`}
-                  onClick={() => setSearchQuery(kw)}
+                  onClick={() => setSearchQuery(searchQuery === kw ? "" : kw)}
                   className={cn(
                     "mx-2 px-4 py-1.5 rounded-full border text-[10px] font-bold transition-all duration-300",
                     searchQuery === kw
@@ -290,14 +296,14 @@ export default function MarketingPage() {
             </div>
           ) : viewMode === "text-single" || viewMode === "text-double" ? (
             <div className={cn(
-              "gap-3",
-              viewMode === "text-double" ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col space-y-2"
+              "gap-1.5",
+              viewMode === "text-double" ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col space-y-1"
             )}>
               {filteredItems.map((item) => (
                 <Link
                   key={item.id}
                   href={`/result/${item.id}`}
-                  className="group flex items-center gap-3 p-2.5 bg-slate-900/10 border border-slate-800/20 rounded-lg hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
+                  className="group flex items-center gap-2 p-1.5 bg-slate-900/10 border border-slate-800/20 rounded-lg hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
                 >
                   <div className="shrink-0">
                     <div
@@ -386,7 +392,7 @@ export default function MarketingPage() {
             <a href="#" className="hover:text-white transition-colors uppercase tracking-widest">{t("nav.privacy")}</a>
           </div>
         </footer>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }
