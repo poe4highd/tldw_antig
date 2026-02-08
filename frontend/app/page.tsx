@@ -189,7 +189,7 @@ export default function MarketingPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
           <div className="relative w-full md:max-w-2xl group">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
               <Search className="w-5 h-5" />
@@ -201,39 +201,6 @@ export default function MarketingPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-900/40 border border-slate-800/60 rounded-[1.5rem] py-4 pl-12 pr-4 text-base focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 placeholder:text-slate-600 transition-all shadow-2xl backdrop-blur-sm"
             />
-            {/* Dynamic Scrolling Keywords */}
-            <div className="mt-8 relative group">
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 scroll-smooth">
-                <div className="flex-shrink-0 flex items-center gap-2 px-2">
-                  <div className="flex items-center gap-2 p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
-                    <TrendingUp className="w-3 h-3 text-indigo-400" />
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest leading-none">
-                      {t("explore.trending") || "Trending"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pr-8">
-                  {trendingKeywords.map((kw) => (
-                    <button
-                      key={kw}
-                      onClick={() => setSearchQuery(kw)}
-                      className={cn(
-                        "flex-shrink-0 px-4 py-1.5 rounded-full border text-[10px] font-bold transition-all duration-300",
-                        searchQuery === kw
-                          ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
-                          : "bg-slate-900/40 border-slate-800 text-slate-400 hover:border-indigo-500/50 hover:text-indigo-400 hover:bg-slate-800"
-                      )}
-                    >
-                      {kw}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Fade gradient on the right */}
-              <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none" />
-            </div>
           </div>
 
           <div className="flex items-center bg-slate-900/50 border border-slate-800 p-1 rounded-xl shadow-inner">
@@ -276,6 +243,39 @@ export default function MarketingPage() {
               <span className="hidden sm:inline">{t("explore.modeThumb")}</span>
             </button>
           </div>
+        </div>
+
+        {/* Full-Width Auto-Scrolling Keywords */}
+        <div className="relative z-10 mb-12 overflow-hidden group">
+          <div className="flex items-center gap-4">
+            <div className="flex-shrink-0 flex items-center gap-2 px-2 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+              <TrendingUp className="w-3 h-3 text-indigo-400" />
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest leading-none whitespace-nowrap">
+                {t("explore.trending") || "Trending"}
+              </span>
+            </div>
+
+            <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] cursor-pointer">
+              {/* Duplicate array for seamless loop */}
+              {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
+                <button
+                  key={`${kw}-${idx}`}
+                  onClick={() => setSearchQuery(kw)}
+                  className={cn(
+                    "mx-2 px-4 py-1.5 rounded-full border text-[10px] font-bold transition-all duration-300",
+                    searchQuery === kw
+                      ? "bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
+                      : "bg-slate-900/40 border-slate-800 text-slate-400 hover:border-indigo-500/50 hover:text-indigo-400 hover:bg-slate-800"
+                  )}
+                >
+                  {kw}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Gradients to mask edges */}
+          <div className="absolute top-0 left-[100px] h-full w-20 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none z-10" />
         </div>
 
         {/* Content */}
