@@ -177,12 +177,12 @@ export default function MarketingPage() {
               {t("marketing.tagline")}
             </div>
           </div>
-          <div className="max-w-4xl">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-tight">
+          <div>
+            <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tight mb-6 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-tight">
               {t("marketing.heroTitle1")} <br className="hidden sm:block" />
               {t("marketing.heroTitle2")}
             </h1>
-            <p className="text-slate-500 text-base md:text-lg font-medium max-w-2xl leading-relaxed">
+            <p className="text-slate-500 text-base md:text-xl font-medium leading-relaxed">
               {t("marketing.description")}
             </p>
           </div>
