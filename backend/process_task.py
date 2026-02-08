@@ -29,6 +29,7 @@ def process_video_task(task_id):
     thumbnail = None
     mode = "cloud"
     user_id = None
+    is_public = True
     
     if supabase:
         try:
@@ -45,7 +46,8 @@ def process_video_task(task_id):
                 
                 title = video.get("title", title)
                 mode = temp_data.get("mode", "cloud")
-                user_id = temp_data.get("user_id")
+                user_id = video.get("user_id") or temp_data.get("user_id")
+                is_public = video.get("is_public", temp_data.get("is_public", True))
         except Exception as e:
             print(f"[Process Task] Error fetching from Supabase: {e}")
 
@@ -60,6 +62,7 @@ def process_video_task(task_id):
                 title = data.get("title", title)
                 mode = data.get("mode", "cloud")
                 user_id = data.get("user_id")
+                is_public = data.get("is_public", True)
 
     if not url and not local_file and len(task_id) == 11:
         # Heuristic: if it's 11 chars, it's likely a YouTube ID
@@ -261,6 +264,8 @@ def process_video_task(task_id):
                         "channel_avatar": result.get("channel_avatar")
                     },
                     "usage": result["usage"],
+                    "user_id": user_id,
+                    "is_public": is_public,
                     "status": "completed"
                 }
                 supabase.table("videos").upsert(video_data).execute()

@@ -60,6 +60,7 @@ class ProcessRequest(BaseModel):
     url: str
     mode: str = "cloud"
     user_id: str = None
+    is_public: bool = True
 
 class CommentRequest(BaseModel):
     video_id: str
@@ -75,7 +76,7 @@ def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
 
-def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None, user_id=None):
+def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None, user_id=None, is_public=True):
     try:
         video_id = ""
         description = ""
@@ -264,6 +265,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     "id": video_id if url else task_id,
                     "title": result["title"],
                     "thumbnail": thumbnail,
+                    "user_id": user_id,
+                    "is_public": is_public,
                     "media_path": os.path.basename(file_path),
                     "report_data": {
                         "paragraphs": result["paragraphs"],
@@ -354,10 +357,13 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
                 "id": task_id,
                 "title": name,
                 "status": "queued",
+                "user_id": request.user_id,
+                "is_public": request.is_public,
                 "report_data": {
                     "url": request.url,
                     "mode": request.mode,
-                    "user_id": request.user_id
+                    "user_id": request.user_id,
+                    "is_public": request.is_public
                 }
             }
             supabase.table("videos").upsert(video_data).execute()
@@ -376,7 +382,7 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
     return {"task_id": task_id}
 
 @app.post("/upload")
-async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None):
+async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None, is_public: bool = True):
     # 使用文件内容 hash 生成唯一 ID
     content = await file.read()
     file_hash = hashlib.md5(content).hexdigest()[:8]
@@ -404,9 +410,12 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
                 "thumbnail": random_color,
                 "media_path": os.path.basename(file_path),
                 "status": "queued",
+                "user_id": user_id,
+                "is_public": is_public,
                 "report_data": {
                     "mode": mode,
                     "user_id": user_id,
+                    "is_public": is_public,
                     "local_file": file_path
                 }
             }
@@ -421,7 +430,7 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
         except Exception as e:
             print(f"Failed to create queued record in Supabase: {e}")
 
-    # background_tasks.add_task(background_process, mode, local_file=file_path, title=file.filename, thumbnail=random_color, user_id=user_id)
+    # background_tasks.add_task(background_process, mode, local_file=file_path, title=file.filename, thumbnail=random_color, user_id=user_id, is_public=is_public)
     
     return {"task_id": task_id}
 
@@ -702,10 +711,23 @@ async def get_explore(page: int = 1, limit: int = 24, q: str = None, user_id: st
         }
     
     try:
+        # 获取隐藏频道列表
+        hidden_channel_ids = set()
+        try:
+            hidden_channels = supabase.table("channel_settings") \
+                .select("channel_id") \
+                .eq("hidden_from_home", True) \
+                .execute()
+            hidden_channel_ids = {c["channel_id"] for c in hidden_channels.data}
+        except Exception as e:
+            # 表可能不存在，忽略错误
+            print(f"[Explore] channel_settings 查询失败（表可能不存在）: {e}")
+        
         # Start building the query
         query = supabase.table("videos") \
-            .select("id, title, thumbnail, created_at, view_count, status, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords", count="exact") \
-            .eq("status", "completed")
+            .select("id, title, thumbnail, created_at, view_count, status, hidden_from_home, is_public, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords", count="exact") \
+            .eq("status", "completed") \
+            .eq("is_public", True)
             
         if q:
             # Search in title, channel (via report_data), or keywords
@@ -734,6 +756,14 @@ async def get_explore(page: int = 1, limit: int = 24, q: str = None, user_id: st
         for v in response.data:
             # Skip uploads - heuristic: youtube IDs are 11 chars
             if len(v["id"]) != 11 or v["id"].startswith("up_"):
+                continue
+            
+            # Skip hidden videos (individual or by channel)
+            if v.get("hidden_from_home"):
+                continue
+            
+            video_channel_id = v.get("channel_id")
+            if video_channel_id and video_channel_id in hidden_channel_ids:
                 continue
             
             items.append({
@@ -855,6 +885,7 @@ async def get_bookshelf(user_id: str, limit: int = 40):
                     "thumbnail": video["thumbnail"],
                     "mtime": item["created_at"],
                     "status": video["status"],
+                    "is_public": video.get("is_public", True),
                     "summary": video.get("report_data", {}).get("summary") if video.get("report_data") else None,
                     "keywords": video.get("report_data", {}).get("keywords") if video.get("report_data") else [],
                     "source": "submission"
@@ -872,6 +903,7 @@ async def get_bookshelf(user_id: str, limit: int = 40):
                         "thumbnail": video["thumbnail"],
                         "mtime": item["created_at"],
                         "status": video["status"],
+                        "is_public": video.get("is_public", True),
                         "summary": video.get("report_data", {}).get("summary") if video.get("report_data") else None,
                         "keywords": video.get("report_data", {}).get("keywords") if video.get("report_data") else [],
                         "source": "like",
@@ -1077,6 +1109,105 @@ async def dev_compare_subtitles(video_id: str):
         "media_path": media_path,
         "models": models_data
     }
+
+# ========== 管理 API ==========
+
+class ChannelSettingsRequest(BaseModel):
+    channel_id: str
+    channel_name: str = None
+    hidden_from_home: bool = None
+    track_new_videos: bool = None
+
+class VideoVisibilityRequest(BaseModel):
+    video_id: str
+    hidden_from_home: bool
+
+@app.get("/admin/visibility")
+async def get_visibility_settings():
+    """获取所有频道设置和所有视频列表"""
+    if not supabase:
+        return {"channels": [], "all_videos": [], "error": "Database not connected"}
+    
+    try:
+        # 获取所有频道设置
+        channel_res = supabase.table("channel_settings").select("*").execute()
+        channels = channel_res.data if channel_res.data else []
+    except Exception as e:
+        channels = []
+        print(f"Failed to fetch channel_settings: {e}")
+    
+    try:
+        # 获取所有已完成的视频（带隐藏状态）
+        videos_res = supabase.table("videos") \
+            .select("id, title, thumbnail, hidden_from_home, report_data->channel, report_data->channel_id") \
+            .eq("status", "completed") \
+            .order("created_at", desc=True) \
+            .limit(200) \
+            .execute()
+        all_videos = videos_res.data if videos_res.data else []
+    except Exception as e:
+        all_videos = []
+        print(f"Failed to fetch videos: {e}")
+    
+    try:
+        # 获取所有已知频道（从 videos 表中提取）
+        all_channels_res = supabase.table("videos") \
+            .select("report_data->channel, report_data->channel_id") \
+            .not_.is_("report_data->channel_id", "null") \
+            .execute()
+        
+        known_channels = {}
+        for v in all_channels_res.data:
+            c_id = v.get("channel_id")
+            c_name = v.get("channel")
+            if c_id and c_id not in known_channels:
+                known_channels[c_id] = c_name
+    except:
+        known_channels = {}
+    
+    return {
+        "channels": channels,
+        "all_videos": all_videos,
+        "known_channels": known_channels
+    }
+
+@app.post("/admin/visibility/channel")
+async def update_channel_settings(request: ChannelSettingsRequest):
+    """更新频道设置"""
+    if not supabase:
+        return {"status": "error", "message": "Database not connected"}
+    
+    try:
+        data = {"channel_id": request.channel_id}
+        if request.channel_name is not None:
+            data["channel_name"] = request.channel_name
+        if request.hidden_from_home is not None:
+            data["hidden_from_home"] = request.hidden_from_home
+        if request.track_new_videos is not None:
+            data["track_new_videos"] = request.track_new_videos
+        data["updated_at"] = "now()"
+        
+        supabase.table("channel_settings").upsert(data).execute()
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Failed to update channel settings: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/admin/visibility/video")
+async def update_video_visibility(request: VideoVisibilityRequest):
+    """更新单个视频的隐藏状态"""
+    if not supabase:
+        return {"status": "error", "message": "Database not connected"}
+    
+    try:
+        supabase.table("videos") \
+            .update({"hidden_from_home": request.hidden_from_home}) \
+            .eq("id", request.video_id) \
+            .execute()
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Failed to update video visibility: {e}")
+        return {"status": "error", "message": str(e)}
 
 # ========== 后台调度任务 ==========
 async def run_channel_tracker():

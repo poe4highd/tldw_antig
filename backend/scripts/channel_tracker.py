@@ -80,6 +80,20 @@ def main():
         return
 
     logger.info("Starting channel tracking...")
+    
+    # 0. 获取需要跳过的频道（track_new_videos=FALSE）
+    skip_channels = set()
+    try:
+        skip_res = supabase.table("channel_settings") \
+            .select("channel_id") \
+            .eq("track_new_videos", False) \
+            .execute()
+        skip_channels = {c["channel_id"] for c in skip_res.data}
+        if skip_channels:
+            logger.info(f"Skipping {len(skip_channels)} channels with tracking disabled.")
+    except Exception as e:
+        # channel_settings 表可能不存在
+        logger.warning(f"Failed to fetch channel_settings (table may not exist): {e}")
 
     # 1. Fetch unique channel IDs from the videos table
     try:
@@ -89,7 +103,7 @@ def main():
         channel_ids = set()
         for v in response.data:
             c_id = v.get("channel_id")
-            if c_id:
+            if c_id and c_id not in skip_channels:
                 channel_ids.add(c_id)
         
         logger.info(f"Found {len(channel_ids)} unique channels to track.")

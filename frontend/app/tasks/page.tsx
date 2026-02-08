@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
-import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu, Sun, Moon, User } from "lucide-react";
+import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu, Sun, Moon, User, Share2, Lock } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { getApiBase } from "@/utils/api";
 import { useTranslation } from "@/contexts/LanguageContext";
@@ -45,6 +45,7 @@ export default function TasksPage() {
     const [status, setStatus] = useState("");
     const [progress, setProgress] = useState(0);
     const [eta, setEta] = useState<number | null>(null);
+    const [isPublic, setIsPublic] = useState(true);
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [activeTasks, setActiveTasks] = useState<ActiveTask[]>([]);
     const [summary, setSummary] = useState<Summary | null>(null);
@@ -89,7 +90,7 @@ export default function TasksPage() {
             const resp = await fetch(`${apiBase}/process`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url, mode, user_id: user?.id }),
+                body: JSON.stringify({ url, mode, user_id: user?.id, is_public: isPublic }),
             });
 
             if (!resp.ok) {
@@ -118,6 +119,7 @@ export default function TasksPage() {
         formData.append("file", file);
         formData.append("mode", mode);
         if (user) formData.append("user_id", user.id);
+        formData.append("is_public", isPublic.toString());
 
         try {
             const apiBase = getApiBase();
@@ -338,6 +340,38 @@ export default function TasksPage() {
                                             {t("tasks.processNow")}
                                         </button>
                                     </div>
+                                </div>
+                                <div className="flex items-center gap-4 px-2">
+                                    <button
+                                        onClick={() => setIsPublic(true)}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all duration-300",
+                                            isPublic
+                                                ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-lg shadow-emerald-500/5"
+                                                : "bg-background/50 border-card-border text-slate-500 hover:border-card-border/80"
+                                        )}
+                                    >
+                                        <Share2 className={cn("w-5 h-5", isPublic && "animate-pulse")} />
+                                        <div className="text-left">
+                                            <p className="text-xs font-black uppercase tracking-tight">{t("tasks.public")}</p>
+                                            <p className="text-[9px] opacity-60 font-medium">{t("tasks.publicDesc")}</p>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => setIsPublic(false)}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all duration-300",
+                                            !isPublic
+                                                ? "bg-amber-500/10 border-amber-500/50 text-amber-400 shadow-lg shadow-amber-500/5"
+                                                : "bg-background/50 border-card-border text-slate-500 hover:border-card-border/80"
+                                        )}
+                                    >
+                                        <Lock className="w-5 h-5" />
+                                        <div className="text-left">
+                                            <p className="text-xs font-black uppercase tracking-tight">{t("tasks.private")}</p>
+                                            <p className="text-[9px] opacity-60 font-medium">{t("tasks.privateDesc")}</p>
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
 

@@ -1,5 +1,54 @@
 # 开发日志 (2026-02-08)
 
+## 任务：全链路视频隐私控制实现
+
+### 1. 需求
+- 用户在提交视频（URL/文件）时可选择公开或私密。
+- 私密视频对其他用户不可见，不出现在发现广场，仅在拥有者的书架中展示。
+- RLS 层面需要针对高并发场景进行性能优化。
+- 保证历史存量视频的可见性与所有权归属。
+
+### 2. 实施
+- **数据库**：
+  - `005_privacy_schema.sql`：在 `videos` 注入 `is_public` 与 `user_id` 冗余字段。
+  - **性能优化**：通过冗余字段实现的 RLS 策略 `is_public = TRUE OR user_id = auth.uid()` 大幅优于 `EXISTS` 子查询逻辑。
+  - **数据一致性**：通过子查询回填了现有视频的 `user_id` 至其首位提交者。
+- **后端 (FastAPI)**：
+  - 更新 `main.py` 及 `process_task.py`：捕获 `is_public` 参数并透传给后台处理进程，确保最终录入 Supabase 的结果保留隐私偏好。
+  - `get_explore` 增加显式隐私过滤。
+  - `get_bookshelf` 增加 `is_public` 字段返回以支撑 UI 显状态。
+- **前端 (Next.js)**：
+  - `Tasks` 页面新增 Switch 切换按钮。
+  - Dashboard 视频卡片增加隐私状态图标（Lock/Share）。
+  - 更新中英文多语言包。
+
+### 3. 回顾
+- **结果**：视频隐私控制系统上线。经测试，私密视频完全从公共 Explore 流中排除，且书架性能未受冗余字段影响。
+
+---
+
+
+## 任务：视频与频道可见性管理
+
+### 1. 需求
+- 隐藏视频 `0_zgry0AGqU` 及其频道（@mingjinglive）的所有视频在主页
+- 增加开发者管理页面，控制视频/频道在主页的显示/隐藏
+- 控制哪些频道需要定期追踪新视频
+
+### 2. 实施
+- **数据库**：`004_visibility_schema.sql` 新增 `channel_settings` 表和 `videos.hidden_from_home` 字段
+- **后端**：
+  - `get_explore` API 过滤隐藏视频和隐藏频道
+  - `channel_tracker.py` 跳过 `track_new_videos=FALSE` 的频道
+  - 新增 `/admin/visibility` 管理 API
+- **前端**：新增 `/admin/visibility` 管理页面
+
+### 3. 回顾
+- **待执行**：需要在 Supabase Dashboard 执行 `004_visibility_schema.sql` 迁移
+
+---
+
+
 ## 任务：同步任务页 UI 与优化书架加载性能
 
 ### 3. 回顾 (Review)
