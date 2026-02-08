@@ -657,21 +657,45 @@ async def get_history(user_id: str = None):
     }
 
 @app.get("/explore")
-async def get_explore():
+async def get_explore(page: int = 1, limit: int = 24, q: str = None):
     if not supabase:
         # Fallback to local history but only YouTube ones
         res = await get_history()
         items = [i for i in res["items"] if len(i["id"]) == 11]
-        return {"items": items}
+        
+        # Simple local pagination and search
+        if q:
+            q = q.lower()
+            items = [i for i in items if q in i["title"].lower()]
+            
+        start = (page - 1) * limit
+        end = start + limit
+        return {
+            "items": items[start:end],
+            "total": len(items),
+            "page": page,
+            "limit": limit
+        }
     
     try:
-        # Fetch videos from Supabase - Optimized to only get needed metadata
-        # Large fields like raw_subtitles are excluded for performance
-        response = supabase.table("videos") \
-            .select("id, title, thumbnail, created_at, view_count, status, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords") \
-            .eq("status", "completed") \
-            .order("created_at", desc=True) \
-            .limit(100) \
+        # Start building the query
+        query = supabase.table("videos") \
+            .select("id, title, thumbnail, created_at, view_count, status, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords", count="exact") \
+            .eq("status", "completed")
+            
+        if q:
+            # Search in title, channel (via report_data), or keywords
+            # Supabase doesn't support complex OR across jsonb and text easily in a single filter call
+            # using a simplified search on title/channel name for now
+            search_query = f"%{q}%"
+            query = query.or_(f"title.ilike.{search_query},report_data->>channel.ilike.{search_query},report_data->>summary.ilike.{search_query}")
+
+        # Execute with pagination
+        start = (page - 1) * limit
+        end = start + limit - 1
+        
+        response = query.order("created_at", desc=True) \
+            .range(start, end) \
             .execute()
         
         items = []
@@ -692,10 +716,16 @@ async def get_explore():
                 "date": v["created_at"],
                 "views": v.get("view_count", 0)
             })
-        return {"items": items}
+            
+        return {
+            "items": items,
+            "total": response.count if response.count is not None else len(items),
+            "page": page,
+            "limit": limit
+        }
     except Exception as e:
         print(f"Explore fetch failed: {e}")
-        return {"items": []}
+        return {"items": [], "total": 0, "page": page, "limit": limit}
 
 @app.get("/trending-keywords")
 async def get_trending_keywords():

@@ -47,6 +47,9 @@ export default function MarketingPage() {
   const [viewMode, setViewMode] = useState<"thumb" | "text-single" | "text-double">("text-double");
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<ExploreItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(24);
   const [trendingKeywords, setTrendingKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -67,18 +70,27 @@ export default function MarketingPage() {
     };
     fetchUser();
 
-    fetchExplore();
     fetchTrending();
   }, []);
 
-  const fetchExplore = async () => {
+  useEffect(() => {
+    fetchExplore(page, searchQuery);
+  }, [page, searchQuery]);
+
+  const fetchExplore = async (pageNum: number, query: string) => {
     setIsLoading(true);
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/explore`);
+      const url = new URL(`${apiBase}/explore`);
+      url.searchParams.append("page", pageNum.toString());
+      url.searchParams.append("limit", limit.toString());
+      if (query) url.searchParams.append("q", query);
+
+      const response = await fetch(url.toString());
       const data = await response.json();
       if (data.items) {
         setItems(data.items);
+        setTotal(data.total || data.items.length);
       }
     } catch (error) {
       console.error("Failed to fetch explore:", error);
@@ -109,14 +121,18 @@ export default function MarketingPage() {
     localStorage.setItem("rt-explore-view-mode", mode);
   };
 
-  const filteredItems = items.filter(item => {
-    const q = searchQuery.toLowerCase();
-    if (item.title.toLowerCase().includes(q)) return true;
-    if (item.channel && item.channel.toLowerCase().includes(q)) return true;
-    if (item.summary && item.summary.toLowerCase().includes(q)) return true;
-    if (item.keywords && item.keywords.some(kw => kw.toLowerCase().includes(q))) return true;
-    return false;
-  });
+  const totalPages = Math.ceil(total / limit);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+  };
+
+  const handleKeywordClick = (kw: string) => {
+    const newVal = searchQuery === kw ? "" : kw;
+    setSearchQuery(newVal);
+    setPage(1);
+  };
 
   const formatDate = (dateStr: string) => {
     try {
@@ -201,7 +217,7 @@ export default function MarketingPage() {
                 type="text"
                 placeholder={t("explore.searchPlaceholder")}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full bg-slate-900/30 border border-slate-800/40 rounded-full py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-700 transition-all backdrop-blur-sm"
               />
             </div>
@@ -261,7 +277,7 @@ export default function MarketingPage() {
               {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
                 <button
                   key={`${kw}-${idx}`}
-                  onClick={() => setSearchQuery(searchQuery === kw ? "" : kw)}
+                  onClick={() => handleKeywordClick(kw)}
                   className={cn(
                     "mx-2 px-4 py-1.5 rounded-full border text-[10px] font-bold transition-all duration-300",
                     searchQuery === kw
@@ -287,7 +303,7 @@ export default function MarketingPage() {
                 <div key={i} className="h-12 bg-slate-900/40 rounded-xl animate-pulse border border-slate-800/50" />
               ))}
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="py-20 text-center bg-slate-900/20 border border-dashed border-slate-800 rounded-[2rem] flex flex-col items-center">
               <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 text-slate-700">
                 <Search className="w-8 h-8" />
@@ -299,7 +315,7 @@ export default function MarketingPage() {
               "gap-1.5",
               viewMode === "text-double" ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col space-y-1"
             )}>
-              {filteredItems.map((item) => (
+              {items.map((item) => (
                 <Link
                   key={item.id}
                   href={`/result/${item.id}`}
@@ -338,7 +354,7 @@ export default function MarketingPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredItems.map((item) => (
+              {items.map((item) => (
                 <div key={item.id} className="group relative bg-slate-900/30 border border-slate-800/50 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
                   <div className="aspect-video relative overflow-hidden">
                     <img src={item.thumbnail} alt={item.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
@@ -380,6 +396,29 @@ export default function MarketingPage() {
                   <Link href={`/result/${item.id}`} className="absolute inset-0 z-10" aria-label="View report" />
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-12 flex items-center justify-center gap-4">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isLoading}
+                className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {language === 'zh' ? '上一页' : 'Previous'}
+              </button>
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {language === 'zh' ? `第 ${page} / ${totalPages} 页` : `Page ${page} of ${totalPages}`}
+              </div>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || isLoading}
+                className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:border-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {language === 'zh' ? '下一页' : 'Next'}
+              </button>
             </div>
           )}
         </div>
