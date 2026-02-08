@@ -162,99 +162,86 @@ export default function MarketingPage() {
 
 
         {/* Compact Hero Section */}
-        <div className="relative z-10 mb-12">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="relative z-10 mb-6">
+          <div className="flex items-center gap-4 mb-2 flex-wrap">
             <Link href="/" className="flex items-center space-x-3 group animate-in fade-in slide-in-from-left-4 duration-700">
-              <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
-                <img src="/icon.png" alt="Read-Tube Logo" className="w-7 h-7" />
+              <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-indigo-500/50 transition-all duration-300 shadow-xl">
+                <img src="/icon.png" alt="Read-Tube Logo" className="w-5 h-5" />
               </div>
-              <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                 {t("marketing.title")}
               </span>
             </Link>
-            <div className="h-6 w-px bg-slate-800 mx-1" />
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-widest uppercase">
-              <Sparkles className="w-3 h-3 mr-1.5" />
+            <div className="h-4 w-px bg-slate-800 mx-1" />
+            <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase">
+              <Sparkles className="w-2.5 h-2.5 mr-1" />
               {t("marketing.tagline")}
             </div>
-          </div>
-          <div>
-            <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tight mb-6 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-tight">
-              {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
-            </h1>
-            <p className="text-slate-500 text-base md:text-xl font-medium leading-relaxed">
-              {t("marketing.description")}
-            </p>
-          </div>
-        </div>
 
-        {/* Toolbar */}
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
-          <div className="relative w-full md:max-w-2xl group">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-              <Search className="w-5 h-5" />
+            {/* Integrated Search Bar */}
+            <div className="relative flex-grow max-w-md group ml-4">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-600 group-focus-within:text-indigo-400 transition-colors">
+                <Search className="w-3.5 h-3.5" />
+              </div>
+              <input
+                type="text"
+                placeholder={t("explore.searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-900/30 border border-slate-800/40 rounded-full py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-700 transition-all backdrop-blur-sm"
+              />
             </div>
-            <input
-              type="text"
-              placeholder={t("explore.searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900/40 border border-slate-800/60 rounded-[1.5rem] py-4 pl-12 pr-4 text-base focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 placeholder:text-slate-600 transition-all shadow-2xl backdrop-blur-sm"
-            />
           </div>
+          <div className="flex items-end justify-between gap-4">
+            <div className="flex-grow">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent leading-[1.1]">
+                {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
+              </h1>
+              <p className="text-slate-500 text-sm md:text-base font-medium leading-snug">
+                {t("marketing.description")}
+              </p>
+            </div>
 
-          <div className="flex items-center bg-slate-900/50 border border-slate-800 p-1 rounded-xl shadow-inner">
-            <button
-              onClick={() => toggleViewMode("text-double")}
-              className={cn(
-                "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
-                viewMode === "text-double"
-                  ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
-                  : "text-slate-500 hover:text-slate-300"
-              )}
-            >
-              <Columns2 className="w-3 h-3" />
-              <span className="hidden sm:inline">{t("explore.modeText")} (2)</span>
-              <span className="sm:hidden">2</span>
-            </button>
-            <button
-              onClick={() => toggleViewMode("text-single")}
-              className={cn(
-                "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
-                viewMode === "text-single"
-                  ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
-                  : "text-slate-500 hover:text-slate-300"
-              )}
-            >
-              <List className="w-3 h-3" />
-              <span className="hidden sm:inline">{t("explore.modeText")} (1)</span>
-              <span className="sm:hidden">1</span>
-            </button>
-            <button
-              onClick={() => toggleViewMode("thumb")}
-              className={cn(
-                "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
-                viewMode === "thumb"
-                  ? "bg-white text-slate-950 shadow-xl scale-[1.02]"
-                  : "text-slate-500 hover:text-slate-300"
-              )}
-            >
-              <LayoutGrid className="w-3 h-3" />
-              <span className="hidden sm:inline">{t("explore.modeThumb")}</span>
-            </button>
+            {/* Compact View Switcher */}
+            <div className="flex items-center bg-slate-900/40 border border-slate-800/50 p-1 rounded-xl shadow-inner mb-2">
+              <button
+                onClick={() => toggleViewMode("text-double")}
+                className={cn(
+                  "p-2 rounded-lg transition-all duration-300",
+                  viewMode === "text-double" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600 hover:text-slate-400"
+                )}
+                title={t("explore.modeText") + " (2)"}
+              >
+                <Columns2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => toggleViewMode("text-single")}
+                className={cn(
+                  "p-2 rounded-lg transition-all duration-300",
+                  viewMode === "text-single" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600 hover:text-slate-400"
+                )}
+                title={t("explore.modeText") + " (1)"}
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => toggleViewMode("thumb")}
+                className={cn(
+                  "p-2 rounded-lg transition-all duration-300",
+                  viewMode === "thumb" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600 hover:text-slate-400"
+                )}
+                title={t("explore.modeThumb")}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Full-Width Auto-Scrolling Keywords */}
-        <div className="relative z-10 mb-12 overflow-hidden group">
+
+        {/* Auto-Scrolling Keywords */}
+        <div className="relative z-10 mb-8 overflow-hidden group border-y border-slate-900/30 py-2">
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 flex items-center gap-2 px-2 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
-              <TrendingUp className="w-3 h-3 text-indigo-400" />
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest leading-none whitespace-nowrap">
-                {t("explore.trending") || "Trending"}
-              </span>
-            </div>
-
             <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] cursor-pointer">
               {/* Duplicate array for seamless loop */}
               {[...trendingKeywords, ...trendingKeywords].map((kw, idx) => (
@@ -274,7 +261,7 @@ export default function MarketingPage() {
             </div>
           </div>
           {/* Gradients to mask edges */}
-          <div className="absolute top-0 left-[100px] h-full w-20 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 left-0 h-full w-20 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none z-10" />
           <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none z-10" />
         </div>
 
@@ -302,53 +289,35 @@ export default function MarketingPage() {
                 <Link
                   key={item.id}
                   href={`/result/${item.id}`}
-                  className="group flex items-center gap-3 p-3 bg-slate-900/20 border border-slate-800/30 rounded-xl hover:bg-slate-900/60 hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.005]"
+                  className="group flex items-center gap-3 p-2.5 bg-slate-900/10 border border-slate-800/20 rounded-lg hover:bg-slate-900/40 hover:border-indigo-500/20 transition-all duration-300"
                 >
-                  <div className="shrink-0 relative">
+                  <div className="shrink-0">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center p-[2px] shadow-lg group-hover:scale-110 transition-transform"
+                      className="w-6 h-6 rounded-full flex items-center justify-center p-[1px] shadow-sm group-hover:scale-105 transition-transform"
                       style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
                     >
-                      <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800 flex items-center justify-center">
+                      <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
                         {item.channel_avatar ? (
                           <img src={item.channel_avatar} alt={item.channel} className="w-full h-full object-cover" />
-                        ) : item.channel ? (
-                          <img src={getAvatarUrl(item.channel)!} alt={item.channel} className="w-full h-full object-cover" />
                         ) : (
-                          <User className="w-4 h-4 text-slate-500" />
+                          <img src={getAvatarUrl(item.channel || "YT")!} alt={item.channel} className="w-full h-full object-cover" />
                         )}
                       </div>
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-slate-950">
-                      <Youtube className="w-2 h-2 text-white" />
                     </div>
                   </div>
 
                   <div className="flex-grow min-w-0">
-                    <h3 className="font-bold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors line-clamp-1 mb-0.5">
+                    <h3 className="font-bold text-xs text-slate-100 group-hover:text-indigo-400 transition-colors truncate">
                       {item.title}
                     </h3>
-                    <div className="flex items-center gap-3 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                      <span className="flex items-center gap-1">
-                        <User className="w-3 h-3 text-slate-600" />
-                        {item.channel || "YouTube Creator"}
-                      </span>
-                      <span className="w-1 h-1 rounded-full bg-slate-800" />
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(item.date)}
-                      </span>
-                    </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center gap-6 pr-2">
-                    <div className="hidden sm:flex flex-col items-end">
-                      <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
-                        <Eye className="w-3 h-3" />
-                        {item.views.toLocaleString()}
-                      </div>
+                  <div className="shrink-0 flex items-center gap-4 pr-1">
+                    <div className="flex items-center gap-1 text-[9px] font-black text-slate-600 group-hover:text-slate-400">
+                      <Eye className="w-2.5 h-2.5" />
+                      {item.views.toLocaleString()}
                     </div>
-                    <ArrowRight className="w-4 h-4 text-slate-700 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-800 group-hover:text-indigo-400 transition-all" />
                   </div>
                 </Link>
               ))}
