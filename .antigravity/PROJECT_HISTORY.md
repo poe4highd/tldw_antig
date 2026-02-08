@@ -1,3 +1,4 @@
+[2026-02-08] | [FEATURE] | 全局主题切换（深色/浅色模式） | 实现 ThemeContext 与全局 CSS 变量化，支持 Sun/Moon 图标一键切换并持久化用户偏好 | DEV_LOG.md
 [2026-02-08] | [FEATURE] | 服务器端分页与移动端 UI 深度优化 | 实现支持搜索/翻页/每页数量可选的后端分页，重构移动端列表增加缩略图并精简英雄区介绍 | DEV_LOG.md
 [2026-02-07] | [UI/UX] | 主页标题行距与关键词过滤优化 | 将 Hero 标题 `leading-[1.1]` 改为 `leading-[0.8]`，扩展 `filteredItems` 搜索范围至 `summary` 和 `keywords` 数组 | DEV_LOG.md
 [2026-02-07] | [FEATURE] | Pending 历史记录增强与频道自动化追踪 | 实现 Pending 页面展示最近 50 条处理记录（双语），并开发 channel_tracker.py 自动追踪已处理频道的最新内容并入队 | walkthrough.md

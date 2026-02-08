@@ -235,7 +235,7 @@ export default function MarketingPage() {
           </div>
           <div className="flex items-end justify-between gap-4">
             <div className="flex-grow">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent leading-[0.8]">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tight mb-1 bg-gradient-to-r from-foreground via-foreground to-slate-500 bg-clip-text text-transparent leading-[0.8]">
                 {t("marketing.heroTitle1")}{t("marketing.heroTitle2")}
               </h1>
               <p className="text-slate-500 dark:text-slate-500 light:text-slate-600 text-sm md:text-base font-medium leading-snug hidden sm:block">
@@ -281,7 +281,7 @@ export default function MarketingPage() {
 
 
         {/* Auto-Scrolling Keywords */}
-        <div className="relative z-10 mb-8 overflow-hidden group border-y border-slate-900/30 py-2">
+        <div className="relative z-10 mb-8 overflow-hidden group border-y border-card-border py-2">
           <div className="flex items-center gap-4">
             <div className="flex items-center whitespace-nowrap animate-scroll-slow hover:[animation-play-state:paused] cursor-pointer">
               {/* Duplicate array for seamless loop */}
@@ -302,8 +302,8 @@ export default function MarketingPage() {
             </div>
           </div>
           {/* Gradients to mask edges */}
-          <div className="absolute top-0 left-0 h-full w-20 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none z-10" />
-          <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 left-0 h-full w-20 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
         </div>
 
         {/* Content */}
