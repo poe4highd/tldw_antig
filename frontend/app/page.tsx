@@ -217,6 +217,13 @@ export default function MarketingPage() {
           >
             <Settings className="w-5 h-5" />
           </Link>
+          <Link
+            href="/login"
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98]"
+          >
+            <User className="w-4 h-4" />
+            <span className="hidden sm:inline">{user ? "Profile" : t("login.title")}</span>
+          </Link>
         </div>
 
 
@@ -242,20 +249,6 @@ export default function MarketingPage() {
             <div className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold tracking-widest uppercase">
               <Sparkles className="w-2.5 h-2.5 mr-1" />
               {t("marketing.tagline")}
-            </div>
-
-            {/* Integrated Search Bar */}
-            <div className="relative flex-grow max-w-md group ml-4">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-600 group-focus-within:text-indigo-400 transition-colors">
-                <Search className="w-3.5 h-3.5" />
-              </div>
-              <input
-                type="text"
-                placeholder={t("explore.searchPlaceholder")}
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full bg-card-bg border border-card-border rounded-full py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-sm"
-              />
             </div>
           </div>
           <div className="flex items-end justify-between gap-4">
@@ -334,6 +327,20 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Integrated Search Bar (Moved contextually) */}
+        <div className="relative z-10 mb-4 max-w-xl mx-auto group">
+          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+            <Search className="w-4 h-4" />
+          </div>
+          <input
+            type="text"
+            placeholder={t("explore.searchPlaceholder")}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full bg-card-bg border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 placeholder:text-slate-500 transition-all backdrop-blur-md shadow-xl"
+          />
         </div>
 
 
