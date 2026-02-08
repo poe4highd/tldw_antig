@@ -56,13 +56,13 @@ export default function LoginPage() {
 
             setStatus({
                 type: 'success',
-                message: t("magicLinkSent")
+                message: t("login.magicLinkSent")
             });
         } catch (error: any) {
             console.error("Error sending magic link:", error.message);
             setStatus({
                 type: 'error',
-                message: t("sendFailed") + error.message
+                message: t("login.sendFailed") + error.message
             });
         } finally {
             setLoading(false);
