@@ -333,10 +333,15 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
     task_id = None
     
     if url:
-        # 尝试提取 YouTube ID (11位字符)
-        id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
-        if id_match:
-            task_id = id_match.group(1)
+        # 更精确地正则匹配 YouTube ID，避免误匹配本站结果页
+        youtube_regex = r"(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})(?:[?&]|$)"
+        if "youtube.com" in url or "youtu.be" in url:
+            id_match = re.search(youtube_regex, url)
+            if id_match:
+                task_id = id_match.group(1)
+        elif len(url) == 11 and re.match(r"^[0-9A-Za-z_-]{11}$", url):
+            # 如果直接输入的是 11 位 ID
+            task_id = url
     
     # 如果无法提取 YouTube ID,使用时间戳
     if not task_id:

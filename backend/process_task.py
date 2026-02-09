@@ -64,6 +64,12 @@ def process_video_task(task_id):
                 user_id = data.get("user_id")
                 is_public = data.get("is_public", True)
 
+    # If the URL is from our own domain, it's likely a mis-submitted result page.
+    # We should fallback to a standard YouTube URL if the task_id looks like a YouTube ID.
+    if url and "read-tube.com" in url and len(task_id) == 11:
+        print(f"--- [Process Task] URL {url} is local result page. Falling back to YouTube for ID {task_id} ---")
+        url = f"https://www.youtube.com/watch?v={task_id}"
+
     if not url and not local_file and len(task_id) == 11:
         # Heuristic: if it's 11 chars, it's likely a YouTube ID
         url = f"https://www.youtube.com/watch?v={task_id}"

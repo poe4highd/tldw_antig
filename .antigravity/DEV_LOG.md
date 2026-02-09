@@ -1,5 +1,29 @@
 # 开发日志 (2026-02-08)
 
+## 任务：修复结果页 URL 误识别导致的转录失败问题
+
+### 1. 需求 (Requirement)
+- **背景**: 视频 `NRDWBQWiYeg` 处理速度极快但没有字幕，状态显示为 `failed`。
+- **错误信息**: `ERROR: Unsupported URL: https://read-tube.com/result/NRDWBQWiYeg`
+- **根本原因**: `main.py` 中的正则表达式过于宽泛，误将本站结果页 URL 中的路径部分识别为 YouTube ID。随后 `process_task.py` 优先使用了该无效 URL 尝试下载，导致失败。
+
+### 2. 实施 (Implementation)
+- **Regex 优化**: 改进 `main.py` 中的 URL 识别逻辑，明确限定仅对 YouTube 相关域名进行 11 位 ID 提取。
+- **URL 降级逻辑**: 改进 `process_task.py`，若识别到 11 位 ID 但提供的 URL 为本站结果页，则自动降级为标准的 YouTube Watch URL 进行处理。
+- **验证脚本**: 新增 `backend/tests/test_url_logic.py` 用于自动化回归测试。
+
+### 3. 回顾 (Review)
+- **结果**: URL 误匹配问题已彻底解决。测试证明系统现能正确识别本站 URL 为“非 YouTube”链接，并在处理阶段成功触发降级逻辑转向 YouTube。
+- **改动文件**: `backend/main.py`, `backend/process_task.py`, `backend/tests/test_url_logic.py`。
+- **已知问题**: 实测过程中触发了 YouTube 的 429 (Too Many Requests) 频率限制，目前建议稍后重试或在生产环境配置代理/Cookie 池。
+
+### 4. 经验 (Lessons)
+- **正则防御**: 对 ID 提取不宜过于激进，应配合域名上下文。
+- **增强容错**: 处理层应具备从 Task ID 重新构造标准资源路径的能力。
+
+---
+
+
 ## 任务：修复首页滚动遮挡问题
 
 ### 1. 需求
