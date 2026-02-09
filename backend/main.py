@@ -111,6 +111,11 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     'Referer': 'https://www.youtube.com/',
                 },
             }
+
+            # YouTube Cookies Support
+            cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
+            if cookies_path and os.path.exists(cookies_path):
+                ydl_opts_meta['cookiefile'] = cookies_path
             
             channel = None
             channel_id = None

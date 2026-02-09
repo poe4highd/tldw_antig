@@ -1,3 +1,4 @@
+[2026-02-08] | [Feature] | 集成 YouTube Cookie 鉴权 | 在 yt-dlp 调用链中增加 cookiefile 支持，解决 429/403 频率限制问题 | DEV_LOG.md
 [2026-02-08] | [Bugfix] | 修复结果页 URL 误识别 | 修复由于正则匹配过宽导致的结果页 URL 无法转录问题 | DEV_LOG.md
 [2026-02-08] | [Bugfix] | 修复首页滚动遮挡问题 | 消除粘性头部与工具栏之间的间隙，通过调整 z-index 和背景不透明度解决视频漏出问题。 | walkthrough.md
 [2026-02-08] | [Feature] | 视频与频道可见性管理 | 实现基于 Admin Secret Key 的管理权限校验；支持隐藏特定视频/频道及配置自动追踪频率。 | walkthrough.md

@@ -34,6 +34,11 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
         'subtitleslangs': ['zh.*', 'en.*'], # 优先下载中文或英文
         'subtitlesformat': 'vtt/srt/best',
     }
+
+    # YouTube Cookies Support
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
+    if cookies_path and os.path.exists(cookies_path):
+        ydl_opts['cookiefile'] = cookies_path
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)

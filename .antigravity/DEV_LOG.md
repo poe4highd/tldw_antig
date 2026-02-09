@@ -1,5 +1,29 @@
 # 开发日志 (2026-02-08)
 
+## 任务：集成 YouTube Cookie 鉴权以解决 429 频率限制
+
+### 1. 需求 (Requirement)
+- **背景**: 即使修复了 URL 提取逻辑，大批量请求时仍会触发 YouTube 的 `429 Too Many Requests`。
+- **解决方案**: 允许 `yt-dlp` 使用有效的 Cookie 文件进行鉴权。
+
+### 2. 实施 (Implementation)
+- **配置**: 在 `.env` 及 `.env.example` 中增加 `YOUTUBE_COOKIES_PATH=./youtube_cookies.txt`。
+- **核心组件**:
+    - `main.py`: `background_process` 中的元数据提取增加 `cookiefile` 参数。
+    - `downloader.py`: `download_audio` 增加 `cookiefile`。
+    - `process_task.py`: `process_video_task` 增加 `cookiefile`。
+- **健壮性**: 在传递给 `yt-dlp` 前增加 `os.path.exists` 检查，确保无文件时能静默回退。
+
+### 3. 回顾 (Review)
+- **结果**: 全链路已打通 Cookie 支持。只要用户在 `backend` 目录下放置 `youtube_cookies.txt`，系统将自动加载并进行鉴权下载。
+- **改动文件**: `backend/.env`, `backend/main.py`, `backend/downloader.py`, `backend/process_task.py`。
+
+### 4. 经验 (Lessons)
+- **外部依赖管理**: 对于抓取类服务，提供灵活的鉴权接口（如 Cookie 路径配置）是应对平台反爬策略的关键。
+
+---
+
+
 ## 任务：修复结果页 URL 误识别导致的转录失败问题
 
 ### 1. 需求 (Requirement)
