@@ -15,19 +15,14 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
                 pass
 
     ydl_opts = {
-        'format': 'm4a[language*=zh]/bestaudio[language*=zh]/m4a/bestaudio/best',
+        'format': 'bestaudio/best',
         'outtmpl': f'{output_path}/%(id)s.%(ext)s',
         'progress_hooks': [ydl_progress_hook],
         'noplaylist': True,
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
-        'headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.youtube.com/',
-        },
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         # 字幕下载配置
         'writesubtitles': True,
         'writeautomaticsub': True,
@@ -39,6 +34,12 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
     cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
     if cookies_path and os.path.exists(cookies_path):
         ydl_opts['cookiefile'] = cookies_path
+    
+    # YouTube OAuth2 Support (Better for Servers)
+    if os.environ.get("YOUTUBE_USE_OAUTH2") == "true":
+        # Note: This may require user interaction in terminal for the first time
+        ydl_opts['username'] = 'oauth2'
+        ydl_opts['password'] = ''
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
