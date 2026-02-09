@@ -106,6 +106,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 'quiet': True,
                 'no_warnings': True,
                 'nocheckcertificate': True,
+                'js_runtimes': {'node': {}},
+                'remote_components': {'ejs:github'},
             }
 
             # YouTube Cookies Support

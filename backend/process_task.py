@@ -108,6 +108,8 @@ def process_video_task(task_id):
                 'quiet': True,
                 'no_warnings': True,
                 'nocheckcertificate': True,
+                'js_runtimes': {'node': {}},
+                'remote_components': {'ejs:github'},
             }
 
             # YouTube Cookies Support

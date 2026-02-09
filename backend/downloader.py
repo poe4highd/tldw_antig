@@ -22,6 +22,8 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
+        'js_runtimes': {'node': {}},
+        'remote_components': {'ejs:github'},
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         # 字幕下载配置
         'writesubtitles': True,

@@ -45,3 +45,5 @@ batch_reprocess.sh
 batch_reprocess_remaining.sh
 batch_reprocess.log
 batch_reprocess_pid.txt
+backend/youtube_cookies.txt
+backend/youtube_cookies.txt
