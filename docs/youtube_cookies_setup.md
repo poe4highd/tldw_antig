@@ -10,25 +10,20 @@ YouTube 对匿名请求（尤其是来自云服务器或数据中心的 IP）有
 
 ## 2. 如何获取 Cookie 文件
 
-### 推荐方法：使用浏览器扩展
-1. 在 Chrome 或 Edge 浏览器中安装扩展：**Get cookies.txt LOCALLY** (或类似的 Netscape 格式导出工具)。
-2. 登录您的 **YouTube/Google** 账号。
-3. 点击扩展图标，选择 **Export Options** -> **Export as Netscape HTTP Cookie File**。
-### 备选方法：使用 OAuth2 (推荐服务器使用)
-如果您发现 Cookie 失效（例如 Mac 导出后在 Ubuntu 上不可用），可以使用 `oauth2` 模式：
-1. 打开 `backend/.env`，设置 `YOUTUBE_USE_OAUTH2=true`。
-2. 在 Ubuntu 服务器终端手动执行一次以下命令进行授权：
+### 推荐方法：使用 yt-dlp 自身导出 (跨机器最稳)
+如果您发现浏览器插件导出的 Cookie 在 Ubuntu 上失效，请在您的 **Mac** 上安装并使用 `yt-dlp` 直接导出：
+1. 在 Mac 终端运行：
    ```bash
-   python3 -m yt_dlp --username oauth2 --password "" https://www.youtube.com/watch?v=NRDWBQWiYeg
+   # 这将从您的 Chrome 浏览器提取并导出符合规范的 Cookie
+   # 如果使用 Edge, 改为 --cookies-from-browser edge
+   python3 -m yt_dlp --cookies-from-browser chrome --export-cookies youtube_cookies.txt --get-title "https://www.youtube.com/watch?v=NRDWBQWiYeg"
    ```
-3. 终端会给出一个 8 位验证码并提供一个 Google 验证网址（`https://www.google.com/device`）。
-4. 在您的 Mac 浏览器中打开该网址，登录您的 YouTube 账号并输入验证码。
-5. 完成后，Ubuntu 端的 `yt-dlp` 会保存授权 Token，之后即可免 Cookie 运行。
+2. 将生成的 `youtube_cookies.txt` 文件拷贝到 Ubuntu 机器的 `backend/` 目录下。
 
 ## 3. 如何配置项目
 
 ### 第一步：放置文件
-将导出的 Cookie 文件重命名为 `youtube_cookies.txt`，并放置在项目的 `backend/` 目录下：
+将上述生成的 Cookie 文件放置在项目的 `backend/` 目录下：
 ```bash
 # 目标路径
 /Users/bu/Projects/Lijing/AppDev/tldw/tldw_antig/backend/youtube_cookies.txt
@@ -41,14 +36,11 @@ YOUTUBE_COOKIES_PATH=./youtube_cookies.txt
 ```
 
 ## 4. 常见问题：跨机器 IP 绑定
-**重要**：YouTube 的有效会话通常与您的 **IP 地址** 绑定。
-- **现象**：在 Mac 上导出的 Cookie 在 Ubuntu (尤其是境外 VPS) 上运行时仍报 429 或 "Requested format is not available"。
-- **原因**：YouTube 探测到登录地 (Mac) 与请求地 (Ubuntu) 显著不同，出于安全原因使该会话受限。
-
-### 解决方案：
-1. **IP 一致性**：在 Mac 浏览器上导出 Cookie 时，请开启加速器或 Proxy，确保 Mac 的出口 IP 与 Ubuntu 服务器的 IP 属于同一区域或同一个代理。
-2. **使用 OAuth2 (新)**：
-   本项目现已支持 YouTube OAuth2 认证。如果您无法同步 IP，可以在配置文件中启用 OAuth2 模式。它会引导您在浏览器中输入验证码完成一次性授权。
+**重要**：YouTube 会检测请求者的 IP。
+- **现象**：即使 Cookie 正确，Ubuntu (VPS) 仍可能因为与 Mac (导出地) IP 差异过大而被拦截。
+- **建议**：
+  1. 确保服务器 (Ubuntu) 所使用的加速器/Proxy 的出口地区与您 Mac 的上网地区一致。
+  2. 尽量使用 `yt-dlp --cookies-from-browser` 命令导出的文件，它包含更精确的指纹信息。
 
 ## 5. 验证设置
 配置完成后，重启后端服务。当您再次提交视频时，后台日志如果不再出现 `429` 报错，则说明鉴权已生效。
@@ -56,6 +48,9 @@ YOUTUBE_COOKIES_PATH=./youtube_cookies.txt
 ```bash
 python3 -m yt_dlp --cookies backend/youtube_cookies.txt --get-title "https://www.youtube.com/watch?v=NRDWBQWiYeg"
 ```
+
+> [!CAUTION]
+> **OAuth2 已停用**：YouTube 已全面封禁了 OAuth2 登录方式，请勿再尝试此方法。
 
 > [!IMPORTANT]
 > **隐私安全警告**：

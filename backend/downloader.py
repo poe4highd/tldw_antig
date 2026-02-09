@@ -35,12 +35,6 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
     if cookies_path and os.path.exists(cookies_path):
         ydl_opts['cookiefile'] = cookies_path
     
-    # YouTube OAuth2 Support (Better for Servers)
-    if os.environ.get("YOUTUBE_USE_OAUTH2") == "true":
-        # Note: This may require user interaction in terminal for the first time
-        ydl_opts['username'] = 'oauth2'
-        ydl_opts['password'] = ''
-    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         # 默认使用 m4a 格式（YouTube 原生，无需转换更快速）
