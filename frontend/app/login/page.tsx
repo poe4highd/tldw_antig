@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, ArrowRight, Chrome, ShieldCheck, Clock, LayoutGrid, Sparkles, FileUp } from "lucide-react";
 import { supabase } from "@/utils/supabase";
@@ -22,6 +23,17 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.replace("/dashboard");
+            }
+        };
+        checkSession();
+    }, [router]);
 
     const handleGuestEntry = () => {
         // Simulate entry to Dashboard

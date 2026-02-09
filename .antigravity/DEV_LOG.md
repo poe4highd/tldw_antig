@@ -1,3 +1,27 @@
+# 开发日志 (2026-02-09)
+
+## 任务：优化已登录用户访问 Profile 的体验
+
+### 1. 需求 (Requirement)
+- **背景**: 已登录用户再次访问 Profile 或登录页时，应直接进入 Dashboard，避免重复展示登录表单。
+- **目标**: 实现自动重定向，并同步更新全站 Header 中的 Profile 链接。
+
+### 2. 实施 (Implementation)
+- **登录页重定向 (`login/page.tsx`)**: 增加 `useEffect` 会话检测。若 session 存在，立即 `router.replace("/dashboard")`。
+- **Header 链接优化**:
+    - `page.tsx`: 修改登录/Profile 按钮链接，当 `user` 存在时指向 `/dashboard`。
+    - `tasks/page.tsx`: 同上，确保任务页 Header 逻辑一致。
+
+### 3. 回顾 (Review)
+- **结果**: 实现了已登录用户的平滑跳转。点击 "Profile" 或手动访问 `/login` 现在都会直接进入主控面板。
+- **改动文件**: `frontend/app/login/page.tsx`, `frontend/app/page.tsx`, `frontend/app/tasks/page.tsx`。
+
+### 4. 经验 (Lessons)
+- **状态同步**: 对于全站通用的 Header 逻辑，应确保在不同页面间维持链接的一致性。
+- **用户路径优化**: 减少已登录用户的冗余中间页访问是提升应用专业感的关键。
+
+---
+
 # 开发日志 (2026-02-08)
 
 ## 任务：集成 YouTube Cookie 鉴权以解决 429 频率限制

@@ -1,3 +1,4 @@
+[2026-02-09] | [UX] | 优化已登录用户 Profile 访问 | 实现登录页自动重定向及 Header 链接动态调整 | walkthrough.md
 [2026-02-08] | [Feature] | 集成 YouTube Cookie 鉴权 | 在 yt-dlp 调用链中增加 cookiefile 支持，解决 429/403 频率限制问题 | DEV_LOG.md
 [2026-02-08] | [Bugfix] | 修复结果页 URL 误识别 | 修复由于正则匹配过宽导致的结果页 URL 无法转录问题 | DEV_LOG.md
 [2026-02-08] | [Bugfix] | 修复首页滚动遮挡问题 | 消除粘性头部与工具栏之间的间隙，通过调整 z-index 和背景不透明度解决视频漏出问题。 | walkthrough.md
