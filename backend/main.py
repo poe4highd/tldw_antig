@@ -443,7 +443,7 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
     return {"task_id": task_id}
 
 @app.get("/result/{task_id}")
-async def get_result(task_id: str, user_id: str = None):
+async def get_result_status(request: Request, task_id: str, user_id: str = None):
     # 0. Try Supabase first
     if supabase:
         try:
@@ -465,7 +465,7 @@ async def get_result(task_id: str, user_id: str = None):
                     "title": video["title"],
                     "url": "N/A",
                     "youtube_id": video["id"] if len(video["id"]) == 11 else None,
-                    "thumbnail": video["thumbnail"],
+                    "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
                     "media_path": video["media_path"],
                     "paragraphs": video["report_data"].get("paragraphs"),
                     "summary": video["report_data"].get("summary"),
@@ -492,7 +492,10 @@ async def get_result(task_id: str, user_id: str = None):
     # 1. Try finding by Task ID directly
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
-            return {**json.load(f), "status": "completed", "progress": 100}
+            result = json.load(f)
+            if "thumbnail" in result:
+                result["thumbnail"] = get_full_thumbnail_url(result["thumbnail"], request)
+            return {**result, "status": "completed", "progress": 100}
     
     # 2. If task_id looks like a YouTube ID (11 chars), search in results
     if len(task_id) == 11:
@@ -502,6 +505,8 @@ async def get_result(task_id: str, user_id: str = None):
                     with open(f"{RESULTS_DIR}/{f_name}", "r", encoding="utf-8") as f:
                         data = json.load(f)
                         if data.get("youtube_id") == task_id:
+                            if "thumbnail" in data:
+                                data["thumbnail"] = get_full_thumbnail_url(data["thumbnail"], request)
                             return {**data, "status": "completed", "progress": 100}
                 except:
                     continue
@@ -511,10 +516,29 @@ async def get_result(task_id: str, user_id: str = None):
             return {"status": "failed", "detail": json.load(f).get("error"), "progress": 100}
     elif os.path.exists(status_path):
         with open(status_path, "r") as f:
-            return json.load(f)
+            result = json.load(f)
+            if "thumbnail" in result:
+                result["thumbnail"] = get_full_thumbnail_url(result["thumbnail"], request)
+            return result
             
     raise HTTPException(status_code=404, detail="Task not found")
 
+def get_full_thumbnail_url(thumbnail: str, request: Request = None) -> str:
+    """补全缩略图 URL：如果是本地文件名则添加前缀"""
+    if not thumbnail:
+        return ""
+    if thumbnail.startswith(("http://", "https://")):
+        return thumbnail
+    
+    # 补全本地路径逻辑
+    base_url = ""
+    if request:
+        # 尝试从请求中获取原始 Host
+        base_url = str(request.base_url).rstrip("/")
+    
+    return f"{base_url}/media/{thumbnail}"
+
+# API Endpoints
 @app.get("/history")
 async def get_history(user_id: str = None):
     history_items = []
@@ -698,7 +722,7 @@ async def get_history(user_id: str = None):
     }
 
 @app.get("/explore")
-async def get_explore(page: int = 1, limit: int = 24, q: str = None, user_id: str = None):
+async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str = None, user_id: str = None):
     if not supabase:
         # Fallback to local history but only YouTube ones
         res = await get_history()
@@ -777,7 +801,7 @@ async def get_explore(page: int = 1, limit: int = 24, q: str = None, user_id: st
             items.append({
                 "id": v["id"],
                 "title": v["title"],
-                "thumbnail": v["thumbnail"],
+                "thumbnail": get_full_thumbnail_url(v["thumbnail"], request),
                 "channel": v.get("channel"),
                 "channel_id": v.get("channel_id"),
                 "channel_avatar": v.get("channel_avatar"),
@@ -852,7 +876,7 @@ async def toggle_user_like(request: LikeRequest):
         return {"status": "error", "message": str(e)}
 
 @app.get("/bookshelf")
-async def get_bookshelf(user_id: str, limit: int = 40):
+async def get_bookshelf(request: Request, user_id: str, limit: int = 40):
     if not supabase:
         return {"history": []}
     
@@ -890,7 +914,7 @@ async def get_bookshelf(user_id: str, limit: int = 40):
                 bookshelf_map[vid] = {
                     "id": video["id"],
                     "title": video["title"],
-                    "thumbnail": video["thumbnail"],
+                    "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
                     "mtime": item["created_at"],
                     "status": video["status"],
                     "is_public": video.get("is_public", True),
@@ -908,7 +932,7 @@ async def get_bookshelf(user_id: str, limit: int = 40):
                     bookshelf_map[vid] = {
                         "id": video["id"],
                         "title": video["title"],
-                        "thumbnail": video["thumbnail"],
+                        "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
                         "mtime": item["created_at"],
                         "status": video["status"],
                         "is_public": video.get("is_public", True),

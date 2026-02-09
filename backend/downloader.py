@@ -25,6 +25,13 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
         'js_runtimes': {'node': {}},
         'remote_components': {'ejs:github'},
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        # 缩略图下载与转换
+        'writethumbnail': True,
+        'postprocessors': [{
+            'key': 'FFmpegThumbnailsConvertor',
+            'format': 'jpg',
+            'when': 'before_dl',
+        }],
         # 字幕下载配置
         'writesubtitles': True,
         'writeautomaticsub': True,
@@ -47,5 +54,10 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
         if actual_ext != 'm4a':
             filename = os.path.join(output_path, f"{info['id']}.{actual_ext}")
 
+        # 返回本地化的缩略图文件名
+        thumbnail_path = os.path.join(output_path, f"{info['id']}.jpg")
         thumbnail = info.get('thumbnail')
+        if os.path.exists(thumbnail_path):
+            thumbnail = os.path.basename(thumbnail_path)
+            
         return filename, info['title'], thumbnail
