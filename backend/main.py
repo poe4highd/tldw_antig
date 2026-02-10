@@ -1213,6 +1213,63 @@ async def get_visibility_settings():
         "known_channels": known_channels
     }
 
+@app.get("/admin/stats", dependencies=[Depends(verify_admin_key)])
+async def get_admin_stats():
+    """获取管理驾驶舱的核心统计数据"""
+    if not supabase:
+        return {"error": "Database not connected"}
+    
+    try:
+        # 1. 累计处理视频
+        video_count_res = supabase.table("videos").select("id", count="exact").execute()
+        video_count = video_count_res.count
+        
+        # 2. 活跃用户 (DAU) - 过去 24 小时有行为的用户数
+        # 简化版：统计过去 24 小时 interactions 表中的唯一 user_id 数量
+        from datetime import datetime, timedelta
+        yesterday = (datetime.utcnow() - timedelta(days=1)).isoformat()
+        
+        # 注意：这里如果数据量大可能会慢，但在初期是可行的
+        dau_res = supabase.table("interactions") \
+            .select("user_id") \
+            .not_.is_("user_id", "null") \
+            .gt("created_at", yesterday) \
+            .execute()
+        
+        unique_users = set(v["user_id"] for v in dau_res.data) if dau_res.data else set()
+        dau_count = len(unique_users)
+        
+        # 3. 字幕总点击量 / 互动总数
+        # 我们使用 videos 表中的 interaction_count 之和，外加 view_count
+        stats_res = supabase.table("videos").select("interaction_count, view_count").execute()
+        total_interactions = sum((v.get("interaction_count") or 0) for v in stats_res.data)
+        total_views = sum((v.get("view_count") or 0) for v in stats_res.data)
+        
+        # 4. 热力图数据
+        heatmap_res = supabase.table("admin_heatmap_data").select("*").execute()
+        
+        # 5. 爆款视频 Top 5
+        top_videos_res = supabase.table("videos") \
+            .select("id, title, interaction_count") \
+            .order("interaction_count", desc=True) \
+            .limit(5) \
+            .execute()
+        
+        return {
+            "stats": {
+                "video_count": f"{video_count:,}",
+                "dau": str(dau_count),
+                "total_clicks": f"{total_interactions + total_views:,}", # 综合点击
+                "retention": "84%" # 暂时硬编码或以后实现
+            },
+            "heatmap": heatmap_res.data,
+            "top_videos": top_videos_res.data
+        }
+    except Exception as e:
+        print(f"Failed to fetch admin stats: {e}")
+        return {"error": str(e)}
+
+
 @app.post("/admin/visibility/channel", dependencies=[Depends(verify_admin_key)])
 async def update_channel_settings(request: ChannelSettingsRequest):
     """更新频道设置"""

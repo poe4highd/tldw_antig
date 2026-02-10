@@ -23,8 +23,45 @@ export default function AdminInsightPage() {
     const [adminKey, setAdminKey] = React.useState<string | null>(null);
     const [isAuthorized, setIsAuthorized] = React.useState<boolean>(false);
     const [verifying, setVerifying] = React.useState(true);
+    const [stats, setStats] = React.useState<any>(null);
+    const [loadingStats, setLoadingStats] = React.useState(false);
 
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+    const fetchStats = async (key: string) => {
+        setLoadingStats(true);
+        try {
+            const res = await fetch(`${API_BASE}/admin/stats`, {
+                headers: { "X-Admin-Key": key }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setStats(data);
+
+                // Transform Heatmap Data
+                if (data.heatmap) {
+                    const categories = Array.from(new Set(data.heatmap.map((h: any) => h.category || "未分类")));
+                    const rows = categories.map((cat: any, i) => {
+                        const cells = Array.from({ length: 24 }, (_, hour) => {
+                            const match = data.heatmap.find((h: any) => (h.category || "未分类") === cat && h.hour_of_day === hour);
+                            return match ? match.intensity : 0;
+                        });
+                        // 归一化强度到 0-100 用于显示
+                        const maxIntensity = Math.max(...cells, 1);
+                        return {
+                            id: i,
+                            label: cat.length > 10 ? cat.substring(0, 8) + '...' : cat,
+                            cells: cells.map(c => (c / maxIntensity) * 100)
+                        };
+                    });
+                    setHeatmapRows(rows);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch stats:", err);
+        }
+        setLoadingStats(false);
+    };
 
     React.useEffect(() => {
         const storedKey = localStorage.getItem("tldw_admin_key");
@@ -34,13 +71,6 @@ export default function AdminInsightPage() {
         } else {
             setVerifying(false);
         }
-
-        const rows = Array.from({ length: 8 }, (_, i) => ({
-            id: i,
-            label: `视频领域 ${i + 1}`,
-            cells: Array.from({ length: 24 }, () => Math.random() * 100)
-        }));
-        setHeatmapRows(rows);
     }, []);
 
     const verifyKey = async (key: string) => {
@@ -53,6 +83,7 @@ export default function AdminInsightPage() {
             if (res.ok) {
                 setIsAuthorized(true);
                 localStorage.setItem("tldw_admin_key", key);
+                fetchStats(key);
             } else {
                 setIsAuthorized(false);
             }
@@ -130,13 +161,16 @@ export default function AdminInsightPage() {
                         <span>返回书架</span>
                     </Link>
                     <h1 className="text-4xl font-black tracking-tight mb-2">管理数据驾驶舱</h1>
-                    <p className="text-slate-500 text-sm font-medium">全站运营热度与用户行为深度透视 (Mock Presentation)</p>
                 </div>
 
                 <div className="flex items-center space-x-3">
-                    <button className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold flex items-center space-x-2 hover:bg-slate-800 transition-colors">
-                        <Calendar className="w-4 h-4 text-slate-500" />
-                        <span>过去 30 天</span>
+                    <button
+                        onClick={() => adminKey && fetchStats(adminKey)}
+                        disabled={loadingStats}
+                        className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold flex items-center space-x-2 hover:bg-slate-800 transition-colors disabled:opacity-50"
+                    >
+                        {loadingStats ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4 text-indigo-400" />}
+                        <span>刷新数据</span>
                     </button>
                     <button className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center space-x-2 hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20">
                         <Filter className="w-4 h-4" />
@@ -148,10 +182,10 @@ export default function AdminInsightPage() {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 {[
-                    { label: "累计处理视频", value: "2,481", trend: "+12.5%", icon: Activity, color: "text-blue-400" },
-                    { label: "活跃用户 (DAU)", value: "156", trend: "+3.2%", icon: Users, color: "text-indigo-400" },
-                    { label: "字幕总点击量", value: "48.2k", trend: "+24.8%", icon: MousePointer2, color: "text-emerald-400" },
-                    { label: "平均阅读留存", value: "84%", trend: "+5.1%", icon: TrendingUp, color: "text-amber-400" },
+                    { label: "累计处理视频", value: stats?.stats?.video_count || "0", trend: "+12.5%", icon: Activity, color: "text-blue-400" },
+                    { label: "活跃用户 (DAU)", value: stats?.stats?.dau || "0", trend: "+3.2%", icon: Users, color: "text-indigo-400" },
+                    { label: "全站互动总量", value: stats?.stats?.total_clicks || "0", trend: "+24.8%", icon: MousePointer2, color: "text-emerald-400" },
+                    { label: "平均阅读留存", value: stats?.stats?.retention || "84%", trend: "+5.1%", icon: TrendingUp, color: "text-amber-400" },
                 ].map((stat, i) => (
                     <div key={i} className="bg-slate-900/30 border border-slate-800 rounded-3xl p-6 hover:border-indigo-500/30 transition-all group">
                         <div className="flex items-center justify-between mb-4">
@@ -217,23 +251,32 @@ export default function AdminInsightPage() {
                     </div>
 
                     <div className="space-y-6">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="flex items-center space-x-4 group cursor-pointer">
+                        {(stats?.top_videos || []).map((video: any, i: number) => (
+                            <Link
+                                key={video.id}
+                                href={`/result/${video.id}`}
+                                className="flex items-center space-x-4 group cursor-pointer"
+                            >
                                 <div className="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all">
-                                    #{i}
+                                    #{i + 1}
                                 </div>
                                 <div className="flex-grow overflow-hidden">
-                                    <p className="text-sm font-bold truncate group-hover:text-indigo-400 transition-colors">爆款视频标题案例 {i} 展示</p>
-                                    <p className="text-[10px] text-slate-500 font-bold tracking-widest">{10 * (6 - i)}k 次互动</p>
+                                    <p className="text-sm font-bold truncate group-hover:text-indigo-400 transition-colors">{video.title}</p>
+                                    <p className="text-[10px] text-slate-500 font-bold tracking-widest">{(video.interaction_count || 0).toLocaleString()} 次互动</p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-indigo-400 transition-all" />
-                            </div>
+                            </Link>
                         ))}
+                        {(!stats?.top_videos || stats.top_videos.length === 0) && (
+                            <div className="text-center py-10 text-slate-600 text-xs font-bold uppercase tracking-widest">
+                                暂无爆款数据
+                            </div>
+                        )}
                     </div>
 
-                    <button className="w-full mt-10 py-4 border border-dashed border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 rounded-2xl transition-all text-xs font-bold text-slate-500 hover:text-indigo-400">
-                        查看完整榜单
-                    </button>
+                    <Link href="/admin/visibility" className="block w-full mt-10 py-4 border border-dashed border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 rounded-2xl transition-all text-xs font-bold text-slate-500 hover:text-indigo-400 text-center">
+                        进入内容管理
+                    </Link>
                 </div>
             </div>
         </main>

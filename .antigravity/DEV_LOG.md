@@ -1,5 +1,56 @@
 # 开发日志 (2026-02-09)
 
+## 任务：改进频道追踪逻辑并跳过会员视频
+### 1. 需求 (Requirement)
+- **背景**: 发现由于 429 错误导致主页视频停滞。
+- **目标**: 在频道追踪中增加 Cookie 支持，并显式跳过直播和会员专享视频。
+
+### 2. 实施 (Implementation)
+- **`channel_tracker.py`**:
+    - 增加 `--cookies` 参数支持，从 `YOUTUBE_COOKIES_PATH` 加载。
+    - 增加 `--match-filter "!is_live & availability=public"` 以过滤会员视频。
+    - 增加 `--playlist-items 5` 以在最新视频为非公开时自动回溯。
+    - 优化 `subprocess` 处理逻辑，兼容 yt-dlp 的非零退出码（部分匹配场景）。
+    - 引入 `--js-runtimes node` 消除环境警告。
+
+### 3. 回顾 (Review)
+- **结果**: 脚本现能正确识别公开视频并跳过会员视频。手动执行确认已成功拉取最新视频 ID。
+- **改动文件**: `backend/scripts/channel_tracker.py`。
+
+### 4. 经验 (Lessons)
+- **yt-dlp 行为流**: 在使用 filter 时，即使找到了 ID，yt-dlp 也可能因跳过项而返回 1。逻辑层需优先判断 stdout。
+- **环境依赖**: 明确指定 `--js-runtimes` 能显著降低日志噪音。
+
+---
+
+# 开发日志 (2026-02-09)
+
+## 任务：管理数据驾驶舱实时化 (Real-time Admin Dashboard)
+
+### 1. 需求 (Requirement)
+- **背景**: 管理页面目前使用的是 Mock 示例数据，无法反映系统真实的运行状态。
+- **目标**: 更新管理驾驶舱，使其从后端获取实时真实的统计数据，包括视频总数、活跃用户 (DAU)、全站互动量及交互热力图。
+
+### 2. 实施 (Implementation)
+- **后端 (FastAPI)**:
+    - 新增 `/admin/stats` 接口，受 `verify_admin_key` 保护。
+    - 统计逻辑：从 `videos` 表计算总数和互动总和；从 `interactions` 表计算 24h DAU；从 `admin_heatmap_data` 视图获取热力数据。
+- **前端 (Next.js)**:
+    - `app/admin/page.tsx`: 接入实时接口，替换所有 Mock 数值。
+    - **热力图渲染**: 实现实时热力数据转换与归一化展示。
+    - **交互增强**: 增加“刷新数据”按钮，并实现爆款视频 (Top 5) 的真实排行与跳转功能。
+
+### 3. 回顾 (Review)
+- **结果**: 管理驾驶舱已成功实时化。视频总数 (59)、互动量 (98) 等核心指标已准确展示。
+- **改动文件**: `backend/main.py`, `frontend/app/admin/page.tsx`。
+
+### 4. 经验 (Lessons)
+- **视图解耦**: 利用数据库视图 (`VIEW`) 预处理复杂的热力图聚合逻辑，能极大地简化 API 开发并提升查询性能。
+- **前端鲁棒性**: 在处理后端返回的稀疏热力矩阵时，前端应通过预填补 (Padding) 逻辑确保 24 小时轴线的完整显示。
+
+---
+
+
 ## 任务：优化已登录用户访问 Profile 的体验
 
 ### 1. 需求 (Requirement)

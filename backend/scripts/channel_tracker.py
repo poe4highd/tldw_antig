@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 supabase = get_db()
 
 def get_latest_video_id(channel_handle):
-    """Use yt-dlp to get the latest video ID from a channel handle."""
+    """Use yt-dlp to get the latest public, non-live video ID from a channel handle."""
     if not channel_handle:
         return None
     
@@ -21,18 +21,40 @@ def get_latest_video_id(channel_handle):
         channel_handle = '@' + channel_handle
         
     url = f"https://www.youtube.com/{channel_handle}/videos"
-    cmd = ["yt-dlp", "--get-id", "--playlist-items", "1", url]
     
+    # Use match-filter to skip live and non-public (members) videos
+    # We check top 5 to find the latest valid one
+    cmd = [
+        "yt-dlp", 
+        "--get-id", 
+        "--playlist-items", "5", 
+        "--match-filter", "!is_live & availability=public",
+        "--max-downloads", "1",
+        "--quiet",
+        "--js-runtimes", "node",
+        url
+    ]
+    
+    # Add cookies if available
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
+    if cookies_path and os.path.exists(cookies_path):
+        cmd.extend(["--cookies", cookies_path])
+    elif os.path.exists("youtube_cookies.txt"):
+        cmd.extend(["--cookies", "youtube_cookies.txt"])
+        
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
         video_id = result.stdout.strip()
-        # Handle cases where multiple IDs might be returned or output has trash
         if video_id:
             # Take the first line in case of multiple IDs or extra output
-            video_id = video_id.split('\n')[0].strip()
-            return video_id
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error fetching latest video for {channel_handle}: {e.stderr}")
+            return video_id.split('\n')[0].strip()
+        
+        # If no video_id found, check return code
+        if result.returncode != 0:
+            if not result.stdout.strip():
+                 logger.info(f"No matching public videos found for {channel_handle} in top 5 items.")
+            else:
+                logger.error(f"Error fetching latest video for {channel_handle}: {result.stderr or result.stdout}")
     except Exception as e:
         logger.error(f"Unexpected error for {channel_handle}: {e}")
     
@@ -50,8 +72,16 @@ def get_video_metadata(video_id):
         "--dump-json", 
         "--no-download",
         "--no-playlist",
+        "--js-runtimes", "node",
         url
     ]
+    
+    # Add cookies if available
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
+    if cookies_path and os.path.exists(cookies_path):
+        cmd.extend(["--cookies", cookies_path])
+    elif os.path.exists("youtube_cookies.txt"):
+        cmd.extend(["--cookies", "youtube_cookies.txt"])
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)

@@ -1,3 +1,5 @@
+[2026-02-09] | [feature] | 管理数据驾驶舱实时化 | 管理页接入真实 API，实现视频数/DAU/热力图实时展示 | walkthrough.md
+[2026-02-09] | [Feature] | 频道追踪逻辑优化 | 增加 Cookie 支持并过滤会员/直播视频，解决主页停滞问题 | DEV_LOG.md
 [2026-02-09] | [UX] | 优化已登录用户 Profile 访问 | 实现登录页自动重定向及 Header 链接动态调整 | walkthrough.md
 [2026-02-08] | [Feature] | 集成 YouTube Cookie 鉴权 | 在 yt-dlp 调用链中增加 cookiefile 支持，解决 429/403 频率限制问题 | DEV_LOG.md
 [2026-02-08] | [Bugfix] | 修复结果页 URL 误识别 | 修复由于正则匹配过宽导致的结果页 URL 无法转录问题 | DEV_LOG.md
