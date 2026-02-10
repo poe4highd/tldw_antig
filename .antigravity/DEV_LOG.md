@@ -1,5 +1,29 @@
 # 开发日志 (2026-02-09)
 
+## 任务：实现失败视频自动重试机制
+### 1. 需求 (Requirement)
+- **背景**: 部分视频由于 API 频率限制或网络波动失败，目前需要手动重试。
+- **目标**: 在定期检查中增加自动重试逻辑，每视频最多重试 3 次。
+
+### 2. 实施 (Implementation)
+- **`channel_tracker.py`**:
+    - 新增 `retry_failed_videos()` 函数。
+    - 扫描 `videos` 表中 `status='failed'` 且 `retry_count < 3` 的记录。
+    - 将状态重置为 `queued` 并增加 `retry_count`。
+- **`main.py`**:
+    - 更新 `run_channel_tracker` 的正则表达式以正确解析包含重试任务的总数。
+
+### 3. 回顾 (Review)
+- **结果**: 手动运行脚本，成功将 32 个之前失败的任务重新排队，并正确记录了重试次数。
+- **改动文件**: `backend/scripts/channel_tracker.py`, `backend/main.py`。
+
+### 4. 经验 (Lessons)
+- **JSONB 灵活存储**: 使用 `report_data` 存储重试次数避免了修改核心表结构，具备良好的扩展性。
+
+---
+
+# 开发日志 (2026-02-09)
+
 ## 任务：改进频道追踪逻辑并跳过会员视频
 ### 1. 需求 (Requirement)
 - **背景**: 发现由于 429 错误导致主页视频停滞。

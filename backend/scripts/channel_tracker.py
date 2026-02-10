@@ -104,6 +104,57 @@ def get_video_metadata(video_id):
     
     return None
 
+def retry_failed_videos():
+    """Find failed videos and re-queue them if they haven't reached the retry limit."""
+    if not supabase:
+        return 0
+    
+    logger.info("Checking for failed videos to retry...")
+    retried_count = 0
+    
+    try:
+        # Fetch failed videos. We'll check retry_count in Python as JSONB filtering can be tricky
+        response = supabase.table("videos") \
+            .select("id, title, report_data") \
+            .eq("status", "failed") \
+            .execute()
+        
+        for video in response.data:
+            vid_id = video["id"]
+            report_data = video.get("report_data") or {}
+            retry_count = report_data.get("retry_count", 0)
+            
+            if retry_count < 3:
+                logger.info(f"Retrying video {vid_id} (Attempt {retry_count + 1}/3)...")
+                
+                # Update status to queued and increment retry_count
+                report_data["retry_count"] = retry_count + 1
+                
+                supabase.table("videos").update({
+                    "status": "queued",
+                    "report_data": report_data
+                }).eq("id", vid_id).execute()
+                
+                # Update local status file if it exists
+                results_dir = "results"
+                status_file = f"{results_dir}/{vid_id}_status.json"
+                if os.path.exists(status_file):
+                    try:
+                        with open(status_file, "w") as f:
+                            json.dump({"status": "queued", "progress": 0, "retry_count": retry_count + 1}, f)
+                    except Exception as e:
+                        logger.warning(f"Failed to update local status file for {vid_id}: {e}")
+                
+                retried_count += 1
+                
+        if retried_count > 0:
+            logger.info(f"Re-queued {retried_count} failed videos.")
+            
+    except Exception as e:
+        logger.error(f"Error during failed videos retry: {e}")
+        
+    return retried_count
+
 def main():
     if not supabase:
         logger.error("Supabase client not initialized. Exiting.")
@@ -111,7 +162,10 @@ def main():
 
     logger.info("Starting channel tracking...")
     
-    # 0. 获取需要跳过的频道（track_new_videos=FALSE）
+    # 0. Retry previously failed videos
+    retried_count = retry_failed_videos()
+    
+    # 0.1 获取需要跳过的频道（track_new_videos=FALSE）
     skip_channels = set()
     try:
         skip_res = supabase.table("channel_settings") \
@@ -193,7 +247,8 @@ def main():
         except Exception as e:
             logger.error(f"Error checking/inserting video {latest_vid}: {e}")
 
-    logger.info(f"Channel tracking finished. Added {new_tasks_count} new tasks to the queue.")
+    total_added = retried_count + new_tasks_count
+    logger.info(f"Channel tracking finished. Added {total_added} tasks to the queue ({retried_count} retries, {new_tasks_count} new).")
 
 if __name__ == "__main__":
     main()

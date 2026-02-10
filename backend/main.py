@@ -1346,13 +1346,13 @@ async def run_channel_tracker():
         )
         
         if result.returncode == 0:
-            # 解析添加了多少新视频
+            # 解析添加了多少新任务（包括新视频和重试的失败视频）
             import re
-            match = re.search(r"Added (\d+) new tasks", result.stdout)
+            match = re.search(r"Added (\d+) tasks", result.stdout)
             if match:
                 added = int(match.group(1))
                 _daily_video_count += added
-                print(f"[Scheduler] 频道检查完成，新增 {added} 个视频任务")
+                print(f"[Scheduler] 频道检查完成，已排队 {added} 个任务")
         else:
             print(f"[Scheduler] 频道检查失败: {result.stderr}")
     except subprocess.TimeoutExpired:
