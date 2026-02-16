@@ -46,6 +46,8 @@ export default function TasksPage() {
     const [progress, setProgress] = useState(0);
     const [eta, setEta] = useState<number | null>(null);
     const [isPublic, setIsPublic] = useState(true);
+    const [isFinished, setIsFinished] = useState(false);
+    const [finishedTaskId, setFinishedTaskId] = useState<string | null>(null);
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [activeTasks, setActiveTasks] = useState<ActiveTask[]>([]);
     const [summary, setSummary] = useState<Summary | null>(null);
@@ -85,6 +87,8 @@ export default function TasksPage() {
         setStatus(t("tasks.statusInit"));
         setProgress(0);
         setEta(null);
+        setIsFinished(false);
+        setFinishedTaskId(null);
         try {
             const apiBase = getApiBase();
             const resp = await fetch(`${apiBase}/process`, {
@@ -114,6 +118,8 @@ export default function TasksPage() {
         setStatus(t("tasks.statusUploading"));
         setProgress(0);
         setEta(null);
+        setIsFinished(false);
+        setFinishedTaskId(null);
 
         const formData = new FormData();
         formData.append("file", file);
@@ -145,7 +151,10 @@ export default function TasksPage() {
 
                 if (data.status === "completed") {
                     clearInterval(interval);
-                    router.push(`/result/${taskId}`);
+                    setProgress(100);
+                    setStatus(t("tasks.statusCompleted"));
+                    setIsFinished(true);
+                    setFinishedTaskId(taskId);
                 } else if (data.status === "failed") {
                     setStatus("Failed: " + (data.detail || "Unknown error"));
                     clearInterval(interval);
@@ -421,10 +430,21 @@ export default function TasksPage() {
                                         <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:40px_40px] animate-[slide_2s_linear_infinite]"></div>
                                     </div>
                                 </div>
-                                {eta !== null && (
+                                {eta !== null && !isFinished && (
                                     <p className="text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                                         {t("tasks.eta")} <span className="text-slate-300 ml-1">{Math.floor(eta / 60)}{t("tasks.minutes")} {eta % 60}{t("tasks.seconds")}</span>
                                     </p>
+                                )}
+                                {isFinished && finishedTaskId && (
+                                    <div className="flex justify-center pt-4 animate-in fade-in zoom-in duration-500">
+                                        <Link
+                                            href={`/result/${finishedTaskId}`}
+                                            className="group flex items-center gap-3 px-12 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98] ring-4 ring-emerald-500/20"
+                                        >
+                                            <span>{t("tasks.viewReport")}</span>
+                                            <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                                        </Link>
+                                    </div>
                                 )}
                             </div>
                         )}

@@ -50,5 +50,5 @@
 ---
 
 ## 验证与测试
-- 已创建测试工具：[test_gap_detection.py](file:///Users/bu/Projects/Lijing/AppDev/tldw/tldw_antig/backend/tests/test_gap_detection.py)
+- 已创建测试工具：[test_gap_detection.py](file:///backend/tests/test_gap_detection.py)
 - 测试数据：`0_zgry0AGqU` 成功检测到 4.6s 及 23s 的异常间隙。

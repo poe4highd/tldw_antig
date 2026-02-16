@@ -130,8 +130,11 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                     channel_id = info.get('uploader_id') or info.get('channel_id')
                     channel_url = info.get('uploader_url') or info.get('channel_url')
                     
-                    if not channel and channel_id:
-                        channel = channel_id
+                    if not channel:
+                        # If extraction failed but we have a channel_id, 
+                        # we'll try to use channel_name if it was already set elsewhere,
+                        # but we won't default to the ID here to avoid UCo2... showing as Name.
+                        pass
 
                 # Separate block for avatar to avoid losing channel info if this fails
                 if channel_url:
@@ -371,7 +374,8 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
                     "url": request.url,
                     "mode": request.mode,
                     "user_id": request.user_id,
-                    "is_public": request.is_public
+                    "is_public": request.is_public,
+                    "source": "manual"
                 }
             }
             supabase.table("videos").upsert(video_data).execute()
@@ -424,7 +428,8 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
                     "mode": mode,
                     "user_id": user_id,
                     "is_public": is_public,
-                    "local_file": file_path
+                    "local_file": file_path,
+                    "source": "manual"
                 }
             }
             supabase.table("videos").upsert(video_data).execute()
@@ -528,6 +533,9 @@ def get_full_thumbnail_url(thumbnail: str, request: Request = None) -> str:
     if not thumbnail:
         return ""
     if thumbnail.startswith(("http://", "https://")):
+        return thumbnail
+    if thumbnail.startswith("#"):
+        # 这是一个十六进制颜色占位符，直接返回
         return thumbnail
     
     # 补全本地路径逻辑
@@ -819,6 +827,8 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
             "limit": limit
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Explore fetch failed: {e}")
         return {"items": [], "total": 0, "page": page, "limit": limit}
 
@@ -1165,7 +1175,7 @@ class VideoVisibilityRequest(BaseModel):
     hidden_from_home: bool
 
 @app.get("/admin/visibility", dependencies=[Depends(verify_admin_key)])
-async def get_visibility_settings():
+async def get_visibility_settings(request: Request):
     """获取所有频道设置和所有视频列表"""
     if not supabase:
         return {"channels": [], "all_videos": [], "error": "Database not connected"}
@@ -1186,7 +1196,14 @@ async def get_visibility_settings():
             .order("created_at", desc=True) \
             .limit(200) \
             .execute()
-        all_videos = videos_res.data if videos_res.data else []
+        raw_videos = videos_res.data if videos_res.data else []
+        
+        # 补全缩略图 URL
+        all_videos = []
+        for v in raw_videos:
+            v_copy = v.copy()
+            v_copy["thumbnail"] = get_full_thumbnail_url(v.get("thumbnail"), request)
+            all_videos.append(v_copy)
     except Exception as e:
         all_videos = []
         print(f"Failed to fetch videos: {e}")
@@ -1201,9 +1218,12 @@ async def get_visibility_settings():
         known_channels = {}
         for v in all_channels_res.data:
             c_id = v.get("channel_id")
-            c_name = v.get("channel")
-            if c_id and c_id not in known_channels:
+            # Try both 'channel' and 'channel_name' for compatibility
+            c_name = v.get("channel") or v.get("channel_name")
+            if c_id and c_name and c_id not in known_channels:
                 known_channels[c_id] = c_name
+            elif c_id and not c_name and c_id not in known_channels:
+                known_channels[c_id] = None
     except:
         known_channels = {}
     
@@ -1220,16 +1240,19 @@ async def get_admin_stats():
         return {"error": "Database not connected"}
     
     try:
-        # 1. 累计处理视频
-        video_count_res = supabase.table("videos").select("id", count="exact").execute()
-        video_count = video_count_res.count
+        # 1. 获取所有视频的基本数据用于统计
+        # 增加 report_data 字段以进行用量估算
+        all_videos_res = supabase.table("videos") \
+            .select("id, title, status, usage, report_data, interaction_count, view_count, created_at") \
+            .execute()
+        all_videos = all_videos_res.data if all_videos_res.data else []
+        
+        video_count = len(all_videos)
         
         # 2. 活跃用户 (DAU) - 过去 24 小时有行为的用户数
-        # 简化版：统计过去 24 小时 interactions 表中的唯一 user_id 数量
         from datetime import datetime, timedelta
         yesterday = (datetime.utcnow() - timedelta(days=1)).isoformat()
         
-        # 注意：这里如果数据量大可能会慢，但在初期是可行的
         dau_res = supabase.table("interactions") \
             .select("user_id") \
             .not_.is_("user_id", "null") \
@@ -1239,31 +1262,107 @@ async def get_admin_stats():
         unique_users = set(v["user_id"] for v in dau_res.data) if dau_res.data else set()
         dau_count = len(unique_users)
         
-        # 3. 字幕总点击量 / 互动总数
-        # 我们使用 videos 表中的 interaction_count 之和，外加 view_count
-        stats_res = supabase.table("videos").select("interaction_count, view_count").execute()
-        total_interactions = sum((v.get("interaction_count") or 0) for v in stats_res.data)
-        total_views = sum((v.get("view_count") or 0) for v in stats_res.data)
+        # 3. 统计项初始化
+        total_interactions = 0
+        total_views = 0
+        total_llm_cost = 0.0
+        llm_usage_history = []
         
-        # 4. 热力图数据
+        # 估算函数：基于文本长度估算 Token 和费用
+        def estimate_llm_usage(report_data):
+            if not report_data: return 0, 0, 0.0
+            
+            # 提取文本
+            text = ""
+            paragraphs = report_data.get("paragraphs") or []
+            if paragraphs:
+                for p in paragraphs:
+                    for s in p.get("sentences", []):
+                        text += s.get("text", "")
+            
+            if not text:
+                raw_subs = report_data.get("raw_subtitles") or []
+                text = "".join([s.get("text", "") for s in raw_subs])
+            
+            char_count = len(text)
+            if char_count == 0: return 0, 0, 0.0
+            
+            # 估算逻辑：1汉字 ≈ 1.5 token (考虑提示词开销 * 2.5 倍率)
+            estimated_tokens = int(char_count * 2.5)
+            # 按照 gpt-4o-mini 平均值 $0.15/1M tokens 估算
+            estimated_cost = (estimated_tokens / 1000000.0) * 0.15
+            
+            return int(estimated_tokens * 0.7), int(estimated_tokens * 0.3), estimated_cost
+
+        # 4. 遍历视频进行聚合
+        for v in all_videos:
+            total_interactions += (v.get("interaction_count") or 0)
+            total_views += (v.get("view_count") or 0)
+            
+            usage = v.get("usage") or {}
+            cost = usage.get("llm_cost")
+            
+            is_estimated = False
+            if cost is None or cost == 0:
+                if v.get("status") == "completed":
+                    _, _, est_cost = estimate_llm_usage(v.get("report_data"))
+                    cost = est_cost
+                    is_estimated = True
+                else:
+                    cost = 0.0
+            
+            total_llm_cost += cost
+
+            # 构建历史记录（取最近 20 条）
+            # 我们先存起来，后面排序
+        
+        # 5. 构建 LLM 历史记录
+        sorted_videos = sorted(all_videos, key=lambda x: x.get("created_at", ""), reverse=True)
+        for v in sorted_videos[:20]:
+            usage = v.get("usage") or {}
+            report_data = v.get("report_data") or {}
+            
+            p_tokens = usage.get("llm_tokens", {}).get("prompt_tokens")
+            c_tokens = usage.get("llm_tokens", {}).get("completion_tokens")
+            cost = usage.get("llm_cost")
+            model = usage.get("model", "gpt-4o-mini")
+            is_estimated = False
+            
+            if cost is None or cost == 0:
+                if v.get("status") == "completed":
+                    p_tokens, c_tokens, cost = estimate_llm_usage(report_data)
+                    is_estimated = True
+                else:
+                    p_tokens, c_tokens, cost = 0, 0, 0.0
+
+            llm_usage_history.append({
+                "id": v["id"],
+                "title": v["title"],
+                "model": model if not is_estimated else f"{model} (est.)",
+                "prompt_tokens": p_tokens or 0,
+                "completion_tokens": c_tokens or 0,
+                "cost": cost or 0.0,
+                "is_estimated": is_estimated,
+                "created_at": v["created_at"]
+            })
+
+        # 6. 热力图数据
         heatmap_res = supabase.table("admin_heatmap_data").select("*").execute()
         
-        # 5. 爆款视频 Top 5
-        top_videos_res = supabase.table("videos") \
-            .select("id, title, interaction_count") \
-            .order("interaction_count", desc=True) \
-            .limit(5) \
-            .execute()
+        # 7. 爆款视频 Top 5
+        top_videos = sorted(all_videos, key=lambda x: (x.get("interaction_count") or 0), reverse=True)[:5]
         
         return {
             "stats": {
                 "video_count": f"{video_count:,}",
                 "dau": str(dau_count),
-                "total_clicks": f"{total_interactions + total_views:,}", # 综合点击
-                "retention": "84%" # 暂时硬编码或以后实现
+                "total_clicks": f"{total_interactions + total_views:,}", 
+                "total_llm_cost": f"${total_llm_cost:,.2f}",
+                "retention": "84%" 
             },
             "heatmap": heatmap_res.data,
-            "top_videos": top_videos_res.data
+            "top_videos": [{"id": v["id"], "title": v["title"], "interaction_count": v.get("interaction_count", 0)} for v in top_videos],
+            "llm_usage_history": llm_usage_history
         }
     except Exception as e:
         print(f"Failed to fetch admin stats: {e}")

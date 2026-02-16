@@ -1,3 +1,7 @@
+[2026-02-15] | [DevOps] | 优化开发脚本防止后端挂起 | 增强 dev.sh 的进程清理逻辑，解决间歇性端口占用及服务挂起问题 | dev.sh
+[2026-02-15] | [Bugfix] | 修复频道名称显示为 ID 的问题 | 统一后端 JSON 字段名并运行脚本补全 13 条存量数据的频道名称 | walkthrough.md
+[2026-02-15] | [UX/UI] | 管理页 UI 精细化与主题适配 | 实现管理端全量黑白主题、双语切换及紧凑型布局优化 | walkthrough_admin_ui.md
+[2026-02-15] | [Feature] | 管理页增加 LLM 用量追踪面板 | 实现 LLM 模型、Token 及费用的实时统计与历史追踪 | walkthrough_llm_tracking.md
 [2026-02-15] | [Docs] | 清理文档绝对路径并增强 Cookie 指导 | 全局清理硬编码路径，增加手动获取 Cookie 的插件指导 | youtube_cookies_setup.md
 [2026-02-15] | [Docs] | 编写频道追踪系统技术文档 | 详尽记录频道检查频率限制、顺序调度逻辑及设计安全考量 | channel_tracking_design.md
 [2026-02-10] | [Bugfix] | 修复可见性管理缩略图 | 修复 API URL 补全逻辑并恢复 60 个丢失的本地缩略图文件 | walkthrough.md

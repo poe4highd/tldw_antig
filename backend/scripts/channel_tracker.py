@@ -226,9 +226,10 @@ def main():
                     "status": "queued",
                     "report_data": {
                         "channel_id": metadata.get("channel_id"),
-                        "channel_name": metadata.get("channel_name"),
+                        "channel": metadata.get("channel_name"),
                         "duration": metadata.get("duration"),
                         "view_count": metadata.get("view_count"),
+                        "source": "tracker"
                     }
                 }).execute()
                 

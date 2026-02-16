@@ -8,7 +8,7 @@
 
 ### 核心组件
 
-#### [修改] [001_initial_schema.sql](file:///Users/bu/Projects/Lijing/AppDev/tldw/tldw_antig/backend/supabase/migrations/001_initial_schema.sql)
+#### [修改] [001_initial_schema.sql](file:///backend/supabase/migrations/001_initial_schema.sql)
 
 我们将优化现有架构，以更好地匹配当前的数据结构。
 

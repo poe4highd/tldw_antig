@@ -141,7 +141,8 @@ def main():
                 "llm_tokens": llm_usage,
                 "llm_cost": round(llm_cost, 6),
                 "total_cost": round(whisper_cost + llm_cost, 6),
-                "currency": "USD"
+                "currency": "USD",
+                "model": os.getenv("OLLAMA_MODEL", "qwen:8b") if os.getenv("LLM_PROVIDER") == "ollama" else "gpt-4o-mini"
             },
             "raw_subtitles": raw_subtitles,
             "user_id": None  # 由主进程填充

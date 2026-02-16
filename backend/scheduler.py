@@ -41,21 +41,43 @@ def get_next_task():
     
     try:
         if supabase:
-            # Fetch status='queued' videos, oldest first
-            response = supabase.table("videos").select("id").eq("status", "queued").order("created_at", desc=False).limit(1).execute()
+            # 1. First, try to fetch 'manual' tasks (highest priority)
+            # Use ->> to query the source field inside report_data JSONB
+            # Note: We order by created_at ASC to keep FIFO within the same priority level
+            response = supabase.table("videos") \
+                .select("id") \
+                .eq("status", "queued") \
+                .filter("report_data->>source", "eq", "manual") \
+                .order("created_at", desc=False) \
+                .limit(1) \
+                .execute()
+            
+            if response.data:
+                return {"id": response.data[0]["id"], "is_local": False}
+                
+            # 2. If no manual tasks, fetch 'tracker' tasks (or those without a specific source)
+            # This ensures backward compatibility with tasks that didn't have a source yet
+            response = supabase.table("videos") \
+                .select("id") \
+                .eq("status", "queued") \
+                .or_("report_data->>source.eq.tracker,report_data->>source.is.null") \
+                .order("created_at", desc=False) \
+                .limit(1) \
+                .execute()
+                
             if response.data:
                 return {"id": response.data[0]["id"], "is_local": False}
     except Exception as e:
         print(f"[Scheduler] Error fetching from Supabase: {e}")
     
-    # Fallback to local status files if Supabase returns nothing or is unavailable
+    # Fallback to local status files if Supabase is unavailable or returns nothing
+    # (Existing local logic remains as fallback)
     if not os.path.exists(RESULTS_DIR):
         return None
     
     queued_tasks = []
     for f in os.listdir(RESULTS_DIR):
         if f.endswith("_status.json"):
-            # Check if matching error or result exists
             tid = f.replace("_status.json", "")
             if os.path.exists(f"{RESULTS_DIR}/{tid}.json") or os.path.exists(f"{RESULTS_DIR}/{tid}_error.json"):
                 continue
@@ -65,13 +87,13 @@ def get_next_task():
                     data = json.load(rf)
                     if data.get("status") == "queued":
                         mtime = os.path.getmtime(os.path.join(RESULTS_DIR, f))
+                        # For local fallback, we don't differentiate priority yet as it's a rare case
                         queued_tasks.append((tid, mtime))
-                except:
-                    continue
+                except: continue
+                
     if not queued_tasks:
         return None
     
-    # Sort by mtime ascending (oldest first)
     queued_tasks.sort(key=lambda x: x[1])
     return {"id": queued_tasks[0][0], "is_local": True}
 

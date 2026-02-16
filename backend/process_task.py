@@ -132,8 +132,9 @@ def process_video_task(task_id):
                     channel_id = info.get('uploader_id') or info.get('channel_id')
                     channel_url = info.get('uploader_url') or info.get('channel_url')
                     
-                    if not channel and channel_id:
-                        channel = channel_id
+                    if not channel:
+                        # Avoid falling back to ID if name extraction failed
+                        pass
 
                 # Avatar block
                 if channel_url:
