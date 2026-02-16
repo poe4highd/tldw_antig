@@ -317,12 +317,20 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
 
                 if user_id:
                     submission_data = {
-                        "user_id": user_id,
                         "video_id": video_data["id"],
+                        "user_id": user_id,
                         "task_id": task_id
                     }
-                    supabase.table("submissions").insert(submission_data).execute()
+                    try:
+                        supabase.table("submissions").insert(submission_data).execute()
+                    except Exception as sub_e:
+                        print(f"Submission record already exists or insert failed: {sub_e}")
+                        # Fallback to update to ensure video_id is correctly linked to task_id
+                        supabase.table("submissions").update({
+                            "video_id": video_data["id"]
+                        }).eq("task_id", task_id).execute()
                     print(f"Successfully saved submission for user: {user_id}")
+
             except Exception as e:
                 print(f"Failed to save to Supabase: {e}")
             
@@ -381,11 +389,20 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
             supabase.table("videos").upsert(video_data).execute()
             
             if request.user_id:
-                supabase.table("submissions").upsert({
-                    "user_id": request.user_id,
-                    "video_id": task_id,
-                    "task_id": task_id
-                }, on_conflict="task_id").execute()
+                try:
+                    # 改用 insert + try-update 逻辑,避开缺失的 task_id 唯一约束导致的 upsert 错误
+                    supabase.table("submissions").insert({
+                        "user_id": request.user_id,
+                        "video_id": task_id,
+                        "task_id": task_id
+                    }).execute()
+                except Exception as sub_e:
+                    # 如果 insert 失败(如记录已存在),尝试使用 update
+                    print(f"Submission insert failed in /process (expected if exists): {sub_e}")
+                    supabase.table("submissions").update({
+                        "video_id": task_id
+                    }).eq("task_id", task_id).execute()
+
         except Exception as e:
             print(f"Failed to create queued record in Supabase: {e}")
 
@@ -435,11 +452,19 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
             supabase.table("videos").upsert(video_data).execute()
             
             if user_id:
-                supabase.table("submissions").upsert({
-                    "user_id": user_id,
-                    "video_id": task_id,
-                    "task_id": task_id
-                }, on_conflict="task_id").execute()
+                try:
+                    # 避开缺少 task_id 唯一约束导致的 upsert 错误
+                    supabase.table("submissions").insert({
+                        "user_id": user_id,
+                        "video_id": task_id,
+                        "task_id": task_id
+                    }).execute()
+                except Exception as sub_e:
+                    print(f"Submission insert failed in /upload (expected if exists): {sub_e}")
+                    supabase.table("submissions").update({
+                        "video_id": task_id
+                    }).eq("task_id", task_id).execute()
+
         except Exception as e:
             print(f"Failed to create queued record in Supabase: {e}")
 
@@ -733,22 +758,26 @@ async def get_history(user_id: str = None):
 async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str = None, user_id: str = None):
     if not supabase:
         # Fallback to local history but only YouTube ones
-        res = await get_history()
-        items = [i for i in res["items"] if len(i["id"]) == 11]
-        
-        # Simple local pagination and search
-        if q:
-            q = q.lower()
-            items = [i for i in items if q in i["title"].lower()]
+        try:
+            res = await get_history(user_id=user_id)
+            items = [i for i in res.get("items", []) if len(str(i.get("id", ""))) == 11]
             
-        start = (page - 1) * limit
-        end = start + limit
-        return {
-            "items": items[start:end],
-            "total": len(items),
-            "page": page,
-            "limit": limit
-        }
+            # Simple local pagination and search
+            if q:
+                q = q.lower()
+                items = [i for i in items if q in str(i.get("title", "")).lower()]
+                
+            start = (page - 1) * limit
+            end = start + limit
+            return {
+                "items": items[start:end],
+                "total": len(items),
+                "page": page,
+                "limit": limit
+            }
+        except Exception as e:
+            print(f"Explore fallback failed: {e}")
+            return {"items": [], "total": 0, "page": page, "limit": limit}
     
     try:
         # 获取隐藏频道列表
@@ -758,21 +787,20 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
                 .select("channel_id") \
                 .eq("hidden_from_home", True) \
                 .execute()
-            hidden_channel_ids = {c["channel_id"] for c in hidden_channels.data}
+            if hidden_channels.data:
+                hidden_channel_ids = {c["channel_id"] for c in hidden_channels.data}
         except Exception as e:
             # 表可能不存在，忽略错误
             print(f"[Explore] channel_settings 查询失败（表可能不存在）: {e}")
         
         # Start building the query
+        # 确保 user_id 在查询中可用（如果需要隐私过滤）
         query = supabase.table("videos") \
             .select("id, title, thumbnail, created_at, view_count, status, hidden_from_home, is_public, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords", count="exact") \
             .eq("status", "completed") \
             .eq("is_public", True)
             
         if q:
-            # Search in title, channel (via report_data), or keywords
-            # Supabase doesn't support complex OR across jsonb and text easily in a single filter call
-            # using a simplified search on title/channel name for now
             search_query = f"%{q}%"
             query = query.or_(f"title.ilike.{search_query},report_data->>channel.ilike.{search_query},report_data->>summary.ilike.{search_query}")
 
@@ -789,36 +817,40 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
         if user_id:
             try:
                 like_res = supabase.table("user_likes").select("video_id").eq("user_id", user_id).execute()
-                liked_ids = {l["video_id"] for l in like_res.data}
-            except: pass
+                if like_res.data:
+                    liked_ids = {l["video_id"] for l in like_res.data}
+            except Exception as le:
+                print(f"Failed to fetch likes in explore: {le}")
 
         items = []
-        for v in response.data:
-            # Skip uploads - heuristic: youtube IDs are 11 chars
-            if len(v["id"]) != 11 or v["id"].startswith("up_"):
-                continue
-            
-            # Skip hidden videos (individual or by channel)
-            if v.get("hidden_from_home"):
-                continue
-            
-            video_channel_id = v.get("channel_id")
-            if video_channel_id and video_channel_id in hidden_channel_ids:
-                continue
-            
-            items.append({
-                "id": v["id"],
-                "title": v["title"],
-                "thumbnail": get_full_thumbnail_url(v["thumbnail"], request),
-                "channel": v.get("channel"),
-                "channel_id": v.get("channel_id"),
-                "channel_avatar": v.get("channel_avatar"),
-                "summary": v.get("summary"),
-                "keywords": v.get("keywords"),
-                "date": v["created_at"],
-                "views": v.get("view_count", 0),
-                "is_liked": v["id"] in liked_ids
-            })
+        if response.data:
+            for v in response.data:
+                # Skip uploads - heuristic: youtube IDs are 11 chars
+                vid = str(v.get("id", ""))
+                if len(vid) != 11 or vid.startswith("up_"):
+                    continue
+                
+                # Skip hidden videos (individual or by channel)
+                if v.get("hidden_from_home"):
+                    continue
+                
+                video_channel_id = v.get("channel_id")
+                if video_channel_id and video_channel_id in hidden_channel_ids:
+                    continue
+                
+                items.append({
+                    "id": vid,
+                    "title": v.get("title", "Untitled"),
+                    "thumbnail": get_full_thumbnail_url(v.get("thumbnail", ""), request),
+                    "channel": v.get("channel"),
+                    "channel_id": v.get("channel_id"),
+                    "channel_avatar": v.get("channel_avatar"),
+                    "summary": v.get("summary"),
+                    "keywords": v.get("keywords"),
+                    "date": v.get("created_at"),
+                    "views": v.get("view_count", 0),
+                    "is_liked": vid in liked_ids
+                })
             
         return {
             "items": items,
@@ -831,6 +863,7 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
         traceback.print_exc()
         print(f"Explore fetch failed: {e}")
         return {"items": [], "total": 0, "page": page, "limit": limit}
+
 
 @app.get("/trending-keywords")
 async def get_trending_keywords():

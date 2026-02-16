@@ -1,4 +1,7 @@
+[2026-02-16] | [Bugfix] | 修复 API 回归错误与调度卡死 | 修复 get_explore 的 NameError 引用，清理多余调度器进程并重启服务 | walkthrough.md
+[2026-02-16] | [Bugfix] | 修复书架页面视频丢失问题 | 解决 submissions 表缺失唯一约束导致的关联失败，补全了用户缺失的视频关联记录 | walkthrough.md
 [2026-02-15] | [DevOps] | 优化开发脚本防止后端挂起 | 增强 dev.sh 的进程清理逻辑，解决间歇性端口占用及服务挂起问题 | dev.sh
+
 [2026-02-15] | [Bugfix] | 修复频道名称显示为 ID 的问题 | 统一后端 JSON 字段名并运行脚本补全 13 条存量数据的频道名称 | walkthrough.md
 [2026-02-15] | [UX/UI] | 管理页 UI 精细化与主题适配 | 实现管理端全量黑白主题、双语切换及紧凑型布局优化 | walkthrough_admin_ui.md
 [2026-02-15] | [Feature] | 管理页增加 LLM 用量追踪面板 | 实现 LLM 模型、Token 及费用的实时统计与历史追踪 | walkthrough_llm_tracking.md

@@ -300,11 +300,19 @@ def process_video_task(task_id):
                 if user_id:
                     # submissions table should already have a link if it was created during /process
                     # but we'll try to ensure it exists
-                    supabase.table("submissions").upsert({
-                        "user_id": user_id,
-                        "video_id": video_data["id"],
-                        "task_id": task_id
-                    }, on_conflict="task_id").execute()
+                    try:
+                        supabase.table("submissions").insert({
+                            "user_id": user_id,
+                            "video_id": video_data["id"],
+                            "task_id": task_id
+                        }).execute()
+                    except Exception as sub_e:
+                        print(f"Submission sync from task failed (expected if already exists): {sub_e}")
+                        # Ensure the correct video_id is linked to the task_id
+                        supabase.table("submissions").update({
+                            "video_id": video_data["id"]
+                        }).eq("task_id", task_id).execute()
+
             except Exception as e:
                 print(f"Failed to save to Supabase: {e}")
         

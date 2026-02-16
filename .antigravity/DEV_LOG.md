@@ -1,4 +1,48 @@
+# 开发日志 (2026-02-16) - 任务：修复 API 回归错误与调度器阻塞
+
+## 1. 需求 (Requirement)
+- **背景**: 用户反馈新任务卡在 0%，且发现首页视频列表消失。
+- **目标**: 修复代码中的 NameError，清理重复的后台进程，恢复处理流程。
+
+## 2. 实施 (Implementation)
+- **修复逻辑**: 
+    - `backend/main.py`: 修复 `get_explore` 调用 `get_history` 时的参数缺失，并加固了异常捕获。
+- **运维清理**:
+    - 杀死了 2 个冗余的 `scheduler.py` 进程。
+    - 重启了 `uvicorn` 和 `scheduler`，验证 API 响应恢复正常。
+
+## 3. 回顾 (Review)
+- **结果**: `/explore` API 恢复正常，任务系统回归就绪状态。
+- **改动文件**: `backend/main.py`
+
+## 4. 经验 (Lessons)
+- **多实例防范**: 在单机环境下，必须严格通过脚本（如 `dev.sh`）或 PID 文件确保调度器等单例程序的唯一性，否则易引发数据库竞态。
+
+# 开发日志 (2026-02-16) - 任务：修复书架页面视频缺失问题
+
+## 1. 需求 (Requirement)
+- **背景**: 用户发现手动提交的视频在处理完成后会出现在任务列表,但不会出现在书架页面。
+- **目标**: 确保所有由用户提交并处理完成的视频都能正确出现在其书架中。
+
+## 2. 实施 (Implementation)
+- **根因分析**: `submissions` 表缺失 `task_id` 唯一约束,导致后端 `upsert` 操作因 SQL 错误而失败。
+- **后端修复**: 
+    - `backend/main.py` & `backend/process_task.py`: 将 `upsert` 改为更健壮的 `insert` + `try-update` 模式。
+- **数据修复**:
+    - `backend/scripts/fix_missing_submissions.py`: 扫描并补全了用户缺失的 3 条 `submissions` 记录。
+
+## 3. 回顾 (Review)
+- **结果**: 目标用户的书架已通过数据库验证恢复正常。系统逻辑现在具备故障自愈能力（即使缺失约束也能工作）。
+- **改动文件**: 
+    - `backend/main.py`
+    - `backend/process_task.py`
+    - `backend/scripts/fix_missing_submissions.py` (New)
+
+## 4. 经验 (Lessons)
+- **约束依赖**: 在不确定外部库或数据库 schema 严格程度时,应避免依赖特定字段的 `upsert` 行为,转而使用显式的 `insert` 捕获异常后再 `update` 的模式更安全。
+
 # 开发日志 (2026-02-15) - 任务：优化视频处理提交流
+
 
 ## 1. 需求 (Requirement)
 - **背景**: 用户提交视频处理后，系统会立即自动跳转到可能尚未完全准备好（如无字幕）的报告页面，导致用户困惑。
