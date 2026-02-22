@@ -408,71 +408,77 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 {/* Middle Section: Title & Stats (1/6) */}
                 <div className="w-full flex-shrink-0 min-h-[140px] flex flex-col justify-center gap-3">
                     <h2 className="text-xl md:text-2xl font-black tracking-tight line-clamp-2 leading-tight px-1">{result.title}</h2>
-                    <div className="flex flex-wrap items-center gap-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest px-1">
-                        <span>{viewCount.toLocaleString()} {t("result.views")}</span>
-                        <span>{t("result.date")}: {(() => {
-                            const date = result.mtime ? new Date(result.mtime) : new Date();
-                            return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
-                                year: 'numeric', month: '2-digit', day: '2-digit'
-                            }).replace(/\//g, '.');
-                        })()}</span>
 
-                        {/* Heatmap as 1 line tall after date */}
-                        <div className="flex items-center gap-2 flex-1 max-w-[250px] ml-4 bg-card-bg/50 px-3 py-1.5 rounded-full border border-card-border/50 shadow-inner">
-                            <span className="shrink-0 text-[8px] md:text-[10px] text-indigo-500">{t("result.keyInterest")}:</span>
-                            <div className="flex-1 h-1.5 bg-background border border-card-border rounded-full overflow-hidden flex">
-                                <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
-                                <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
-                                <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>
+                    {/* Stats & Actions Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+                        {/* Left side: Stats & Heatmap */}
+                        <div className="flex flex-wrap items-center gap-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest px-1">
+                            <span>{viewCount.toLocaleString()} {t("result.views")}</span>
+                            <span>{t("result.date")}: {(() => {
+                                const date = result.mtime ? new Date(result.mtime) : new Date();
+                                return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
+                                    year: 'numeric', month: '2-digit', day: '2-digit'
+                                }).replace(/\//g, '.');
+                            })()}</span>
+
+                            {/* Heatmap as 1 line tall after date */}
+                            <div className="flex items-center gap-2 flex-1 max-w-[250px] ml-1 md:ml-4 bg-card-bg/50 px-3 py-1.5 rounded-full border border-card-border/50 shadow-inner">
+                                <span className="shrink-0 text-[8px] md:text-[10px] text-indigo-500">{t("result.keyInterest")}:</span>
+                                <div className="flex-1 h-1.5 bg-background border border-card-border rounded-full overflow-hidden flex">
+                                    <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
+                                    <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
+                                    <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Action Bar Below Title */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 py-2 px-4 bg-card-bg/50 border border-card-border rounded-2xl md:rounded-full backdrop-blur-sm">
-                        <div className="flex items-center space-x-1.5 md:space-x-2">
-                            <button
-                                onClick={copyFullText}
-                                className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
-                            >
-                                {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
-                                <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
-                            </button>
-                            <button
-                                onClick={downloadSRT}
-                                className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
-                            >
-                                <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
-                                <span>SRT</span>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (!result?.paragraphs) return;
-                                    const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
-                                    const blob = new Blob([text], { type: "text/plain" });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `${result.title}.txt`;
-                                    a.click();
-                                }}
-                                className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
-                            >
-                                <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
-                                <span>TXT</span>
-                            </button>
-                        </div>
-                        <div>
-                            <button
-                                onClick={handleToggleLike}
-                                className={cn(
-                                    "px-4 md:px-5 py-2 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
-                                    isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
-                                )}
-                            >
-                                <Heart className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
-                                <span>{likeCount}</span>
-                            </button>
+                        {/* Right side: Action Bar */}
+                        <div className="flex items-center gap-3 py-1.5 px-3 bg-card-bg/50 border border-card-border rounded-2xl md:rounded-full backdrop-blur-sm">
+                            <div className="flex items-center space-x-1.5 md:space-x-2">
+                                <button
+                                    onClick={copyFullText}
+                                    className="px-3 md:px-4 py-1.5 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                                >
+                                    {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
+                                    <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
+                                </button>
+                                <button
+                                    onClick={downloadSRT}
+                                    className="px-3 md:px-4 py-1.5 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                                >
+                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span>SRT</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!result?.paragraphs) return;
+                                        const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
+                                        const blob = new Blob([text], { type: "text/plain" });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${result.title}.txt`;
+                                        a.click();
+                                    }}
+                                    className="px-3 md:px-4 py-1.5 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
+                                >
+                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span>TXT</span>
+                                </button>
+                            </div>
+                            <div className="h-4 w-px bg-card-border hidden md:block"></div>
+                            <div>
+                                <button
+                                    onClick={handleToggleLike}
+                                    className={cn(
+                                        "px-3 md:px-4 py-1.5 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
+                                        isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
+                                    )}
+                                >
+                                    <Heart className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
+                                    <span>{likeCount}</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

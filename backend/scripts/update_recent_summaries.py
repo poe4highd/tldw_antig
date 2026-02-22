@@ -80,9 +80,11 @@ def update_recent_10():
         with open(result_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
             
-        # Update supabase if we store summary/keywords there, though currently the frontend fetches JSON directly from /result/<id> which pulls from RESULTS_DIR.
-        # Check if tasks table has summary/keywords column. Usually `report_data` has it if video exists, but /result/<id> API reads from results dir.
-        # If there's a submissions table, it might need updating. Let's do it via the JSON first.
+        # Update supabase
+        if "report_data" in task and isinstance(task["report_data"], dict):
+            task["report_data"]["summary"] = new_summary
+            task["report_data"]["keywords"] = new_keywords
+            supabase.table("videos").update({"report_data": task["report_data"]}).eq("id", task_id).execute()
         
         print(f"[{i+1}/10] Task {task_id}: Successfully updated summary.")
 
