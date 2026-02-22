@@ -271,7 +271,7 @@ export default function MarketingPage() {
                 className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98]"
               >
                 <User className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="hidden sm:inline">{user ? "Profile" : t("login.title")}</span>
+                <span className="hidden sm:inline">{user ? "Profile" : t("login.loginToSubmit")}</span>
               </Link>
             </div>
           </div>

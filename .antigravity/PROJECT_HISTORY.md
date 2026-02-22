@@ -1,3 +1,5 @@
+[2026-02-21] | [UX/UI] | 调整首页登录按钮文本 | 将未登录状态的“欢迎回来”按钮改为“登录后提交视频”，明确向用户传达功能导向 | DEV_LOG.md
+[2026-02-16] | [Bugfix] | 修复字幕缺失与 Explore API 错误 | 解决同步失败导致的字幕缺失，并修复 get_explore 接口的 NameError 引用 | walkthrough.md
 [2026-02-16] | [Bugfix] | 修复 API 回归错误与调度卡死 | 修复 get_explore 的 NameError 引用，清理多余调度器进程并重启服务 | walkthrough.md
 [2026-02-16] | [Bugfix] | 修复书架页面视频丢失问题 | 解决 submissions 表缺失唯一约束导致的关联失败，补全了用户缺失的视频关联记录 | walkthrough.md
 [2026-02-15] | [DevOps] | 优化开发脚本防止后端挂起 | 增强 dev.sh 的进程清理逻辑，解决间歇性端口占用及服务挂起问题 | dev.sh
