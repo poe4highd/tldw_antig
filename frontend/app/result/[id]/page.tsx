@@ -343,141 +343,147 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 </div>
             </nav>
 
-            <main className="max-w-[1440px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <main className="max-w-[1440px] mx-auto px-6 py-6 flex flex-col gap-6 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar">
 
-                {/* Left Column: Video & Transcription */}
-                <div className="lg:col-span-8 lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)] flex flex-col gap-6">
-                    {/* Fixed Header Group: Video, Actions, Info */}
-                    <div className="flex-shrink-0 space-y-4 md:space-y-6 sticky top-[68px] lg:static z-40 bg-background/95 backdrop-blur-md lg:backdrop-blur-none lg:bg-background py-2 md:py-0 -mx-6 px-4 md:px-0 lg:mx-0 lg:px-0 transition-all lg:rounded-none shadow-xl lg:shadow-none border-b border-card-border lg:border-none">
-                        {/* Video Player Section */}
-                        <div className="relative aspect-video bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
-                            <div className="relative aspect-video group">
-                                {useLocalAudio ? (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
-                                        <img
-                                            src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${getApiBase()}/media/${result.thumbnail}`}
-                                            alt="Thumbnail"
-                                            className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
-                                        />
-                                        <div className="relative z-10 p-8 flex flex-col items-center text-center">
-                                            <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
-                                                <Play className="w-8 h-8 text-white fill-current" />
-                                            </div>
-                                            <h4 className="text-xl font-bold mb-2">{t("result.localAudioTitle")}</h4>
-                                            <p className="text-sm text-slate-400 max-w-xs">{t("result.localAudioDesc")}</p>
-                                        </div>
-                                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
-                                            <audio
-                                                ref={audioRef}
-                                                src={`${getApiBase()}/media/${result.media_path}`}
-                                                controls
-                                                onTimeUpdate={handleLocalTimeUpdate}
-                                                className="w-full h-10 accent-indigo-500"
-                                            />
-                                        </div>
+                {/* Top Section: Video (1/3) */}
+                <div className="w-full flex-shrink-0 h-[33vh] min-h-[250px] relative bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
+                    <div className="relative w-full h-full group">
+                        {useLocalAudio ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
+                                <img
+                                    src={result.thumbnail?.startsWith('http') ? result.thumbnail : `${getApiBase()}/media/${result.thumbnail}`}
+                                    alt="Thumbnail"
+                                    className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
+                                />
+                                <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                                    <div className="w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/50">
+                                        <Play className="w-8 h-8 text-white fill-current" />
                                     </div>
-                                ) : (
-                                    <YouTube
-                                        videoId={result.youtube_id}
-                                        className="w-full h-full"
-                                        iframeClassName="w-full h-full"
-                                        onReady={onPlayerReady}
-                                        opts={{
-                                            height: '100%',
-                                            width: '100%',
-                                            playerVars: {
-                                                autoplay: 0,
-                                                hl: 'zh-CN',
-                                                origin: typeof window !== 'undefined' ? window.location.origin : '',
-                                                modestbranding: 1,
-                                                rel: 0,
-                                            },
-                                        }}
+                                    <h4 className="text-xl font-bold mb-2">{t("result.localAudioTitle")}</h4>
+                                    <p className="text-sm text-slate-400 max-w-xs">{t("result.localAudioDesc")}</p>
+                                </div>
+                                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
+                                    <audio
+                                        ref={audioRef}
+                                        src={`${getApiBase()}/media/${result.media_path}`}
+                                        controls
+                                        onTimeUpdate={handleLocalTimeUpdate}
+                                        className="w-full h-10 accent-indigo-500"
                                     />
+                                </div>
+                            </div>
+                        ) : (
+                            <YouTube
+                                videoId={result.youtube_id}
+                                className="w-full h-full"
+                                iframeClassName="w-full h-full"
+                                onReady={onPlayerReady}
+                                opts={{
+                                    height: '100%',
+                                    width: '100%',
+                                    playerVars: {
+                                        autoplay: 0,
+                                        hl: 'zh-CN',
+                                        origin: typeof window !== 'undefined' ? window.location.origin : '',
+                                        modestbranding: 1,
+                                        rel: 0,
+                                    },
+                                }}
+                            />
+                        )}
+                        <button
+                            onClick={() => setUseLocalAudio(!useLocalAudio)}
+                            className="absolute top-4 md:top-6 right-4 md:right-6 z-20 px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
+                        >
+                            {useLocalAudio ? (
+                                <span className="flex items-center gap-2"><Play className="w-3 h-3" /> YouTube</span>
+                            ) : (
+                                <span className="flex items-center gap-2"><ArrowDownToLine className="w-3 h-3" /> {t("result.syncAudio")}</span>
+                            )}
+                        </button>
+
+                    </div>
+                </div>
+
+                {/* Middle Section: Title & Stats (1/6) */}
+                <div className="w-full flex-shrink-0 min-h-[140px] flex flex-col justify-center gap-3">
+                    <h2 className="text-xl md:text-2xl font-black tracking-tight line-clamp-2 leading-tight px-1">{result.title}</h2>
+                    <div className="flex flex-wrap items-center gap-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest px-1">
+                        <span>{viewCount.toLocaleString()} {t("result.views")}</span>
+                        <span>{t("result.date")}: {(() => {
+                            const date = result.mtime ? new Date(result.mtime) : new Date();
+                            return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
+                                year: 'numeric', month: '2-digit', day: '2-digit'
+                            }).replace(/\//g, '.');
+                        })()}</span>
+
+                        {/* Heatmap as 1 line tall after date */}
+                        <div className="flex items-center gap-2 flex-1 max-w-[250px] ml-4 bg-card-bg/50 px-3 py-1.5 rounded-full border border-card-border/50 shadow-inner">
+                            <span className="shrink-0 text-[8px] md:text-[10px] text-indigo-500">{t("result.keyInterest")}:</span>
+                            <div className="flex-1 h-1.5 bg-background border border-card-border rounded-full overflow-hidden flex">
+                                <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
+                                <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
+                                <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Bar Below Title */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 py-2 px-4 bg-card-bg/50 border border-card-border rounded-2xl md:rounded-full backdrop-blur-sm">
+                        <div className="flex items-center space-x-1.5 md:space-x-2">
+                            <button
+                                onClick={copyFullText}
+                                className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                            >
+                                {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
+                                <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
+                            </button>
+                            <button
+                                onClick={downloadSRT}
+                                className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                            >
+                                <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
+                                <span>SRT</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!result?.paragraphs) return;
+                                    const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
+                                    const blob = new Blob([text], { type: "text/plain" });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = `${result.title}.txt`;
+                                    a.click();
+                                }}
+                                className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
+                            >
+                                <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
+                                <span>TXT</span>
+                            </button>
+                        </div>
+                        <div>
+                            <button
+                                onClick={handleToggleLike}
+                                className={cn(
+                                    "px-4 md:px-5 py-2 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
+                                    isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
                                 )}
-                                <button
-                                    onClick={() => setUseLocalAudio(!useLocalAudio)}
-                                    className="absolute top-4 md:top-6 right-4 md:right-6 z-20 px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
-                                >
-                                    {useLocalAudio ? (
-                                        <span className="flex items-center gap-2"><Play className="w-3 h-3" /> YouTube</span>
-                                    ) : (
-                                        <span className="flex items-center gap-2"><ArrowDownToLine className="w-3 h-3" /> {t("result.syncAudio")}</span>
-                                    )}
-                                </button>
-
-                            </div>
+                            >
+                                <Heart className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
+                                <span>{likeCount}</span>
+                            </button>
                         </div>
+                    </div>
+                </div>
 
-                        {/* Action Bar Below Video */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-card-bg/50 border border-card-border rounded-2xl backdrop-blur-sm">
-                            <div className="flex items-center space-x-1.5 md:space-x-2">
-                                <button
-                                    onClick={copyFullText}
-                                    className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
-                                >
-                                    {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
-                                    <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
-                                </button>
-                                <button
-                                    onClick={downloadSRT}
-                                    className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
-                                >
-                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
-                                    <span>SRT</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (!result?.paragraphs) return;
-                                        const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
-                                        const blob = new Blob([text], { type: "text/plain" });
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement("a");
-                                        a.href = url;
-                                        a.download = `${result.title}.txt`;
-                                        a.click();
-                                    }}
-                                    className="px-3 md:px-4 py-2 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
-                                >
-                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
-                                    <span>TXT</span>
-                                </button>
-                            </div>
-                            <div>
-                                <button
-                                    onClick={handleToggleLike}
-                                    className={cn(
-                                        "px-4 md:px-5 py-2 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
-                                        isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
-                                    )}
-                                >
-                                    <Heart className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
-                                    <span>{likeCount}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Video Info */}
-                        <div className="px-4 md:px-0">
-                            <h2 className="text-xl md:text-2xl font-black mb-1 md:mb-2 tracking-tight line-clamp-2 md:line-clamp-none leading-tight">{result.title}</h2>
-                            <div className="flex items-center space-x-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest">
-                                <span>{viewCount.toLocaleString()} {t("result.views")}</span>
-                                <span>{t("result.date")}: {(() => {
-                                    const date = result.mtime ? new Date(result.mtime) : new Date();
-                                    return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
-                                        year: 'numeric', month: '2-digit', day: '2-digit'
-                                    }).replace(/\//g, '.');
-                                })()}</span>
-                            </div>
-                        </div>
-                    </div> {/* End of Header Group */}
-
-                    {/* Transcription Content - Scrollable Area */}
+                {/* Bottom Section: Transcript & Summary (1/2) */}
+                <div className="relative w-full flex-shrink-0 h-[50vh] min-h-[400px]">
                     <div
                         ref={subtitleContainerRef}
                         onScroll={handleManualScroll}
                         data-testid="subtitle-container"
-                        className="bg-card-bg/30 border border-card-border rounded-[2.5rem] p-8 relative flex-1 min-h-0 lg:overflow-y-auto no-scrollbar scroll-smooth shadow-inner"
+                        className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-6 md:p-8 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
                     >
                         <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-foreground/[0.02] pointer-events-none select-none italic">
                             TLDW
@@ -576,8 +582,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     )}
                 </div>
 
-                {/* Right Column: Discussion & Analytics Side Panel */}
-                <div className="lg:col-span-4 space-y-8">
+                {/* Discussion Panel Moved to Bottom */}
+                <div className="w-full mt-4 flex-shrink-0 pb-12">
                     {/* Discussion Section */}
                     <div className="bg-card-bg/40 border border-card-border rounded-[2.5rem] flex flex-col h-[600px] shadow-sm">
                         <div className="p-8 border-b border-card-border flex items-center justify-between">
@@ -654,28 +660,6 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         </div>
                     </div>
 
-                    {/* User Interest Heatmap Placeholder */}
-                    <div className="bg-card-bg/40 border border-card-border rounded-[2.5rem] p-8 shadow-sm">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-bold">{t("result.analytics")}</h3>
-                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">{t("result.live")}</span>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="h-2 w-full bg-background border border-card-border rounded-full overflow-hidden flex">
-                                <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
-                                <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
-                                <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>
-                            </div>
-                            <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-                                <span>00:00</span>
-                                <span>{t("result.keyInterest")}</span>
-                                <span>12:45</span>
-                            </div>
-                        </div>
-                        <p className="mt-6 text-xs text-slate-500 leading-relaxed font-medium">
-                            {t("result.analyticsAdvice").replace("{start}", "4:12").replace("{end}", "6:30")}
-                        </p>
-                    </div>
                 </div>
             </main >
         </div >
