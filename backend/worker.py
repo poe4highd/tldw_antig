@@ -107,7 +107,11 @@ def main():
         full_text = ""
         for p in paragraphs:
             for s in p["sentences"]:
-                full_text += s["text"]
+                start_sec = int(s.get("start", 0))
+                h, r = divmod(start_sec, 3600)
+                m, s_v = divmod(r, 60)
+                ts = f"[{h:02d}:{m:02d}:{s_v:02d}]" if h > 0 else f"[{m:02d}:{s_v:02d}]"
+                full_text += f"{ts} {s['text']}\n"
         
         summary_data, summary_usage = summarize_text(
             full_text,

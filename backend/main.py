@@ -491,13 +491,23 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
                         .execute()
                     is_liked = len(like_res.data) > 0
 
+                # Check if reports are actually ready
+                paragraphs = video["report_data"].get("paragraphs")
+                if not paragraphs and video["status"] == "completed":
+                    print(f"[Result] Warning: Task {task_id} marked as completed but has no paragraphs. Returning processing status.")
+                    return {
+                        "status": "processing",
+                        "progress": 95,
+                        "detail": "Finalizing data sync..."
+                    }
+
                 return {
                     "title": video["title"],
                     "url": "N/A",
                     "youtube_id": video["id"] if len(video["id"]) == 11 else None,
                     "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
                     "media_path": video["media_path"],
-                    "paragraphs": video["report_data"].get("paragraphs"),
+                    "paragraphs": paragraphs,
                     "summary": video["report_data"].get("summary"),
                     "keywords": video["report_data"].get("keywords"),
                     "usage": video["usage"],
@@ -756,10 +766,11 @@ async def get_history(user_id: str = None):
 
 @app.get("/explore")
 async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str = None, user_id: str = None):
+    req_user_id = user_id # Rename locally for clarity
     if not supabase:
         # Fallback to local history but only YouTube ones
         try:
-            res = await get_history(user_id=user_id)
+            res = await get_history(user_id=req_user_id)
             items = [i for i in res.get("items", []) if len(str(i.get("id", ""))) == 11]
             
             # Simple local pagination and search
@@ -794,7 +805,7 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
             print(f"[Explore] channel_settings 查询失败（表可能不存在）: {e}")
         
         # Start building the query
-        # 确保 user_id 在查询中可用（如果需要隐私过滤）
+        # 确保 req_user_id 在查询中可用（如果需要隐私过滤）
         query = supabase.table("videos") \
             .select("id, title, thumbnail, created_at, view_count, status, hidden_from_home, is_public, report_data->channel, report_data->channel_id, report_data->channel_avatar, report_data->summary, report_data->keywords", count="exact") \
             .eq("status", "completed") \
@@ -812,11 +823,11 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
             .range(start, end) \
             .execute()
         
-        # If user_id is provided, fetch their liked videos to mark items
+        # If req_user_id is provided, fetch their liked videos to mark items
         liked_ids = set()
-        if user_id:
+        if req_user_id:
             try:
-                like_res = supabase.table("user_likes").select("video_id").eq("user_id", user_id).execute()
+                like_res = supabase.table("user_likes").select("video_id").eq("user_id", req_user_id).execute()
                 if like_res.data:
                     liked_ids = {l["video_id"] for l in like_res.data}
             except Exception as le:
@@ -861,7 +872,10 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Explore fetch failed: {e}")
+        print(f"[Explore] Fetch failed: {e}")
+        # Explicitly check for NameError to debug if it persists
+        if isinstance(e, NameError):
+            print(f"[Explore] Critical NameError: {e}. Check local scope.")
         return {"items": [], "total": 0, "page": page, "limit": limit}
 
 

@@ -493,9 +493,27 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         </div>
                                         <h3 className="text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
                                     </div>
-                                    <p className="text-foreground/90 text-lg leading-relaxed mb-6 font-medium">
-                                        {result.summary}
-                                    </p>
+                                    <div className="text-foreground/90 text-sm md:text-base leading-relaxed mb-6 font-medium whitespace-pre-wrap">
+                                        {result.summary.split(/(\[\d{2}:\d{2}(?::\d{2})?\])/g).map((part, index) => {
+                                            const timeMatch = part.match(/^\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
+                                            if (timeMatch) {
+                                                const h = timeMatch[3] ? parseInt(timeMatch[1], 10) : 0;
+                                                const m = timeMatch[3] ? parseInt(timeMatch[2], 10) : parseInt(timeMatch[1], 10);
+                                                const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : parseInt(timeMatch[2], 10);
+                                                const totalSeconds = (h * 3600) + (m * 60) + s;
+                                                return (
+                                                    <span
+                                                        key={index}
+                                                        onClick={() => seekTo(totalSeconds)}
+                                                        className="cursor-pointer text-indigo-500 font-bold hover:underline transition-colors px-1"
+                                                    >
+                                                        {part}
+                                                    </span>
+                                                );
+                                            }
+                                            return <span key={index}>{part}</span>;
+                                        })}
+                                    </div>
                                     {result.keywords && result.keywords.length > 0 && (
                                         <div className="flex flex-wrap gap-2">
                                             {result.keywords.map((tag, i) => (

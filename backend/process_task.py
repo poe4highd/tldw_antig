@@ -278,28 +278,38 @@ def process_video_task(task_id):
                     "is_public": is_public,
                     "status": "completed"
                 }
-                supabase.table("videos").upsert(video_data).execute()
+                print(f"--- [Process Task] Saving results to Supabase for video {video_data['id']} ---")
+                res = supabase.table("videos").upsert(video_data).execute()
+                if not res.data:
+                    print(f"[Process Task] Warning: Upsert returned empty data for {video_data['id']}")
+                else:
+                    print(f"Successfully saved to Supabase: {video_data['id']}")
                 
                 # Keywords sync
                 keywords = result.get("keywords", [])
                 if keywords:
+                    print(f"--- [Process Task] Syncing {len(keywords)} keywords ---")
                     for kw in keywords:
                         kw_clean = kw.strip()
                         if not kw_clean: continue
-                        kw_res = supabase.table("keywords").select("id, count").eq("name", kw_clean).execute()
-                        if kw_res.data:
-                            kw_id = kw_res.data[0]["id"]
-                            new_count = (kw_res.data[0]["count"] or 0) + 1
-                            supabase.table("keywords").update({"count": new_count}).eq("id", kw_id).execute()
-                        else:
-                            new_kw = supabase.table("keywords").insert({"name": kw_clean, "count": 1}).execute()
-                            if new_kw.data: kw_id = new_kw.data[0]["id"]
-                            else: continue
-                        supabase.table("video_keywords").upsert({"video_id": video_data["id"], "keyword_id": kw_id}).execute()
+                        try:
+                            kw_res = supabase.table("keywords").select("id, count").eq("name", kw_clean).execute()
+                            if kw_res.data:
+                                kw_id = kw_res.data[0]["id"]
+                                new_count = (kw_res.data[0]["count"] or 0) + 1
+                                supabase.table("keywords").update({"count": new_count}).eq("id", kw_id).execute()
+                            else:
+                                new_kw = supabase.table("keywords").insert({"name": kw_clean, "count": 1}).execute()
+                                if new_kw.data: kw_id = new_kw.data[0]["id"]
+                                else: continue
+                            supabase.table("video_keywords").upsert({"video_id": video_data["id"], "keyword_id": kw_id}).execute()
+                        except Exception as kw_e:
+                            print(f"[Process Task] Error syncing keyword '{kw_clean}': {kw_e}")
 
                 if user_id:
                     # submissions table should already have a link if it was created during /process
                     # but we'll try to ensure it exists
+                    print(f"--- [Process Task] Syncing submission for user {user_id} ---")
                     try:
                         supabase.table("submissions").insert({
                             "user_id": user_id,
@@ -309,12 +319,19 @@ def process_video_task(task_id):
                     except Exception as sub_e:
                         print(f"Submission sync from task failed (expected if already exists): {sub_e}")
                         # Ensure the correct video_id is linked to the task_id
-                        supabase.table("submissions").update({
-                            "video_id": video_data["id"]
-                        }).eq("task_id", task_id).execute()
+                        try:
+                            supabase.table("submissions").update({
+                                "video_id": video_data["id"]
+                            }).eq("task_id", task_id).execute()
+                        except Exception as up_e:
+                             print(f"Failed to update submission: {up_e}")
 
             except Exception as e:
-                print(f"Failed to save to Supabase: {e}")
+                print(f"CRITICAL: Failed to save to Supabase: {e}")
+                import traceback
+                traceback.print_exc()
+                # If Supabase sync fails, we DO NOT mark it as completed in the results file if we want to retry,
+                # but here the task is physically "done", so we keep it completed locally but log the failure.
         
         save_status(task_id, "completed", 100)
         return True

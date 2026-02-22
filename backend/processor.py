@@ -265,14 +265,7 @@ def summarize_text(full_text, title="", description=""):
     if not client:
         return {"summary": "无总结", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
 
-    lang_pref = detect_language_preference(title, description)
-    lang_instruction = "请使用简体中文输出。"
-    if lang_pref == "traditional":
-        lang_instruction = "请使用繁体中文输出。"
-    elif lang_pref == "english":
-        lang_instruction = "Please output in English."
-
-    system_prompt = "你是一位专业的视频内容分析师。请通过阅读视频标题、描述及转录全文，提取 5-10 个最能代表视频核心主题且具备分类或搜索价值的关键词（Tag）。"
+    system_prompt = "你是一位专业的视频内容分析师。请通过阅读视频标题、描述及包含时间戳的转录全文，总结核心观点并提取 5-10 个最能代表视频核心主题且具备分类或搜索价值的关键词（Tag）。"
     user_prompt = f"""
 视频标题: {title}
 视频描述: {description}
@@ -281,18 +274,20 @@ def summarize_text(full_text, title="", description=""):
 {full_text}
 
 【任务要求】：
-1. 综合标题中的核心概念和全文讨论的细节。
-2. 优先提取具备通用性、能帮助用户快速点击筛选的关键词（如：AI, 科技, 生产力, 财经, 育儿 等）。
-3. **中英双语对齐（CRITICAL）**：对于具备行业通用性或分类价值的关键词，必须输出为“中文 (English)”格式。例如：将“财经”输出为“财经 (Finance)”，“人工智能”输出为“人工智能 (AI)”。
-4. 关键词应简洁有力，通常为 2-4 个汉字配合英文。
-5. 排除掉没意义的泛指词。
+1. 总结视频内容为不超过 7 个重点内容。
+2. 每个重点不超过 3 句话。
+3. 在每个重点甚至每句话后，必须添加对应内容的视频时间戳链接（格式如 [01:23]），依据所提供文本中的时间标识。
+4. 总结部分必须全部使用中文回复（无论视频原本是什么语言）。
+5. 综合标题中的核心概念和全文讨论的细节提取关键词。
+6. 提取具备通用性、能帮助用户快速点击筛选的关键词（如：AI, 科技, 生产力, 财经, 育儿 等）。
+7. **中英双语对齐（CRITICAL）**：对于具备行业通用性或分类价值的关键词，必须输出为“中文 (English)”格式。例如：将“财经”输出为“财经 (Finance)”，“人工智能”输出为“人工智能 (AI)”。
+8. 关键词应简洁有力，通常为 2-4 个汉字配合英文，排除掉没意义的泛指词。
 
 请严格按以下 JSON 格式输出:
 {{
-  "summary": "一段话总结视频核心内容...",
-  "keywords": ["关键词1", "关键词2", ...]
+  "summary": "以文本格式输出的重点总结内容（由于需支持多段落，请结合换行符排版，切勿使用 JSON 不支持的单行纯文本限制）...",
+  "keywords": ["关键词1", "关键词2"]
 }}
-{lang_instruction}
 """
 
     default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if os.getenv("LLM_PROVIDER") == "ollama" else "gpt-4o-mini"
