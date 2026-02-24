@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.channel_settings (
     channel_id TEXT PRIMARY KEY,             -- YouTube 频道 ID（如 @handle 或 UCxxxx）
     channel_name TEXT,                       -- 频道名称（便于管理页面显示）
     hidden_from_home BOOLEAN DEFAULT FALSE,  -- 是否在主页隐藏该频道所有视频
-    track_new_videos BOOLEAN DEFAULT TRUE,   -- 是否自动追踪新视频
+    track_new_videos BOOLEAN DEFAULT FALSE,  -- 是否自动追踪新视频
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

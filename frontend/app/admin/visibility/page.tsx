@@ -165,7 +165,7 @@ export default function VisibilityPage() {
                     channel_id: id,
                     channel_name: name,
                     hidden_from_home: false,
-                    track_new_videos: true,
+                    track_new_videos: false,
                     isKnown: true
                 });
             }

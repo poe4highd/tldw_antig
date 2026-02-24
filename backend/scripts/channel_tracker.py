@@ -165,34 +165,17 @@ def main():
     # 0. Retry previously failed videos
     retried_count = retry_failed_videos()
     
-    # 0.1 获取需要跳过的频道（track_new_videos=FALSE）
-    skip_channels = set()
+    # 1. Fetch channels with tracking enabled (track_new_videos=TRUE)
     try:
-        skip_res = supabase.table("channel_settings") \
+        response = supabase.table("channel_settings") \
             .select("channel_id") \
-            .eq("track_new_videos", False) \
+            .eq("track_new_videos", True) \
             .execute()
-        skip_channels = {c["channel_id"] for c in skip_res.data}
-        if skip_channels:
-            logger.info(f"Skipping {len(skip_channels)} channels with tracking disabled.")
-    except Exception as e:
-        # channel_settings 表可能不存在
-        logger.warning(f"Failed to fetch channel_settings (table may not exist): {e}")
-
-    # 1. Fetch unique channel IDs from the videos table
-    try:
-        # We look into report_data->channel_id which stores the handle/id we extracted previously
-        response = supabase.table("videos").select("report_data->channel_id").not_.is_("report_data->channel_id", "null").execute()
         
-        channel_ids = set()
-        for v in response.data:
-            c_id = v.get("channel_id")
-            if c_id and c_id not in skip_channels:
-                channel_ids.add(c_id)
-        
-        logger.info(f"Found {len(channel_ids)} unique channels to track.")
+        channel_ids = {c["channel_id"] for c in response.data}
+        logger.info(f"Found {len(channel_ids)} channels with tracking enabled.")
     except Exception as e:
-        logger.error(f"Failed to fetch channel IDs: {e}")
+        logger.error(f"Failed to fetch tracked channel IDs: {e}")
         return
 
     # 2. For each channel, find the latest video
