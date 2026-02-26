@@ -186,6 +186,13 @@ export default function MarketingPage() {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(channelName)}&background=random&color=fff&size=64&bold=true`;
   };
 
+  const getYoutubeThumbnail = (videoId: string): string => {
+    if (videoId?.length === 11) {
+      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    }
+    return '';
+  };
+
   const getChannelColor = (channelId: string | undefined, channelName: string | undefined): string => {
     const seed = channelId || channelName || "default";
     let hash = 0;
@@ -457,8 +464,13 @@ export default function MarketingPage() {
                 >
                   {density === "compact" ? (
                     <>
-                      <div className="shrink-0 w-9 h-5 rounded-[4px] bg-slate-900 overflow-hidden border border-card-border/30">
-                        <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
+                      <div
+                        className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center p-[1.5px]"
+                        style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
+                      >
+                        <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
+                          <img src={item.channel_avatar || getAvatarUrl(item.channel || 'YT') || ''} alt={item.channel} className="w-full h-full object-cover" />
+                        </div>
                       </div>
                       <div className="flex-grow min-w-0 flex items-center gap-3">
                         <h3 className="font-bold text-xs sm:text-sm text-foreground group-hover:text-indigo-400 transition-colors truncate flex-grow leading-none">
@@ -487,10 +499,13 @@ export default function MarketingPage() {
                     </>
                   ) : (
                     <>
-                      {/* Thumbnail - Now always visible */}
-                      <div className="shrink-0 w-24 sm:w-28 h-auto">
-                        <div className="aspect-video rounded-md overflow-hidden bg-slate-900 border border-card-border">
-                          <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      {/* Channel Avatar */}
+                      <div
+                        className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center p-[1.5px]"
+                        style={{ backgroundColor: getChannelColor(item.channel_id, item.channel) }}
+                      >
+                        <div className="w-full h-full rounded-full overflow-hidden border border-slate-950 bg-slate-800">
+                          <img src={item.channel_avatar || getAvatarUrl(item.channel || 'YT') || ''} alt={item.channel} className="w-full h-full object-cover" />
                         </div>
                       </div>
 
@@ -533,7 +548,7 @@ export default function MarketingPage() {
               {items.map((item) => (
                 <div key={item.id} className="group relative bg-card-bg border border-card-border rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10">
                   <div className="aspect-video relative overflow-hidden bg-slate-900 border-b border-card-border/10">
-                    <img src={item.thumbnail} alt={item.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
+                    <img src={getYoutubeThumbnail(item.id) || item.channel_avatar || getAvatarUrl(item.channel || 'YT') || ''} alt={item.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent dark:block hidden" />
 
                     <div className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10">
