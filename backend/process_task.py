@@ -207,7 +207,7 @@ def process_video_task(task_id):
         worker_script = os.path.join(os.path.dirname(__file__), "worker.py")
         
         cmd = [
-            "python3", worker_script,
+            sys.executable, worker_script,
             task_id, mode,
             "--file", transcription_source_path,
             "--title", title or "Unknown",
@@ -236,6 +236,14 @@ def process_video_task(task_id):
         if return_code != 0:
             stderr_output = process.stderr.read()
             print(f"[Worker] 错误输出:\n{stderr_output}", file=sys.stderr)
+            # 若 worker 崩溃前未写 _error.json（OOM/import error），用 stderr 兜底
+            error_file = f"{RESULTS_DIR}/{task_id}_error.json"
+            if not os.path.exists(error_file):
+                with open(error_file, "w") as f:
+                    json.dump({
+                        "error": f"Worker 进程失败 (exit code: {return_code})",
+                        "traceback": stderr_output
+                    }, f, ensure_ascii=False)
             raise Exception(f"Worker 进程失败 (exit code: {return_code})")
         
         print(f"--- Worker 进程成功完成 ---")
@@ -339,8 +347,17 @@ def process_video_task(task_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as f:
-            json.dump({"error": str(e)}, f)
+        error_file = f"{RESULTS_DIR}/{task_id}_error.json"
+        # 检查 worker 是否已写入含 traceback 的错误文件，避免覆盖
+        existing_has_traceback = False
+        try:
+            with open(error_file) as f:
+                existing_has_traceback = "traceback" in json.load(f)
+        except Exception:
+            pass
+        if not existing_has_traceback:
+            with open(error_file, "w") as f:
+                json.dump({"error": str(e), "traceback": traceback.format_exc()}, f, ensure_ascii=False)
         save_status(task_id, "failed", 100)
         if supabase:
             try:
