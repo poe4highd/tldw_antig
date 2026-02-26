@@ -3,7 +3,7 @@ import time
 import json
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_db
 
 RESULTS_DIR = "results"
@@ -23,8 +23,8 @@ def check_stuck_tasks():
     if not supabase:
         return
     try:
-        processing_cutoff = (datetime.utcnow() - timedelta(hours=STUCK_PROCESSING_HOURS)).isoformat()
-        queued_cutoff = (datetime.utcnow() - timedelta(hours=STUCK_QUEUED_HOURS)).isoformat()
+        processing_cutoff = (datetime.now(timezone.utc) - timedelta(hours=STUCK_PROCESSING_HOURS)).isoformat()
+        queued_cutoff = (datetime.now(timezone.utc) - timedelta(hours=STUCK_QUEUED_HOURS)).isoformat()
 
         for status, cutoff in [("processing", processing_cutoff), ("queued", queued_cutoff)]:
             res = supabase.table("videos") \
