@@ -565,25 +565,29 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         {result.summary.split('\n').filter(Boolean).map((line, i) => {
                                             const color = SUMMARY_COLORS[i % SUMMARY_COLORS.length];
                                             const parts = line.split(/(\[\d{2}:\d{2}(?::\d{2})?\])/g);
+                                            const tm = line.match(/\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
+                                            let itemSeconds = 0;
+                                            if (tm) {
+                                                const h = tm[3] ? parseInt(tm[1], 10) : 0;
+                                                const m = tm[3] ? parseInt(tm[2], 10) : parseInt(tm[1], 10);
+                                                const s = tm[3] ? parseInt(tm[3], 10) : parseInt(tm[2], 10);
+                                                itemSeconds = h * 3600 + m * 60 + s;
+                                            }
                                             return (
                                                 <div
                                                     key={i}
+                                                    onClick={() => seekTo(itemSeconds)}
                                                     style={{ backgroundColor: `${color}18`, borderLeftColor: color }}
-                                                    className="px-3 py-2 rounded-r-xl border-l-[3px] text-sm md:text-base leading-relaxed font-medium text-foreground/90"
+                                                    className="px-3 py-2 rounded-r-xl border-l-[3px] text-sm md:text-base leading-relaxed font-medium text-foreground/90 cursor-pointer hover:brightness-110 transition-all"
                                                 >
                                                     {parts.map((part, j) => {
                                                         const timeMatch = part.match(/^\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
                                                         if (timeMatch) {
-                                                            const h = timeMatch[3] ? parseInt(timeMatch[1], 10) : 0;
-                                                            const m = timeMatch[3] ? parseInt(timeMatch[2], 10) : parseInt(timeMatch[1], 10);
-                                                            const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : parseInt(timeMatch[2], 10);
-                                                            const totalSeconds = (h * 3600) + (m * 60) + s;
                                                             return (
                                                                 <span
                                                                     key={j}
-                                                                    onClick={() => seekTo(totalSeconds)}
                                                                     style={{ color }}
-                                                                    className="cursor-pointer font-bold hover:underline transition-colors px-1"
+                                                                    className="font-bold px-1"
                                                                 >
                                                                     {part}
                                                                 </span>
