@@ -310,9 +310,10 @@ def summarize_text(full_text, title="", description=""):
             "completion_tokens": response.usage.completion_tokens,
             "total_tokens": response.usage.total_tokens
         }
-        # Post-process: sort summary items by timestamp to guarantee chronological order
+        # Post-process summary for consistent format
         if data.get("summary"):
             import re as _re
+
             def _ts_to_sec(ts):
                 m = _re.match(r'\[(\d{2}):(\d{2})(?::(\d{2}))?\]', ts)
                 if not m: return 0
@@ -320,11 +321,45 @@ def summarize_text(full_text, title="", description=""):
                 mn = int(m.group(2)) if m.group(3) else int(m.group(1))
                 s = int(m.group(3)) if m.group(3) else int(m.group(2))
                 return h * 3600 + mn * 60 + s
-            lines = [l for l in data["summary"].split('\n') if l.strip()]
-            ts_found = [_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) for l in lines]
-            if any(ts_found):
-                lines.sort(key=lambda l: _ts_to_sec(_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l).group() if _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) else '[00:00]'))
-                data["summary"] = '\n'.join(lines)
+
+            summary = data["summary"]
+
+            # Fix 1: if AI returned a single-line summary, split by numbered item markers
+            # e.g. "1. text[ts] 2. text[ts]..." → split at "N. " boundaries
+            lines = [l for l in summary.split('\n') if l.strip()]
+            if len(lines) <= 1:
+                # Try splitting by "数字. " pattern (e.g. "1. ", "2. ")
+                parts = _re.split(r'(?=\d+\.\s)', summary.strip())
+                parts = [p.strip() for p in parts if p.strip()]
+                if len(parts) > 1:
+                    lines = parts
+                else:
+                    # Fallback: split at each [timestamp] boundary
+                    parts = _re.split(r'(?<=\[\d{2}:\d{2}\])\s*(?=\S)|(?<=\[\d{2}:\d{2}:\d{2}\])\s*(?=\S)', summary.strip())
+                    parts = [p.strip() for p in parts if p.strip()]
+                    if len(parts) > 1:
+                        lines = parts
+
+            # Fix 2: ensure each line ends with its timestamp (move inline ts to end if needed)
+            fixed_lines = []
+            for line in lines:
+                timestamps = _re.findall(r'\[\d{2}:\d{2}(?::\d{2})?\]', line)
+                if timestamps:
+                    # Remove all timestamps from text body, append the last one at end
+                    last_ts = timestamps[-1]
+                    text = _re.sub(r'\s*\[\d{2}:\d{2}(?::\d{2})?\]\s*', ' ', line).strip()
+                    fixed_lines.append(f"{text}{last_ts}")
+                else:
+                    fixed_lines.append(line)
+
+            # Fix 3: sort by timestamp (chronological order)
+            if any(_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) for l in fixed_lines):
+                fixed_lines.sort(key=lambda l: _ts_to_sec(
+                    _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l).group()
+                    if _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) else '[00:00]'
+                ))
+
+            data["summary"] = '\n'.join(fixed_lines)
         return data, usage
     except Exception as e:
         print(f"Summarization Error: {e}")
