@@ -33,6 +33,9 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+// Okabe-Ito colorblind-friendly palette for summary segments
+const SUMMARY_COLORS = ['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7'];
+
 // Types
 interface Sentence {
     start: number;
@@ -417,7 +420,6 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                 {/* Summary Timeline Bar */}
                 {result.summary && videoDuration > 0 && (() => {
-                    const COLORS = ['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7'];
                     const items = result.summary.split('\n').filter(Boolean).map(line => {
                         const m = line.match(/\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
                         let startTime = 0;
@@ -433,7 +435,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                     const segments = items.map((item, i) => {
                         const end = i < items.length - 1 ? items[i + 1].startTime - 1 : videoDuration;
                         const width = Math.max(((end - item.startTime) / videoDuration) * 100, 1);
-                        return { ...item, end, width, color: COLORS[i % COLORS.length] };
+                        return { ...item, end, width, color: SUMMARY_COLORS[i % SUMMARY_COLORS.length] };
                     });
                     let activeIdx = -1;
                     for (let i = segments.length - 1; i >= 0; i--) {
@@ -559,25 +561,38 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         </div>
                                         <h3 className="text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
                                     </div>
-                                    <div className="text-foreground/90 text-sm md:text-base leading-relaxed mb-6 font-medium whitespace-pre-wrap">
-                                        {result.summary.split(/(\[\d{2}:\d{2}(?::\d{2})?\])/g).map((part, index) => {
-                                            const timeMatch = part.match(/^\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
-                                            if (timeMatch) {
-                                                const h = timeMatch[3] ? parseInt(timeMatch[1], 10) : 0;
-                                                const m = timeMatch[3] ? parseInt(timeMatch[2], 10) : parseInt(timeMatch[1], 10);
-                                                const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : parseInt(timeMatch[2], 10);
-                                                const totalSeconds = (h * 3600) + (m * 60) + s;
-                                                return (
-                                                    <span
-                                                        key={index}
-                                                        onClick={() => seekTo(totalSeconds)}
-                                                        className="cursor-pointer text-indigo-500 font-bold hover:underline transition-colors px-1"
-                                                    >
-                                                        {part}
-                                                    </span>
-                                                );
-                                            }
-                                            return <span key={index}>{part}</span>;
+                                    <div className="space-y-2 mb-6">
+                                        {result.summary.split('\n').filter(Boolean).map((line, i) => {
+                                            const color = SUMMARY_COLORS[i % SUMMARY_COLORS.length];
+                                            const parts = line.split(/(\[\d{2}:\d{2}(?::\d{2})?\])/g);
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    style={{ backgroundColor: `${color}18`, borderLeftColor: color }}
+                                                    className="px-3 py-2 rounded-r-xl border-l-[3px] text-sm md:text-base leading-relaxed font-medium text-foreground/90"
+                                                >
+                                                    {parts.map((part, j) => {
+                                                        const timeMatch = part.match(/^\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
+                                                        if (timeMatch) {
+                                                            const h = timeMatch[3] ? parseInt(timeMatch[1], 10) : 0;
+                                                            const m = timeMatch[3] ? parseInt(timeMatch[2], 10) : parseInt(timeMatch[1], 10);
+                                                            const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : parseInt(timeMatch[2], 10);
+                                                            const totalSeconds = (h * 3600) + (m * 60) + s;
+                                                            return (
+                                                                <span
+                                                                    key={j}
+                                                                    onClick={() => seekTo(totalSeconds)}
+                                                                    style={{ color }}
+                                                                    className="cursor-pointer font-bold hover:underline transition-colors px-1"
+                                                                >
+                                                                    {part}
+                                                                </span>
+                                                            );
+                                                        }
+                                                        return <span key={j}>{part}</span>;
+                                                    })}
+                                                </div>
+                                            );
                                         })}
                                     </div>
                                     {result.keywords && result.keywords.length > 0 && (
