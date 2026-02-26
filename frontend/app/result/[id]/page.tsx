@@ -85,6 +85,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
     const [user, setUser] = useState<any>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -92,6 +93,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
             setUser(session?.user || null);
         };
         fetchUser();
+        const adminKey = localStorage.getItem("tldw_admin_key");
+        setIsAdmin(!!adminKey);
     }, []);
 
     useEffect(() => {
@@ -641,7 +644,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                             <div className="pt-8 border-t border-card-border flex items-center justify-between">
                                 <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-relaxed">
-                                    {t("result.usageCost")}: ${result.usage?.total_cost || "0.01"} <br />
+                                    {isAdmin && (
+                                        <>{t("result.usageCost")}: ${result.usage?.total_cost || "0.01"} <br /></>
+                                    )}
                                     {t("result.aiModel")}: Claude 3.5 Sonnet
                                 </p>
                             </div>
