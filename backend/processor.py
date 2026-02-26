@@ -274,14 +274,15 @@ def summarize_text(full_text, title="", description=""):
 {full_text}
 
 【任务要求】：
-1. 总结视频内容为至少 7 个重点内容。
+1. 总结视频内容为恰好 7 个重点内容。
 2. 每个重点不超过 3 句话。
-3. 在每个重点甚至每句话后，必须添加对应内容的视频时间戳链接（格式如 [01:23]），依据所提供文本中的时间标识。
-4. 总结部分必须全部使用中文回复（无论视频原本是什么语言）。
-5. 综合标题中的核心概念和全文讨论的细节提取关键词。
-6. 提取具备通用性、能帮助用户快速点击筛选的关键词（如：AI, 科技, 生产力, 财经, 育儿 等）。
-7. **中英双语对齐（CRITICAL）**：对于具备行业通用性或分类价值的关键词，必须输出为“中文 (English)”格式。例如：将“财经”输出为“财经 (Finance)”，“人工智能”输出为“人工智能 (AI)”。
-8. 关键词应简洁有力，通常为 2-4 个汉字配合英文，排除掉没意义的泛指词。
+3. 每个重点末尾必须添加对应内容在视频中出现位置的时间戳（格式如 [01:23]），依据所提供文本中的时间标识。
+4. **严格按视频播放顺序排列**：7 个重点的时间戳必须严格递增（第1条 < 第2条 < … < 第7条），不允许出现时间倒退。
+5. 总结部分必须全部使用中文回复（无论视频原本是什么语言）。
+6. 综合标题中的核心概念和全文讨论的细节提取关键词。
+7. 提取具备通用性、能帮助用户快速点击筛选的关键词（如：AI, 科技, 生产力, 财经, 育儿 等）。
+8. **中英双语对齐（CRITICAL）**：对于具备行业通用性或分类价值的关键词，必须输出为”中文 (English)”格式。例如：将”财经”输出为”财经 (Finance)”，”人工智能”输出为”人工智能 (AI)”。
+9. 关键词应简洁有力，通常为 2-4 个汉字配合英文，排除掉没意义的泛指词。
 
 请严格按以下 JSON 格式输出:
 {{
@@ -309,6 +310,21 @@ def summarize_text(full_text, title="", description=""):
             "completion_tokens": response.usage.completion_tokens,
             "total_tokens": response.usage.total_tokens
         }
+        # Post-process: sort summary items by timestamp to guarantee chronological order
+        if data.get("summary"):
+            import re as _re
+            def _ts_to_sec(ts):
+                m = _re.match(r'\[(\d{2}):(\d{2})(?::(\d{2}))?\]', ts)
+                if not m: return 0
+                h = int(m.group(1)) if m.group(3) else 0
+                mn = int(m.group(2)) if m.group(3) else int(m.group(1))
+                s = int(m.group(3)) if m.group(3) else int(m.group(2))
+                return h * 3600 + mn * 60 + s
+            lines = [l for l in data["summary"].split('\n') if l.strip()]
+            ts_found = [_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) for l in lines]
+            if any(ts_found):
+                lines.sort(key=lambda l: _ts_to_sec(_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l).group() if _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) else '[00:00]'))
+                data["summary"] = '\n'.join(lines)
         return data, usage
     except Exception as e:
         print(f"Summarization Error: {e}")
