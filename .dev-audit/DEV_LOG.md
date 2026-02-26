@@ -1,3 +1,30 @@
+# 开发日志 (2026-02-25) - 最近任务：摘要时间轴条
+
+## 1. 需求 (Requirement)
+- **背景**: 从截图产品 UI 借鉴，在结果页视频播放器下方添加彩色时间轴条，直观展示 7 条 AI 摘要对应的视频时段。
+- **目标**: 7 段彩色条，宽度正比时长，当前播放段高亮，点击跳转，悬停 tooltip，色盲友好配色。
+
+## 2. 计划 (Plan)
+- 添加 `videoDuration` state，分别从 YouTube `onPlayerReady` 和 audio `onLoadedMetadata` 获取时长
+- 解析 `result.summary` 字符串，提取每行 startTime
+- end_time[i] = start_time[i+1] - 1，最后项用 videoDuration
+- 用 Okabe-Ito 7色（色盲友好）渲染色段
+- 插入位置：视频播放器 `</div>` 与 Middle Section 之间
+
+## 3. 回顾 (Review)
+- 修改文件：`frontend/app/result/[id]/page.tsx`，共 4 处改动
+- 新增 state：`videoDuration`
+- 更新：`onPlayerReady` 调用 `getDuration()`，新增 `handleAudioLoadedMetadata`，`<audio>` 标签加 `onLoadedMetadata`
+- 新增：Summary Timeline Bar 内联组件（IIFE 写法），无需新建文件
+- 条件渲染：`result.summary && videoDuration > 0`，无摘要或时长未就绪时不渲染
+
+## 4. 经验 (Lessons)
+- YouTube player `getDuration()` 在 `onReady` 时已可调用，不需要额外等待
+- IIFE 内联写法避免新建组件文件，适合一次性逻辑
+- `Math.max(..., 1)` 防止宽度为 0 的边缘情况（第一条摘要时间戳为 0 时）
+
+---
+
 # 开发日志 (2026-02-25) - 任务：移除本地缩略图依赖，改用频道头像与 YouTube CDN
 
 ## 1. 需求 (Requirement)

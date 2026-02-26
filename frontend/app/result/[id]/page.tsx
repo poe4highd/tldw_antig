@@ -73,6 +73,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const [useLocalAudio, setUseLocalAudio] = useState(false);
 
     const [currentTime, setCurrentTime] = useState(0);
+    const [videoDuration, setVideoDuration] = useState(0);
     const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false); // New state for scroll control
     const subtitleContainerRef = useRef<HTMLDivElement>(null); // Ref for custom scrolling
     const isProgrammaticScroll = useRef(false); // Flag to distinguish auto-scroll from user scroll
@@ -154,6 +155,12 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
         }
     };
 
+    const handleAudioLoadedMetadata = () => {
+        if (audioRef.current && audioRef.current.duration > 0) {
+            setVideoDuration(audioRef.current.duration);
+        }
+    };
+
     const seekTo = (seconds: number) => {
         if (useLocalAudio && audioRef.current) {
             audioRef.current.currentTime = seconds;
@@ -167,6 +174,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     const onPlayerReady: YouTubeProps['onReady'] = (event) => {
         playerRef.current = event.target;
         setIsPlayerReady(true);
+        const dur = event.target.getDuration();
+        if (dur > 0) setVideoDuration(dur);
     };
 
     const scrollToActive = (force = false) => {
@@ -368,6 +377,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                         src={`${getApiBase()}/media/${result.media_path}`}
                                         controls
                                         onTimeUpdate={handleLocalTimeUpdate}
+                                        onLoadedMetadata={handleAudioLoadedMetadata}
                                         className="w-full h-10 accent-indigo-500"
                                     />
                                 </div>
@@ -404,6 +414,50 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
 
                     </div>
                 </div>
+
+                {/* Summary Timeline Bar */}
+                {result.summary && videoDuration > 0 && (() => {
+                    const COLORS = ['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7'];
+                    const items = result.summary.split('\n').filter(Boolean).map(line => {
+                        const m = line.match(/\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
+                        let startTime = 0;
+                        if (m) {
+                            const h = m[3] ? parseInt(m[1]) : 0;
+                            const min = m[3] ? parseInt(m[2]) : parseInt(m[1]);
+                            const s = m[3] ? parseInt(m[3]) : parseInt(m[2]);
+                            startTime = h * 3600 + min * 60 + s;
+                        }
+                        const text = line.replace(/^\d+\.\s*/, '').replace(/\[\d{2}:\d{2}(?::\d{2})?\]$/, '').trim();
+                        return { text, startTime };
+                    });
+                    const segments = items.map((item, i) => {
+                        const end = i < items.length - 1 ? items[i + 1].startTime - 1 : videoDuration;
+                        const width = Math.max(((end - item.startTime) / videoDuration) * 100, 1);
+                        return { ...item, end, width, color: COLORS[i % COLORS.length] };
+                    });
+                    let activeIdx = -1;
+                    for (let i = segments.length - 1; i >= 0; i--) {
+                        if (currentTime >= segments[i].startTime) { activeIdx = i; break; }
+                    }
+                    return (
+                        <div className="w-full flex-shrink-0 flex gap-0.5 h-[7px] rounded-full overflow-hidden">
+                            {segments.map((seg, i) => (
+                                <div
+                                    key={i}
+                                    title={seg.text}
+                                    onClick={() => seekTo(seg.startTime)}
+                                    style={{
+                                        width: `${seg.width}%`,
+                                        backgroundColor: seg.color,
+                                        opacity: activeIdx === i ? 1 : 0.35,
+                                        transition: 'opacity 0.3s'
+                                    }}
+                                    className="cursor-pointer hover:opacity-80"
+                                />
+                            ))}
+                        </div>
+                    );
+                })()}
 
                 {/* Middle Section: Title & Stats (1/6) */}
                 <div className="w-full flex-shrink-0 min-h-[140px] flex flex-col justify-center gap-3">
