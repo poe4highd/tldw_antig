@@ -3,9 +3,13 @@ import time
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from db import get_db
 
 RESULTS_DIR = "results"
+STUCK_PROCESSING_HOURS = 3
+STUCK_QUEUED_HOURS = 24
+TIMEOUT_CHECK_INTERVAL = 30 * 60  # 秒
 supabase = get_db()
 
 def save_status(task_id, status, progress, eta=None):
@@ -13,6 +17,28 @@ def save_status(task_id, status, progress, eta=None):
         os.makedirs(RESULTS_DIR)
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
+
+def check_stuck_tasks():
+    """将超时卡住的任务自动标记为 failed"""
+    if not supabase:
+        return
+    try:
+        processing_cutoff = (datetime.utcnow() - timedelta(hours=STUCK_PROCESSING_HOURS)).isoformat()
+        queued_cutoff = (datetime.utcnow() - timedelta(hours=STUCK_QUEUED_HOURS)).isoformat()
+
+        for status, cutoff in [("processing", processing_cutoff), ("queued", queued_cutoff)]:
+            res = supabase.table("videos") \
+                .select("id") \
+                .eq("status", status) \
+                .lt("created_at", cutoff) \
+                .execute()
+            for v in res.data:
+                supabase.table("videos").update({"status": "failed"}).eq("id", v["id"]).execute()
+                save_status(v["id"], "failed", 100)
+                print(f"[Scheduler] Auto-failed stuck {status} task: {v['id']}")
+    except Exception as e:
+        print(f"[Scheduler] Error in check_stuck_tasks: {e}")
+
 
 def get_next_task():
     if not supabase:
@@ -99,7 +125,12 @@ def get_next_task():
 
 def run_scheduler():
     print("--- [Scheduler] Started and monitoring queue... ---")
+    last_timeout_check = 0
     while True:
+        if time.time() - last_timeout_check > TIMEOUT_CHECK_INTERVAL:
+            check_stuck_tasks()
+            last_timeout_check = time.time()
+
         task = get_next_task()
         if task:
             task_id = task["id"]

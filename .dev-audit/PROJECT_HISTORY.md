@@ -1,3 +1,4 @@
+[2026-02-26] | [Bugfix] | 自动清理卡住的任务 | Scheduler 增加超时检测，processing>3h 或 queued>24h 自动标为 failed | DEV_LOG.md
 [2026-02-25] | [UX/UI] | 摘要时间轴条 | 结果页视频播放器下方添加 7 段 Okabe-Ito 配色时间轴条，支持高亮、点击跳转、tooltip | DEV_LOG.md
 [2026-02-25] | [UX/UI] | 移除本地缩略图依赖 | 文本模式改为频道头像，thumb 模式用 YouTube CDN 封面图，消除黑色方块问题 | DEV_LOG.md
 [2026-02-23] | [Feature] | 修改频道默认追踪行为 | 将新频道默认设为不追踪，需手动开启 | walkthrough.md
