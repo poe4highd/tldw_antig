@@ -87,7 +87,31 @@ cloudflared tunnel run mac-read-tube
 | `HTTP 530` | 隧道未启动，或 DNS 未生效 | 1. 确认 `tunnel run` 正在运行<br>2. 等待几分钟 DNS 全球生效 |
 | `failed to connect to origin` (Backend Log) | 后端服务未运行 | 确保 ./dev.sh 已启动且 8000 端口正常 |
 
-## 5. 参考文件路径
+## 5. 后台持久化运行 (systemd)
+
+隧道现已配置为 systemd user service，开机自动启动，无需手动执行 `cloudflared tunnel run`。
+
+```bash
+# 查看隧道服务状态
+systemctl --user status cloudflared-tldw
+
+# 启动 / 停止 / 重启
+systemctl --user start cloudflared-tldw
+systemctl --user stop cloudflared-tldw
+systemctl --user restart cloudflared-tldw
+
+# 使用 rt 快捷命令（推荐）
+rt logs cloudflared-tldw   # 实时日志
+rt restart cloudflared-tldw
+```
+
+**服务文件**：`~/.config/systemd/user/cloudflared-tldw.service`
+
+> 注意：`dev.sh` 中的 `cloudflared tunnel run mac-read-tube` 提示已过时，
+> 当前隧道名称为 `ubuntu-read-tube`，由 systemd 管理，无需手动启动。
+
+## 6. 参考文件路径
 *   **配置文件**: `~/.cloudflared/config.yml`
 *   **凭证目录**: `~/.cloudflared/*.json`
 *   **用户证书**: `~/.cloudflared/cert.pem`
+*   **systemd 服务**: `~/.config/systemd/user/cloudflared-tldw.service`

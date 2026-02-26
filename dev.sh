@@ -62,7 +62,7 @@ check_and_kill_port 3000 "FRONTEND"
 # 0.5 检查 Cloudflare 隧道状态
 if ! pgrep -x "cloudflared" > /dev/null; then
     printf "${YELLOW}[WARN] 未检测到 Cloudflare 隧道进程 (cloudflared)。${NC}\n"
-    printf "${YELLOW}建议运行: ${NC}nohup cloudflared tunnel run mac-read-tube > .cloudflared/tunnel.log 2>&1 &\n"
+    printf "${YELLOW}建议运行: ${NC}systemctl --user start cloudflared-tldw  (或 rt start)\n"
 else
     # 检查是否是正确的隧道在运行 (可选增加更多检查)
     printf "${GREEN}[INFO] Cloudflare 隧道进程运行中。${NC}\n"

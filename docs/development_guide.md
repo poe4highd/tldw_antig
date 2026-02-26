@@ -68,3 +68,65 @@ npm run dev
 
 - **清理空间**：`cd backend && python maintenance.py` (清理导出、原视频及临时文件)
 - **重置 Prompt 效果**：修改 Prompt 后运行 `python maintenance.py` 触发全量重处理。
+
+---
+
+## 5. 持久化后台服务 (systemd)
+
+对于长期运行的服务器环境，使用 **systemd user services** 代替手动执行 `dev.sh`。关闭终端、VSCode 甚至注销账户后服务依然运行，重启系统后自动恢复。
+
+### 5.1 服务列表
+
+| 服务文件 | 内容 |
+|---------|------|
+| `~/.config/systemd/user/tldw-backend.service` | FastAPI 后端 (uvicorn, port 8000) |
+| `~/.config/systemd/user/tldw-frontend.service` | Next.js 前端 (npm run dev, port 3000) |
+| `~/.config/systemd/user/tldw-scheduler.service` | 任务调度器 (scheduler.py) |
+| `~/.config/systemd/user/cloudflared-tldw.service` | Cloudflare 隧道 (ubuntu-read-tube) |
+| `~/.config/systemd/user/tldw.target` | 统一控制以上所有服务的 target |
+
+> **注意**：`loginctl enable-linger xs` 已启用，确保无登录会话时服务也持续运行。
+
+### 5.2 快捷命令 `rt`
+
+项目提供了 `~/bin/rt` 脚本，封装了常用的 systemd 操作：
+
+```bash
+rt                         # 查看所有服务状态
+rt start                   # 启动所有服务
+rt stop                    # 停止所有服务
+rt restart                 # 重启所有服务
+rt restart tldw-backend    # 只重启某个服务
+rt logs                    # 实时查看后端日志（Ctrl+C 退出）
+rt logs tldw-frontend      # 实时查看前端日志
+rt logs tldw-scheduler     # 实时查看调度器日志
+rt logs cloudflared-tldw   # 实时查看隧道日志
+```
+
+### 5.3 原生 systemctl / journalctl 命令
+
+```bash
+# 服务控制
+systemctl --user start tldw.target
+systemctl --user stop tldw.target
+systemctl --user restart tldw-backend
+
+# 日志查看
+journalctl --user -u tldw-backend -f           # 实时追踪
+journalctl --user -u tldw-backend -n 100       # 最近 100 行
+journalctl --user -u tldw-backend -p err       # 只看错误
+journalctl --user -u tldw-backend --since "10 min ago"
+
+# 同时查看多个服务
+journalctl --user -u tldw-backend -u tldw-scheduler -f
+```
+
+### 5.4 与 dev.sh 的区别
+
+| 对比项 | `./dev.sh` | systemd 服务 |
+|--------|-----------|-------------|
+| 终端依赖 | 终端关闭即停 | 完全独立 |
+| 日志颜色 | 有（ANSI 彩色） | 无（journald 纯文本） |
+| 自动重启 | 无 | 崩溃后自动重启 |
+| 开机自启 | 无 | 有 |
+| 适用场景 | 开发调试 | 后台长期运行 |
