@@ -548,7 +548,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-6 md:p-8 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
                     >
                         <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-foreground/[0.02] pointer-events-none select-none italic">
-                            TLDW
+                            Read Tube
                         </div>
 
                         <div className="space-y-8 md:space-y-12 relative z-10">
