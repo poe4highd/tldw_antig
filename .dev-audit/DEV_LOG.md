@@ -1,3 +1,17 @@
+### [需求] 修复僵死任务与 Supabase 连通性
+- **背景**: 任务 `h7BAQMWQ8jM` 和 `h-guLcRAepA` 处于卡住状态，且从 Mac 迁移到 Ubuntu 后 Supabase 连接出现超时。
+- **Error Stack**: 无明显报错，但 Scheduler 和任务队列停滞。
+- **影响文件**: 无修改代码，修改了 `/etc/hosts`、关闭了Tailscale，更新了 Supabase 库记录。
+
+### [回顾] 实际改动
+1. **网络诊断**: 发现 Tailscale (`100.100.100.100`) 拦截并导致 dns 解析 `*.supabase.co` 超时。
+2. **修复网络**: 
+   - 临时在 `/etc/hosts` 中加入 `172.64.149.246 cmgsjezztyvcikyweeuz.supabase.co`。
+   - 彻底关闭 Tailscale (`sudo tailscale down`) 恢复了 HTTPS 443 端口的访问。
+3. **修复任务**: 通过 python 脚本直接修改本地文件及 Supabase 中的状态，将这两个僵死任务标记为 `failed`。
+
+### [经验] 关键坑点
+- **环境迁移坑点**: Ubuntu 下使用 Tailscale 可能会由于开启了 "Override local DNS" 或者其内置 DNS 解析问题，导致部分公网域名（如 Supabase）即使通过 `8.8.8.8` 可以解析，但在实际出站时被路由劫持。使用 `getent hosts` 测试虽可能正确返回 `/etc/hosts` 的映射，但 TCP 层依然被阻断，诊断过程需排查 DNS->TCP全链路。
 # 2026-02-26 开发日志
 
 ## [21:35] | 调研 | 检查处理流程：云处理 vs 本地处理
