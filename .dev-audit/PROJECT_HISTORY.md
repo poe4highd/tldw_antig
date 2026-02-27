@@ -1,3 +1,5 @@
+[2026-02-26] | 维护 | 重新处理最近 5 个错误任务 | 挑选最近的 5 个 _error.json 重新执行以排查错误 | PROJECT_HISTORY.md
+[2026-02-26] | [Bugfix] | 修复 Worker 错误 traceback 被覆盖 | process_task.py 外层 except 不再覆盖 worker 写好的 traceback，增加 stderr 兜底 | DEV_LOG.md
 [2026-02-26] | [Bugfix] | 自动清理卡住的任务 | Scheduler 增加超时检测，processing>3h 或 queued>24h 自动标为 failed | DEV_LOG.md
 [2026-02-25] | [UX/UI] | 摘要时间轴条 | 结果页视频播放器下方添加 7 段 Okabe-Ito 配色时间轴条，支持高亮、点击跳转、tooltip | DEV_LOG.md
 [2026-02-25] | [UX/UI] | 移除本地缩略图依赖 | 文本模式改为频道头像，thumb 模式用 YouTube CDN 封面图，消除黑色方块问题 | DEV_LOG.md

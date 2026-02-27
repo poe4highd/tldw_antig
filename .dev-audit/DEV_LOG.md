@@ -1,3 +1,57 @@
+# 2026-02-26 开发日志
+
+## [21:35] | 调研 | 检查处理流程：云处理 vs 本地处理
+### 需求背景
+用户确认当前视频应全部为本地处理，且云端 OpenAI 处理应处于“锁定不用”的灰度状态。
+
+### 调研目标
+- [x] 检查 `transcriber.py` 中的模式选择逻辑。
+- [x] 检查 `process_task.py` 的默认 `mode`。
+- [x] 确认为何之前的任务依然在尝试 `cloud` 模式。
+- [x] 锁定云端处理：已强制 `transcribe_audio` 和 `transcribe_cloud` 路由至本地。
+
+## [08:35] | 调研 | 重新处理最近 5 个错误任务
+### 需求背景
+`results` 目录下存在 15 个 `_error.json` 错误文件。需要挑选最近的 5 个进行重新处理，排查是否依然报错。
+
+### 当前现状
+- 错误任务总数：正在确认 (预期 15)
+- 最近 5 个任务：
+  1. `results/P78fylSwdpw_error.json` (2026-02-26 08:27)
+  2. `results/G-7HWsOROfs_error.json` (2026-02-25 12:09)
+  3. `results/NIbPEW0alBg_error.json` (2026-02-25 12:09)
+  4. `results/uwVgVVHyXqo_error.json` (2026-02-25 11:41)
+  5. `results/pqPw7xCZVaw_error.json` (2026-02-25 11:40)
+
+### 待办事项
+- [x] 确定重新处理的执行命令
+- [x] 输出实施计划并获批
+- [x] 修正 Worker 调用架构 (确保使用 sys.executable)
+- [x] 执行并验证重新处理 (已完成)
+
+
+# 开发日志 (2026-02-26) - 任务：修复 Worker 错误 traceback 被覆盖
+
+## 1. 需求 (Requirement)
+- **背景**: `results/_error.json` 中所有错误信息都只有 `"Worker 进程失败 (exit code: 1)"`，看不到真实堆栈，无法定位失败原因。
+- **根本原因**: `process_task.py` 外层 `except` 块（L339）无条件 `json.dump` 覆盖了 `worker.py` 已写好的 `{"error", "traceback"}`。
+- **目标**: 保留 worker 写的 traceback；若 worker 崩溃前未写错误文件，用父进程捕获的 stderr 兜底。
+
+## 2. 计划 (Plan)
+- `process_task.py` L236：subprocess exit != 0 时，若 `_error.json` 不存在则用 stderr 写入兜底
+- `process_task.py` L339：外层 except 先检查 `_error.json` 是否有 `traceback` 字段，有则跳过写入
+
+## 3. 回顾 (Review)
+- 修改文件：`backend/process_task.py`，共 2 处改动
+- L236 新增：`if not os.path.exists(error_file)` 保护，用 stderr 兜底写 `{"error", "traceback"}`
+- L339 修改：外层 except 先读取现有文件检查 traceback，`existing_has_traceback` 为 False 才覆盖
+
+## 4. 经验 (Lessons)
+- **子进程错误文件不能无条件覆盖**：父进程捕获的异常信息通常比子进程写的堆栈信息粗糙
+- **两级兜底设计**：子进程自写（最详细） → 父进程 stderr 兜底（OOM/segfault 场景） → 父进程 except 兜底（极端情况）
+
+---
+
 # 开发日志 (2026-02-26) - 任务：Scheduler 自动清理卡住的 processing 任务
 
 ## 1. 需求 (Requirement)
