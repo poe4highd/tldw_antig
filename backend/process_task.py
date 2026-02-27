@@ -27,7 +27,7 @@ def process_video_task(task_id):
     local_file = None
     title = "Unknown Title"
     thumbnail = None
-    mode = "cloud"
+    mode = "local"
     user_id = None
     is_public = True
     

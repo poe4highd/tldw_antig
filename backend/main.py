@@ -58,7 +58,7 @@ for d in [DOWNLOADS_DIR, RESULTS_DIR, CACHE_DIR]:
 
 class ProcessRequest(BaseModel):
     url: str
-    mode: str = "cloud"
+    mode: str = "local"
     user_id: str = None
     is_public: bool = True
 

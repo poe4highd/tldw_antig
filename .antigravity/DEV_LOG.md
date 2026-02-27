@@ -5,9 +5,10 @@
 用户确认当前视频应全部为本地处理，且云端 OpenAI 处理应处于“锁定不用”的灰度状态。
 
 ### 调研目标
-- 检查 `transcriber.py` 中的模式选择逻辑。
-- 检查 `process_task.py` 的默认 `mode`。
-- 确认为何之前的任务依然在尝试 `cloud` 模式。
+- [x] 检查 `transcriber.py` 中的模式选择逻辑。
+- [x] 检查 `process_task.py` 的默认 `mode`。
+- [x] 确认为何之前的任务依然在尝试 `cloud` 模式。
+- [x] 锁定云端处理：已强制 `transcribe_audio` 和 `transcribe_cloud` 路由至本地。
 
 ## [08:35] | 调研 | 重新处理最近 5 个错误任务
 ### 需求背景

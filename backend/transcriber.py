@@ -280,9 +280,12 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
     return results
 
 def transcribe_cloud(file_path: str, initial_prompt: str = None):
-    file_size = os.path.getsize(file_path)
-    if file_size > 25 * 1024 * 1024:
-        raise Exception(f"音频文件过大 ({file_size / 1024 / 1024:.2f}MB)，超过限额。")
+    # 灰度锁定：强制路由到本地处理，锁定 OpenAI 云端调用
+    print(f"--- [Cloud Lock] 正在拦截云端请求并强制路由至本地处理 ({os.path.basename(file_path)}) ---")
+    return transcribe_local(file_path, initial_prompt=initial_prompt, model_size="large-v3-turbo")
+
+    # 原逻辑已屏蔽
+    # file_size = os.path.getsize(file_path)
 
     from openai import OpenAI
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -308,7 +311,7 @@ def transcribe_cloud(file_path: str, initial_prompt: str = None):
         })
     return results
 
-def transcribe_audio(file_path: str, mode: str = "cloud", initial_prompt: str = None, model_size: str = "large-v3-turbo"):
+def transcribe_audio(file_path: str, mode: str = "local", initial_prompt: str = None, model_size: str = "large-v3-turbo"):
     if mode == "local":
         # Check if it's a FunASR model
         if model_size in ["paraformer", "sensevoice", "Paraformer-zh", "SenseVoiceSmall"]:
