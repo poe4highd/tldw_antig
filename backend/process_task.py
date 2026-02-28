@@ -77,6 +77,11 @@ def process_video_task(task_id):
     if not url and not local_file:
         print(f"--- [Process Task] Error: Could not find URL or local file for task {task_id} ---")
         save_status(task_id, "failed", 100)
+        if supabase:
+            try:
+                supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
+            except Exception as e:
+                print(f"[Process Task] Failed to update Supabase on abort: {e}")
         return False
 
     try:

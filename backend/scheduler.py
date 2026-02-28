@@ -169,9 +169,19 @@ def run_scheduler():
                 else:
                     print(f"--- [Scheduler] Task {task_id} failed with exit code {result.returncode} ---")
                     save_status(task_id, "failed", 100)
+                    if supabase:
+                        try:
+                            supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
+                        except Exception as up_e:
+                            print(f"[Scheduler] Failed to update Supabase status: {up_e}")
             except Exception as e:
                 print(f"--- [Scheduler] Exception running task {task_id}: {e} ---")
                 save_status(task_id, "failed", 100)
+                if supabase:
+                    try:
+                        supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
+                    except Exception as up_e:
+                        print(f"[Scheduler] Failed to update Supabase status: {up_e}")
             
         else:
             time.sleep(10)
