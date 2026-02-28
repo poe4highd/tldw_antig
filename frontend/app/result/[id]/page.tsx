@@ -34,7 +34,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // Okabe-Ito colorblind-friendly palette for summary segments
-const SUMMARY_COLORS = ['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7'];
+const SUMMARY_COLORS = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7'];
 
 // Types
 interface Sentence {
@@ -326,7 +326,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
     return (
         <div className="min-h-screen bg-background text-foreground font-sans">
             {/* Top Navigation Bar */}
-            <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border px-6 py-4 flex items-center justify-between">
+            <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border px-6 py-2.5 flex items-center justify-between">
                 <div className="flex items-center space-x-6">
                     <Link href="/" className="p-2 hover:bg-card-bg rounded-xl transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-400 hover:text-foreground" />
@@ -358,7 +358,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 </div>
             </nav>
 
-            <main className="max-w-[1440px] mx-auto px-6 py-6 flex flex-col gap-6 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar">
+            <main className="max-w-[1440px] mx-auto px-6 py-3 flex flex-col gap-3 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar">
 
                 {/* Top Section: Video (1/3) */}
                 <div className="w-full flex-shrink-0 h-[33vh] min-h-[250px] relative bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
@@ -465,8 +465,8 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 })()}
 
                 {/* Middle Section: Title & Stats (1/6) */}
-                <div className="w-full flex-shrink-0 min-h-[140px] flex flex-col justify-center gap-3">
-                    <h2 className="text-xl md:text-2xl font-black tracking-tight line-clamp-2 leading-tight px-1">{result.title}</h2>
+                <div className="w-full flex-shrink-0 py-2 flex flex-col justify-center gap-2 md:gap-3">
+                    <h2 className="text-lg md:text-xl font-black tracking-tight line-clamp-2 leading-snug px-1">{result.title}</h2>
 
                     {/* Stats & Actions Row */}
                     <div className="flex flex-wrap items-center justify-between gap-4 w-full">
@@ -548,16 +548,16 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                         ref={subtitleContainerRef}
                         onScroll={handleManualScroll}
                         data-testid="subtitle-container"
-                        className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-6 md:p-8 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
+                        className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-4 md:p-6 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
                     >
                         <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-foreground/[0.02] pointer-events-none select-none italic">
                             Read Tube
                         </div>
 
-                        <div className="space-y-8 md:space-y-12 relative z-10">
+                        <div className="space-y-5 md:space-y-6 relative z-10">
                             {/* AI Summary Section */}
                             {result.summary && (
-                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-6 md:p-8 mb-8 md:mb-12 shadow-sm">
+                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-4 md:p-5 mb-4 md:mb-6 shadow-sm">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
                                             <Send className="w-4 h-4 text-white transform -rotate-45" />
@@ -617,7 +617,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                             {(() => {
                                 const allSentences = result.paragraphs?.flatMap(p => p.sentences) || [];
                                 return result.paragraphs?.map((p: Paragraph, pIdx: number) => (
-                                    <p key={pIdx} className="text-lg leading-[1.8] text-slate-400">
+                                    <p key={pIdx} className="text-base md:text-lg leading-[1.65] text-slate-400">
                                         {p.sentences.map((s: Sentence, sIdx: number) => {
                                             const flatIdx = allSentences.indexOf(s);
                                             const nextS = allSentences[flatIdx + 1];
@@ -667,9 +667,9 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 {/* Discussion Panel Moved to Bottom */}
-                <div className="w-full mt-4 flex-shrink-0 pb-12">
+                <div className="w-full mt-2 flex-shrink-0 pb-6">
                     {/* Discussion Section */}
-                    <div className="bg-card-bg/40 border border-card-border rounded-[2.5rem] flex flex-col h-[600px] shadow-sm">
+                    <div className="bg-card-bg/40 border border-card-border rounded-[2.5rem] flex flex-col h-[400px] shadow-sm">
                         <div className="p-8 border-b border-card-border flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                                 <MessageSquare className="w-5 h-5 text-indigo-500" />
