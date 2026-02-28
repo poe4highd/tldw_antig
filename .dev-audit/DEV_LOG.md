@@ -1,92 +1,20 @@
-### [需求] 修复僵死任务与 Supabase 连通性
-- **背景**: 任务 `h7BAQMWQ8jM` 和 `h-guLcRAepA` 处于卡住状态，且从 Mac 迁移到 Ubuntu 后 Supabase 连接出现超时。
-- **Error Stack**: 无明显报错，但 Scheduler 和任务队列停滞。
-- **影响文件**: 无修改代码，修改了 `/etc/hosts`、关闭了Tailscale，更新了 Supabase 库记录。
+# 2026-02-27 开发日志
+
+### [需求] 修复前端进度条假死为100%与进度不更新问题
+- **背景**: 用户反馈提交任务后前端立刻显示100%，与本地真实进度（如60%）完全不符。且任务历史长时间显示 5%。
+- **Error Stack**: 无显式报错，但前台状态展示错误，且修改代码后引入过 `IndentationError` 导致服务未能重启。
+- **影响文件**: `backend/main.py`
+
+### [计划]
+1. 分析前端轮询逻辑和对应的后端 `/result/{task_id}` 以及 `/history` API。
+2. 将后端死板返回 `progress: 100` 的逻辑修改为读取真实本地 `_status.json` 的进度。
+3. 捕获任务提交至完成全周期的真实验证测试。
 
 ### [回顾] 实际改动
-1. **网络诊断**: 发现 Tailscale (`100.100.100.100`) 拦截并导致 dns 解析 `*.supabase.co` 超时。
-2. **修复网络**: 
-   - 临时在 `/etc/hosts` 中加入 `172.64.149.246 cmgsjezztyvcikyweeuz.supabase.co`。
-   - 彻底关闭 Tailscale (`sudo tailscale down`) 恢复了 HTTPS 443 端口的访问。
-3. **修复任务**: 通过 python 脚本直接修改本地文件及 Supabase 中的状态，将这两个僵死任务标记为 `failed`。
+1. **API逻辑修正**: 移除了 `main.py` 中只要存入 Supabase 无论任务处于 `queued`, `processing` 则统统返回 100% 的荒谬逻辑。改为：仅当 `status == "completed"` 且含有分段数据时才视作最终完成；其余状态下沉到底层 `_status.json` 抽取实时进度汇报。
+2. **语法错误修复**: 解决替换代码时发生的 `IndentationError`，令 uvicorn 服务恢复正常并重新加载。
+3. **全链路回归测试**: 推送更新前使用超级长视频 `gwv-SJZGcJE`（约一个半小时、98MB），配合云端转录大模型并指定测试用户`poe`。经过实测监控近十几分钟证实：转录、格式化、更新数据库各项关键步骤完全顺利，前端状态请求 API `/result` 行为健康准确。
 
-### [经验] 关键坑点
-- **环境迁移坑点**: Ubuntu 下使用 Tailscale 可能会由于开启了 "Override local DNS" 或者其内置 DNS 解析问题，导致部分公网域名（如 Supabase）即使通过 `8.8.8.8` 可以解析，但在实际出站时被路由劫持。使用 `getent hosts` 测试虽可能正确返回 `/etc/hosts` 的映射，但 TCP 层依然被阻断，诊断过程需排查 DNS->TCP全链路。
-# 2026-02-26 开发日志
-
-## [21:35] | 调研 | 检查处理流程：云处理 vs 本地处理
-### 需求背景
-用户确认当前视频应全部为本地处理，且云端 OpenAI 处理应处于“锁定不用”的灰度状态。
-
-### 调研目标
-- [x] 检查 `transcriber.py` 中的模式选择逻辑。
-- [x] 检查 `process_task.py` 的默认 `mode`。
-- [x] 确认为何之前的任务依然在尝试 `cloud` 模式。
-- [x] 锁定云端处理：已强制 `transcribe_audio` 和 `transcribe_cloud` 路由至本地。
-
-## [08:35] | 调研 | 重新处理最近 5 个错误任务
-### 需求背景
-`results` 目录下存在 15 个 `_error.json` 错误文件。需要挑选最近的 5 个进行重新处理，排查是否依然报错。
-
-### 当前现状
-- 错误任务总数：正在确认 (预期 15)
-- 最近 5 个任务：
-  1. `results/P78fylSwdpw_error.json` (2026-02-26 08:27)
-  2. `results/G-7HWsOROfs_error.json` (2026-02-25 12:09)
-  3. `results/NIbPEW0alBg_error.json` (2026-02-25 12:09)
-  4. `results/uwVgVVHyXqo_error.json` (2026-02-25 11:41)
-  5. `results/pqPw7xCZVaw_error.json` (2026-02-25 11:40)
-
-### 待办事项
-- [x] 确定重新处理的执行命令
-- [x] 输出实施计划并获批
-- [x] 修正 Worker 调用架构 (确保使用 sys.executable)
-- [x] 执行并验证重新处理 (已完成)
-
-
-# 开发日志 (2026-02-26) - 任务：修复 Worker 错误 traceback 被覆盖
-
-## 1. 需求 (Requirement)
-- **背景**: `results/_error.json` 中所有错误信息都只有 `"Worker 进程失败 (exit code: 1)"`，看不到真实堆栈，无法定位失败原因。
-- **根本原因**: `process_task.py` 外层 `except` 块（L339）无条件 `json.dump` 覆盖了 `worker.py` 已写好的 `{"error", "traceback"}`。
-- **目标**: 保留 worker 写的 traceback；若 worker 崩溃前未写错误文件，用父进程捕获的 stderr 兜底。
-
-## 2. 计划 (Plan)
-- `process_task.py` L236：subprocess exit != 0 时，若 `_error.json` 不存在则用 stderr 写入兜底
-- `process_task.py` L339：外层 except 先检查 `_error.json` 是否有 `traceback` 字段，有则跳过写入
-
-## 3. 回顾 (Review)
-- 修改文件：`backend/process_task.py`，共 2 处改动
-- L236 新增：`if not os.path.exists(error_file)` 保护，用 stderr 兜底写 `{"error", "traceback"}`
-- L339 修改：外层 except 先读取现有文件检查 traceback，`existing_has_traceback` 为 False 才覆盖
-
-## 4. 经验 (Lessons)
-- **子进程错误文件不能无条件覆盖**：父进程捕获的异常信息通常比子进程写的堆栈信息粗糙
-- **两级兜底设计**：子进程自写（最详细） → 父进程 stderr 兜底（OOM/segfault 场景） → 父进程 except 兜底（极端情况）
-
----
-
-# 开发日志 (2026-02-26) - 任务：Scheduler 自动清理卡住的 processing 任务
-
-## 1. 需求 (Requirement)
-- **背景**: 当 `process_task.py` 子进程崩溃时（OOM、网络中断等），Supabase 中 `videos.status` 永久停留在 `processing`，前端硬编码显示 5% 进度，用户无法重新提交。今日发现用户 Poe 有 3 个任务卡死（DBNj41pCGao、O3b2Y5x_3FI、h7BAQMWQ8jM），需人工介入清理。
-- **目标**: Scheduler 定期自动扫描超时任务，`processing > 3h` 或 `queued > 24h` 的任务自动标为 `failed`，用户可重新提交。
-
-## 2. 计划 (Plan)
-- 在 `backend/scheduler.py` 新增 `check_stuck_tasks()` 函数
-- 查询 Supabase 中超时的 `processing`（>3h）和 `queued`（>24h）任务
-- 批量更新为 `failed`，同步写入本地 `_status.json`
-- 在 `run_scheduler()` 主循环开头每 30 分钟调用一次（启动时立即执行）
-
-## 3. 回顾 (Review)
-- 修改文件：`backend/scheduler.py`，新增 4 处改动
-- 新增 `from datetime import datetime, timedelta`
-- 新增常量：`STUCK_PROCESSING_HOURS=3`、`STUCK_QUEUED_HOURS=24`、`TIMEOUT_CHECK_INTERVAL=1800`
-- 新增函数 `check_stuck_tasks()`：查询超时任务并批量更新为 `failed`
-- `run_scheduler()` 主循环开头加入 30 分钟定时调用，启动时 `last_timeout_check=0` 保证立即执行
-- 验证：插入 4 小时前的 `processing` 测试数据，触发检测后确认变为 `failed`，测试通过
-
-## 4. 经验 (Lessons)
-- **生产兜底**：Scheduler 宕机重启后第一个循环即执行清理，能覆盖宕机期间积累的僵死任务
-- **用 created_at 替代 updated_at**：表中没有 updated_at，created_at 作为超时基准需要预留足够余量（3h 含排队等待时间）
-- **原子性写入**：Supabase 更新和本地 `_status.json` 写入都在函数内完成，前端两条路径都能感知失败状态
+### [经验] 关键机制与坑点
+- **虚假进度带来的阻塞错觉**: 如果任务进度被后端接口伪造屏蔽，前端一旦挂载就会被进度死锁误导。对特别巨大的视频（耗时超过10-20分钟），让用户清晰看到准确到数字（本案中的真实 60%）是极有意义且可以降低客诉率的。
+- **状态兜底查询路线**: 应当坚定“Supabase 为展示与最终完成负责，本地文件（_status.json）为过程中动态追踪负责”的分层策略，保障双端数据融合。

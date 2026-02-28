@@ -1,4 +1,5 @@
-[2026-02-26] | [故障排查] | 修复僵尸任务与Supabase网络 | 诊断Tailscale DNS劫持导致Supabase无法连接，关闭Tailscale恢复并手动清理失败记录 | DEV_LOG.md
+[2026-02-27] | [Bugfix] | 修复前端进度条假死问题 | 修改后端API /result与/history 使得未完成任务回退读取本地真实进度，并执行长视频全链路通过 | DEV_LOG.md
+[2026-02-26] | [故障排查] | 修复僵尸任务与Supabase网络 | 诊断Tailscale DNS劫持导致Supabase无法连接，关闭Tailscale恢复并手动清理失败记录 | log_20260226.md
 [2026-02-26] | 维护 | 重新处理最近 5 个错误任务 | 挑选最近的 5 个 _error.json 重新执行以排查错误 | PROJECT_HISTORY.md
 [2026-02-26] | [Bugfix] | 修复 Worker 错误 traceback 被覆盖 | process_task.py 外层 except 不再覆盖 worker 写好的 traceback，增加 stderr 兜底 | DEV_LOG.md
 [2026-02-26] | [Bugfix] | 自动清理卡住的任务 | Scheduler 增加超时检测，processing>3h 或 queued>24h 自动标为 failed | DEV_LOG.md

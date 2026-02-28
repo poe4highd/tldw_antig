@@ -483,45 +483,49 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
                 video = response.data[0]
                 
                 is_liked = False
-                if user_id:
-                    like_res = supabase.table("user_likes") \
-                        .select("id") \
-                        .eq("user_id", user_id) \
-                        .eq("video_id", task_id) \
-                        .execute()
-                    is_liked = len(like_res.data) > 0
+                
+                # 如果状态不是 completed，不要直接返回假的 100% 进度，
+                # 而是让它 fall through 到读取本地真实的 _status.json
+                if video["status"] == "completed":
+                    if user_id:
+                        like_res = supabase.table("user_likes") \
+                            .select("id") \
+                            .eq("user_id", user_id) \
+                            .eq("video_id", task_id) \
+                            .execute()
+                        is_liked = len(like_res.data) > 0
 
-                # Check if reports are actually ready
-                paragraphs = video["report_data"].get("paragraphs")
-                if not paragraphs and video["status"] == "completed":
-                    print(f"[Result] Warning: Task {task_id} marked as completed but has no paragraphs. Returning processing status.")
+                    # Check if reports are actually ready
+                    paragraphs = video["report_data"].get("paragraphs")
+                    if not paragraphs and video["status"] == "completed":
+                        print(f"[Result] Warning: Task {task_id} marked as completed but has no paragraphs. Returning processing status.")
+                        return {
+                            "status": "processing",
+                            "progress": 95,
+                            "detail": "Finalizing data sync..."
+                        }
+
                     return {
-                        "status": "processing",
-                        "progress": 95,
-                        "detail": "Finalizing data sync..."
+                        "title": video["title"],
+                        "url": "N/A",
+                        "youtube_id": video["id"] if len(video["id"]) == 11 else None,
+                        "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
+                        "media_path": video["media_path"],
+                        "paragraphs": paragraphs,
+                        "summary": video["report_data"].get("summary"),
+                        "keywords": video["report_data"].get("keywords"),
+                        "usage": video["usage"],
+                        "raw_subtitles": video["report_data"].get("raw_subtitles"),
+                        "channel": video["report_data"].get("channel"),
+                        "channel_id": video["report_data"].get("channel_id"),
+                        "channel_avatar": video["report_data"].get("channel_avatar"),
+                        "view_count": video.get("view_count", 0),
+                        "interaction_count": video.get("interaction_count", 0),
+                        "is_liked": is_liked,
+                        "mtime": video.get("created_at"),
+                        "status": "completed",
+                        "progress": 100
                     }
-
-                return {
-                    "title": video["title"],
-                    "url": "N/A",
-                    "youtube_id": video["id"] if len(video["id"]) == 11 else None,
-                    "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
-                    "media_path": video["media_path"],
-                    "paragraphs": paragraphs,
-                    "summary": video["report_data"].get("summary"),
-                    "keywords": video["report_data"].get("keywords"),
-                    "usage": video["usage"],
-                    "raw_subtitles": video["report_data"].get("raw_subtitles"),
-                    "channel": video["report_data"].get("channel"),
-                    "channel_id": video["report_data"].get("channel_id"),
-                    "channel_avatar": video["report_data"].get("channel_avatar"),
-                    "view_count": video.get("view_count", 0),
-                    "interaction_count": video.get("interaction_count", 0),
-                    "is_liked": is_liked,
-                    "mtime": video.get("created_at"),
-                    "status": "completed",
-                    "progress": 100
-                }
         except Exception as e:
             print(f"Supabase fetch failed: {e}")
 
@@ -598,12 +602,22 @@ async def get_history(user_id: str = None):
             active_vid_res = supabase.table("videos").select("id, status, created_at").order("created_at", desc=True).limit(100).execute()
             print(f"[DEBUG] Raw videos count from Supabase: {len(active_vid_res.data)}")
             for v in active_vid_res.data:
-                if v["status"] in ["queued", "processing"]:
-                    print(f"[DEBUG] Adding active task: {v['id']} ({v['status']})")
+                if v["status"] in ["queued", "processing", "failed"]:
+                    # 尝试从本地 _status.json 提取真实进度
+                    real_progress = 5 if v["status"] == "processing" else 0
+                    local_status_path = f"{RESULTS_DIR}/{v['id']}_status.json"
+                    if os.path.exists(local_status_path):
+                        try:
+                            with open(local_status_path, "r") as f:
+                                status_data = json.load(f)
+                                real_progress = status_data.get("progress", real_progress)
+                        except:
+                            pass
+                            
                     active_tasks.append({
                         "id": v["id"],
                         "status": v["status"],
-                        "progress": 5 if v["status"] == "processing" else 0,
+                        "progress": real_progress,
                         "mtime": v["created_at"]
                     })
                     active_taskId_set.add(v["id"])
