@@ -18,9 +18,14 @@ def is_apple_silicon():
 def get_faster_whisper_model(model_size="large-v3-turbo"):
     from faster_whisper import WhisperModel
     if f"faster_{model_size}" not in _model_cache:
-        print(f"--- Loading faster-whisper model ({model_size}) on CPU... ---")
-        _model_cache[f"faster_{model_size}"] = WhisperModel(model_size, device="cpu", compute_type="int8")
-        print(f"--- faster-whisper {model_size} loaded successfully! ---")
+        print(f"--- Loading faster-whisper model ({model_size}) on CUDA (compute_type: float16)... ---")
+        try:
+            _model_cache[f"faster_{model_size}"] = WhisperModel(model_size, device="cuda", compute_type="float16")
+            print(f"--- faster-whisper {model_size} loaded successfully on CUDA! ---")
+        except Exception as e:
+            print(f"--- Failed to load on CUDA, falling back to CPU (compute_type: int8). Error: {e} ---")
+            _model_cache[f"faster_{model_size}"] = WhisperModel(model_size, device="cpu", compute_type="int8")
+            print(f"--- faster-whisper {model_size} loaded successfully on CPU! ---")
     return _model_cache[f"faster_{model_size}"]
 
 # Global model cache to avoid re-loading
