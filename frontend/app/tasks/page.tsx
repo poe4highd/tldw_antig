@@ -321,7 +321,7 @@ export default function TasksPage() {
                     )}
 
                     {/* Input Section */}
-                    <div className="bg-card-bg/50 backdrop-blur-xl border border-card-border p-8 rounded-[2.5rem] shadow-2xl mb-12 max-w-4xl mx-auto ring-1 ring-white/5 relative overflow-hidden">
+                    <div className="bg-card-bg/50 backdrop-blur-xl border border-card-border p-5 sm:p-8 rounded-3xl sm:rounded-[2.5rem] shadow-2xl mb-12 max-w-4xl mx-auto ring-1 ring-white/5 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-8 opacity-5 text-foreground">
                             <LayoutGrid className="w-40 h-40" />
                         </div>
@@ -329,68 +329,68 @@ export default function TasksPage() {
                         <div className="relative z-10 space-y-8">
                             <div className="space-y-4">
                                 <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-2">{t("tasks.submitNew")}</label>
-                                <div className="flex flex-col md:flex-row gap-4">
-                                    <div className="flex-1 relative group">
-                                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                                            <Youtube className="w-5 h-5" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            placeholder={t("tasks.placeholder")}
-                                            className="w-full bg-background border border-card-border rounded-2xl pl-16 pr-6 py-5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-lg placeholder:text-slate-500 text-foreground shadow-inner"
-                                            value={url}
-                                            onChange={(e) => setUrl(e.target.value)}
-                                        />
+                                {/* URL input row */}
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                        <Youtube className="w-5 h-5" />
                                     </div>
-                                    <div className="flex gap-3">
-                                        <select
-                                            className="bg-background border border-card-border rounded-2xl px-6 py-5 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-foreground font-bold cursor-pointer shadow-inner"
-                                            value={mode}
-                                            onChange={(e) => setMode(e.target.value)}
-                                        >
-                                            <option value="cloud" disabled>
-                                                {t("tasks.cloudInferenceDev")}
-                                            </option>
-                                            <option value="local">{t("tasks.modeLocal")}</option>
-                                        </select>
-                                        <button
-                                            onClick={startProcess}
-                                            disabled={!url || !isBackendOnline || (!!status && !status.includes("Failed"))}
-                                            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-10 py-5 rounded-2xl font-black text-white shadow-xl shadow-indigo-500/20 active:scale-[0.98] whitespace-nowrap"
-                                        >
-                                            {t("tasks.processNow")}
-                                        </button>
-                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder={t("tasks.placeholder")}
+                                        className="w-full bg-background border border-card-border rounded-2xl pl-14 pr-5 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-base placeholder:text-slate-500 text-foreground shadow-inner"
+                                        value={url}
+                                        onChange={(e) => setUrl(e.target.value)}
+                                    />
                                 </div>
-                                <div className="flex items-center gap-4 px-2">
+                                {/* Controls row: mode select + process button */}
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <select
+                                        className="bg-background border border-card-border rounded-2xl px-5 py-3.5 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-foreground font-bold cursor-pointer shadow-inner text-sm sm:w-auto"
+                                        value={mode}
+                                        onChange={(e) => setMode(e.target.value)}
+                                    >
+                                        <option value="cloud" disabled>
+                                            {t("tasks.cloudInferenceDev")}
+                                        </option>
+                                        <option value="local">{t("tasks.modeLocal")}</option>
+                                    </select>
+                                    <button
+                                        onClick={startProcess}
+                                        disabled={!url || !isBackendOnline || (!!status && !status.includes("Failed"))}
+                                        className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-8 py-3.5 rounded-2xl font-black text-white shadow-xl shadow-indigo-500/20 active:scale-[0.98] whitespace-nowrap text-sm"
+                                    >
+                                        {t("tasks.processNow")}
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-3 px-0 sm:px-2">
                                     <button
                                         onClick={() => setIsPublic(true)}
                                         className={cn(
-                                            "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all duration-300",
+                                            "flex-1 flex items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300",
                                             isPublic
                                                 ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-lg shadow-emerald-500/5"
                                                 : "bg-background/50 border-card-border text-slate-500 hover:border-card-border/80"
                                         )}
                                     >
-                                        <Share2 className={cn("w-5 h-5", isPublic && "animate-pulse")} />
-                                        <div className="text-left">
-                                            <p className="text-xs font-black uppercase tracking-tight">{t("tasks.public")}</p>
-                                            <p className="text-[9px] opacity-60 font-medium">{t("tasks.publicDesc")}</p>
+                                        <Share2 className={cn("w-4 h-4 sm:w-5 sm:h-5 shrink-0", isPublic && "animate-pulse")} />
+                                        <div className="text-left min-w-0">
+                                            <p className="text-[11px] sm:text-xs font-black uppercase tracking-tight">{t("tasks.public")}</p>
+                                            <p className="text-[9px] opacity-60 font-medium hidden sm:block">{t("tasks.publicDesc")}</p>
                                         </div>
                                     </button>
                                     <button
                                         onClick={() => setIsPublic(false)}
                                         className={cn(
-                                            "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all duration-300",
+                                            "flex-1 flex items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300",
                                             !isPublic
                                                 ? "bg-amber-500/10 border-amber-500/50 text-amber-400 shadow-lg shadow-amber-500/5"
                                                 : "bg-background/50 border-card-border text-slate-500 hover:border-card-border/80"
                                         )}
                                     >
-                                        <Lock className="w-5 h-5" />
-                                        <div className="text-left">
-                                            <p className="text-xs font-black uppercase tracking-tight">{t("tasks.private")}</p>
-                                            <p className="text-[9px] opacity-60 font-medium">{t("tasks.privateDesc")}</p>
+                                        <Lock className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                                        <div className="text-left min-w-0">
+                                            <p className="text-[11px] sm:text-xs font-black uppercase tracking-tight">{t("tasks.private")}</p>
+                                            <p className="text-[9px] opacity-60 font-medium hidden sm:block">{t("tasks.privateDesc")}</p>
                                         </div>
                                     </button>
                                 </div>
