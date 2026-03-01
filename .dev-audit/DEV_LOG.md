@@ -1,3 +1,21 @@
+# 2026-03-01 开发日志
+
+### [前置] 修复 Scheduler 使用错误 Python 解释器导致所有任务立刻失败
+- **需求**：继续排查视频提交立刻失败的根因。上一轮修复了竞态条件和错误兜底，但任务仍然快速失败。
+- **Error Stack**：系统 `python3` 指向 anaconda（`/home/xs/anaconda3/bin/python3`），缺少 `supabase` 包导致 `ImportError: cannot import name 'create_client'`。Scheduler 自身用 venv 运行但子进程用硬编码的 `python3`。
+- **计划**：
+  1. 修复 scheduler.py 的 Python 解释器（`sys.executable` 替代 `python3`）
+  2. 修复 /history 端点的同类竞态条件（活动任务列表显示 PROCESSING 100%）
+  3. 重启 scheduler 使修复生效
+
+### [回顾] 实际改动
+1. **根因修复** (`scheduler.py:158`): `["python3", ...]` → `[sys.executable, ...]`，确保子进程使用与 scheduler 相同的 venv Python
+2. **活动任务竞态修复** (`main.py:643-668`): /history 端点的 processing 分支增加本地 failed/completed 状态检测，与 GET /result 保持一致
+
+### [经验] 关键根因
+- **隐式解释器假设**: `python3` 在不同环境指向不同解释器。Scheduler 被 venv python 启动，但 subprocess 调用系统 python3，包环境完全不同。应始终用 `sys.executable` 确保一致性。
+- **错误被多层吞没**: process_task.py 在 import 阶段就崩溃 → 没走到异常处理 → 无 _error.json → scheduler 旧代码也不补写 → Supabase 更新也失败 → 信息全部丢失
+
 # 2026-02-28 开发日志
 
 ### [前置] 修复视频处理失败后"立刻显示错误+100%进度"的竞态条件（yirGNdXQxkE）

@@ -645,14 +645,25 @@ async def get_history(user_id: str = None):
                     elif v["status"] == "processing":
                         # 尝试从本地 _status.json 提取真实进度
                         real_progress = 5
+                        real_status = "processing"
                         local_status_path = f"{RESULTS_DIR}/{v['id']}_status.json"
                         if os.path.exists(local_status_path):
                             try:
                                 with open(local_status_path, "r") as f:
                                     status_data = json.load(f)
-                                    real_progress = status_data.get("progress", real_progress)
+                                    local_s = status_data.get("status")
+                                    # 竞态修复：本地已 failed 但 Supabase 尚未同步
+                                    if local_s == "failed":
+                                        real_progress = 0
+                                        real_status = "failed"
+                                    elif local_s == "completed":
+                                        real_progress = 100
+                                        real_status = "completed"
+                                    else:
+                                        real_progress = status_data.get("progress", real_progress)
                             except:
                                 pass
+                        v["status"] = real_status
                     else:
                         real_progress = 0
                             

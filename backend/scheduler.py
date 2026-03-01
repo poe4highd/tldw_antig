@@ -155,7 +155,7 @@ def run_scheduler():
             # OR refactor main.py to expose it.
             
             # Let's create a small wrapper script 'process_task.py' that imports and runs the logic.
-            cmd = ["python3", "process_task.py", task_id]
+            cmd = [sys.executable, "process_task.py", task_id]
             # Use 'nice -n 15' on Unix/Mac to lower priority
             if sys.platform != "win32":
                 cmd = ["nice", "-n", "15"] + cmd
