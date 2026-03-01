@@ -5,6 +5,15 @@ import re
 import hashlib
 import time
 import subprocess
+import shutil
+
+# 确保 ffmpeg 可用（systemd 环境 PATH 可能不含 anaconda）
+if not shutil.which('ffmpeg'):
+    for candidate in ['/home/xs/anaconda3/bin', '/usr/local/bin']:
+        if os.path.isfile(os.path.join(candidate, 'ffmpeg')):
+            os.environ['PATH'] = candidate + ':' + os.environ.get('PATH', '')
+            break
+
 from downloader import download_audio
 from processor import split_into_paragraphs, get_youtube_thumbnail_url
 from db import get_db
@@ -117,14 +126,7 @@ def process_video_task(task_id):
                 'quiet': True,
                 'no_warnings': True,
                 'nocheckcertificate': True,
-                'js_runtimes': {'node': {}},
-                'remote_components': {'ejs:github'},
             }
-
-            # YouTube Cookies Support
-            cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
-            if cookies_path and os.path.exists(cookies_path):
-                ydl_opts_meta['cookiefile'] = cookies_path
             
             channel = None
             channel_id = None

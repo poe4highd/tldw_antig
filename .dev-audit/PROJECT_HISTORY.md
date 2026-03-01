@@ -1,3 +1,4 @@
+[2026-03-01] | [Bugfix] | 修复yt-dlp下载失败：过期Cookies回退+ffmpeg路径 | downloader.py添加3层重试策略处理过期cookies和429限流，process_task.py补全systemd环境ffmpeg PATH | DEV_LOG.md
 [2026-03-01] | [Bugfix] | 修复Scheduler使用错误Python解释器导致所有任务失败 | scheduler.py硬编码python3指向anaconda缺少supabase包，改用sys.executable；修复/history端点同类竞态 | DEV_LOG.md
 [2026-02-28] | [Bugfix] | 修复GET /result竞态条件和错误诊断链断裂 | 修复Supabase processing+本地failed的竞态透传bug，Scheduler和process_task早期退出补写_error.json | DEV_LOG.md
 [2026-02-27] | [Bugfix] | 修复提交任务立刻显示错误和100%进度 | 清理重新提交时的旧文件污染，重构GET /result状态路由，failed进度归零 | DEV_LOG.md

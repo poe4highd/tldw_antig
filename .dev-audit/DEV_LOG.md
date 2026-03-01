@@ -1,5 +1,27 @@
 # 2026-03-01 开发日志
 
+### [回顾] 修复 yt-dlp 下载失败：过期 Cookies + systemd ffmpeg 路径缺失
+- **需求**：视频 w1IksuH1k-Q 在 scheduler 修复后仍然失败。需要深层排查。
+- **Error Stack**：
+  1. `yt_dlp.utils.ExtractorError: Requested format is not available` — 过期 cookies 导致 YouTube 返回受限格式列表
+  2. `DownloadError: Unable to download video subtitles: HTTP Error 429` — 字幕下载 429 限流被当作致命错误
+  3. `DownloadError: Preprocessing: ffmpeg not found` — systemd 服务 PATH 不含 anaconda
+- **根因分析**：
+  1. **过期 cookies**：`.env` 中 `YOUTUBE_COOKIES_PATH` 指向过期 cookies 文件，YouTube 返回不同的格式列表导致 `bestaudio/best` 无法匹配
+  2. **字幕 429 致命**：yt-dlp 默认将字幕下载失败视为致命错误
+  3. **ffmpeg 路径**：systemd user service 的 PATH 不含 `/home/xs/anaconda3/bin`，yt-dlp 和 subprocess 调用找不到 ffmpeg
+- **修复**：
+  1. `downloader.py`：添加 3 层重试策略（cookies+字幕 → cookies无字幕 → 无cookies无字幕），添加 `_find_ffmpeg()` 动态查找并配置 `ffmpeg_location`
+  2. `process_task.py`：启动时自动检测并补全 ffmpeg PATH，去除 metadata 提取中不必要的 cookies 和 extractor_args
+- **验证**：w1IksuH1k-Q 全链路处理成功（下载 → 转录 → LLM → 完成），结果文件 363KB
+
+### [经验] 关键教训
+- **Cookies 是双刃剑**：过期 cookies 比无 cookies 更糟糕——会导致 YouTube 返回受限的格式列表。应永远有无 cookies 降级路径。
+- **systemd 环境隔离**：从交互式 shell 测试通过 ≠ 从 systemd service 运行通过。PATH、env vars 完全不同。
+- **`extractor_args: player_client`**：`android` client 需要 GVS PO Token，缺失时格式被跳过。不应作为默认配置。
+
+---
+
 ### [前置] 修复 Scheduler 使用错误 Python 解释器导致所有任务立刻失败
 - **需求**：继续排查视频提交立刻失败的根因。上一轮修复了竞态条件和错误兜底，但任务仍然快速失败。
 - **Error Stack**：系统 `python3` 指向 anaconda（`/home/xs/anaconda3/bin/python3`），缺少 `supabase` 包导致 `ImportError: cannot import name 'create_client'`。Scheduler 自身用 venv 运行但子进程用硬编码的 `python3`。
