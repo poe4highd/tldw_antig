@@ -156,6 +156,7 @@ export default function TasksPage() {
                     setIsFinished(true);
                     setFinishedTaskId(taskId);
                 } else if (data.status === "failed") {
+                    setProgress(0);
                     setStatus("Failed: " + (data.detail || "Unknown error"));
                     clearInterval(interval);
                 } else {

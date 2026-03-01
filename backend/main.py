@@ -362,7 +362,13 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
         task_id = str(int(time.time()))
     
     save_status(task_id, "queued", 0)
-    
+
+    # 清理旧的结果和错误文件，防止 GET /result 返回陈旧数据（重新提交场景）
+    for suffix in [".json", "_error.json"]:
+        old_file = f"{RESULTS_DIR}/{task_id}{suffix}"
+        if os.path.exists(old_file):
+            os.remove(old_file)
+
     # 记录到 Supabase，以便 Scheduler 认领
     if supabase:
         try:
@@ -430,6 +436,13 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
     random_color = random.choice(colors)
     
     save_status(task_id, "queued", 0)
+
+    # 清理旧的结果和错误文件，防止 GET /result 返回陈旧数据（重新提交场景）
+    for suffix in [".json", "_error.json"]:
+        old_file = f"{RESULTS_DIR}/{task_id}{suffix}"
+        if os.path.exists(old_file):
+            os.remove(old_file)
+
     # 记录到 Supabase
     if supabase:
         try:
@@ -484,8 +497,7 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
                 
                 is_liked = False
                 
-                # 如果状态不是 completed，不要直接返回假的 100% 进度，
-                # 而是让它 fall through 到读取本地真实的 _status.json
+                # 根据 Supabase 状态精确路由，避免 fall-through 读到旧本地文件
                 if video["status"] == "completed":
                     if user_id:
                         like_res = supabase.table("user_likes") \
@@ -526,6 +538,21 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
                         "status": "completed",
                         "progress": 100
                     }
+                elif video["status"] in ("queued", "processing"):
+                    # 任务正在排队或处理中，从本地 _status.json 读取实时进度
+                    status_path = f"{RESULTS_DIR}/{task_id}_status.json"
+                    if os.path.exists(status_path):
+                        with open(status_path, "r") as f:
+                            return json.load(f)
+                    return {"status": video["status"], "progress": 0, "eta": None}
+                elif video["status"] == "failed":
+                    # 任务已失败，从本地错误文件获取详情
+                    error_path = f"{RESULTS_DIR}/{task_id}_error.json"
+                    detail = "Unknown error"
+                    if os.path.exists(error_path):
+                        with open(error_path, "r") as f:
+                            detail = json.load(f).get("error", detail)
+                    return {"status": "failed", "detail": detail, "progress": 0}
         except Exception as e:
             print(f"Supabase fetch failed: {e}")
 
@@ -557,7 +584,7 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
 
     if os.path.exists(error_path):
         with open(error_path, "r") as f:
-            return {"status": "failed", "detail": json.load(f).get("error"), "progress": 100}
+            return {"status": "failed", "detail": json.load(f).get("error"), "progress": 0}
     elif os.path.exists(status_path):
         with open(status_path, "r") as f:
             result = json.load(f)
@@ -603,16 +630,22 @@ async def get_history(user_id: str = None):
             print(f"[DEBUG] Raw videos count from Supabase: {len(active_vid_res.data)}")
             for v in active_vid_res.data:
                 if v["status"] in ["queued", "processing", "failed"]:
-                    # 尝试从本地 _status.json 提取真实进度
-                    real_progress = 5 if v["status"] == "processing" else 0
-                    local_status_path = f"{RESULTS_DIR}/{v['id']}_status.json"
-                    if os.path.exists(local_status_path):
-                        try:
-                            with open(local_status_path, "r") as f:
-                                status_data = json.load(f)
-                                real_progress = status_data.get("progress", real_progress)
-                        except:
-                            pass
+                    # failed 任务进度归零，不显示误导性的 100%
+                    if v["status"] == "failed":
+                        real_progress = 0
+                    elif v["status"] == "processing":
+                        # 尝试从本地 _status.json 提取真实进度
+                        real_progress = 5
+                        local_status_path = f"{RESULTS_DIR}/{v['id']}_status.json"
+                        if os.path.exists(local_status_path):
+                            try:
+                                with open(local_status_path, "r") as f:
+                                    status_data = json.load(f)
+                                    real_progress = status_data.get("progress", real_progress)
+                            except:
+                                pass
+                    else:
+                        real_progress = 0
                             
                     active_tasks.append({
                         "id": v["id"],

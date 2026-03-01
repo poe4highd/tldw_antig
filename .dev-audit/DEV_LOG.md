@@ -1,5 +1,25 @@
 # 2026-02-27 开发日志
 
+### [前置] 修复提交新任务时立刻显示错误和100%进度
+- **需求**：用户提交新任务（尤其是重新提交之前处理过/失败过的视频）时，前端立刻显示错误提示且进度条跳到100%，而非从0%开始正常排队。
+- **计划**：
+  1. POST `/process` 和 `/upload` 在重置状态后清理旧的 `{task_id}.json` 和 `_error.json` 文件
+  2. GET `/result/{task_id}` 增加 queued/processing/failed 的 Supabase 状态分支，避免 fall-through 到旧本地文件
+  3. history 端点 failed 任务进度归零
+  4. 前端 pollStatus failed 状态重置进度为0
+
+### [回顾] 实际改动
+1. **POST 端点旧文件清理**: `/process` 和 `/upload` 在 `save_status("queued", 0)` 后删除旧的结果文件和错误文件
+2. **GET /result 状态路由重构**: Supabase 记录存在时，根据状态精确路由：completed 返回完整结果、queued/processing 返回 `_status.json` 实时进度、failed 返回错误详情并 progress=0
+3. **本地 fallback 修正**: 即使 Supabase 不可用时，error 文件返回的 progress 也从100改为0
+4. **history 端点**: failed 任务不再从 `_status.json` 读取旧的100%进度，直接归零
+5. **前端 pollStatus**: failed 时显式 `setProgress(0)` 避免视觉误导
+
+### [经验] 关键根因与设计教训
+- **旧文件污染**: 双层状态系统（Supabase + 本地文件）的致命缺陷——重新提交任务时只重置了 Supabase 和 `_status.json`，但旧的结果/错误文件仍然存在，GET 端点的 fall-through 逻辑会优先读取这些陈旧文件
+- **progress=100 的语义问题**: 失败任务返回 progress=100 在视觉上暗示"完成"，应该用 progress=0 表示终止
+- **防御性路由**: GET 端点应该对 Supabase 的每个状态值都有明确处理，而非只处理 "completed" 然后让其余状态 fall-through
+
 ### [前置] 确认视频 OOwS_HHOWfs 最终处理完成并优化 GPU 推理
 - **需求**：确认崩溃恢复后的测试视频 `OOwS_HHOWfs` 能否顺利完成全流程。并根据用户要求“确保后端转录是使用GPU吧”，排查并修正转录脚本底层的算力调用。
 - **计划**：
