@@ -52,6 +52,10 @@ def process_video_task(task_id):
                 # Handle cases where media_path is just a filename
                 if local_file and not os.path.isabs(local_file) and not local_file.startswith(DOWNLOADS_DIR):
                     local_file = os.path.join(DOWNLOADS_DIR, local_file)
+                # Verify the file actually exists (may have been cleaned up)
+                if local_file and not os.path.exists(local_file):
+                    print(f"--- [Process Task] media_path file missing: {local_file}, will re-download ---")
+                    local_file = None
                 
                 title = video.get("title", title)
                 mode = temp_data.get("mode", "cloud")
@@ -119,6 +123,11 @@ def process_video_task(task_id):
                 if os.path.exists(p):
                     file_path = p
                     break
+
+            # Double-check: cached path must actually exist
+            if file_path and not os.path.exists(file_path):
+                print(f"--- [Process Task] Cached file not found: {file_path}, will re-download ---")
+                file_path = None
             
             # Metadata Retrieval
             import yt_dlp
@@ -214,7 +223,10 @@ def process_video_task(task_id):
                 except Exception as e:
                     print(f"Failed to remove original video: {e}")
 
-        # 2. Start Worker Process
+        # 2. Start Worker Process - verify source file exists
+        if not os.path.exists(transcription_source_path):
+            raise FileNotFoundError(f"转录源文件不存在: {transcription_source_path}")
+
         worker_script = os.path.join(os.path.dirname(__file__), "worker.py")
         
         cmd = [
@@ -271,7 +283,7 @@ def process_video_task(task_id):
             if os.path.exists(local_thumb):
                 thumbnail = os.path.basename(local_thumb)
         result["thumbnail"] = thumbnail
-        result["media_path"] = os.path.basename(file_path)
+        result["media_path"] = os.path.basename(transcription_source_path)
         result["user_id"] = user_id
         result["channel"] = channel
         result["channel_id"] = channel_id
@@ -287,7 +299,7 @@ def process_video_task(task_id):
                     "id": video_id if url else task_id,
                     "title": result["title"],
                     "thumbnail": thumbnail,
-                    "media_path": os.path.basename(file_path),
+                    "media_path": os.path.basename(transcription_source_path),
                     "report_data": {
                         "paragraphs": result["paragraphs"],
                         "raw_subtitles": result["raw_subtitles"],
