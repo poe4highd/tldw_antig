@@ -1551,11 +1551,12 @@ async def run_channel_tracker():
     try:
         # 运行 channel_tracker.py
         script_path = os.path.join(os.path.dirname(__file__), "scripts", "channel_tracker.py")
+        venv_python = os.path.join(os.path.dirname(__file__), "venv", "bin", "python3")
         env = os.environ.copy()
         env["PYTHONPATH"] = os.path.dirname(__file__)
-        
+
         result = subprocess.run(
-            ["python3", script_path],
+            [venv_python, script_path],
             capture_output=True,
             text=True,
             cwd=os.path.dirname(__file__),
