@@ -1,3 +1,4 @@
+[2026-02-28] | [Bugfix] | 修复GET /result竞态条件和错误诊断链断裂 | 修复Supabase processing+本地failed的竞态透传bug，Scheduler和process_task早期退出补写_error.json | DEV_LOG.md
 [2026-02-27] | [Bugfix] | 修复提交任务立刻显示错误和100%进度 | 清理重新提交时的旧文件污染，重构GET /result状态路由，failed进度归零 | DEV_LOG.md
 [2026-02-27] | [Feature] | 最终处理特定视频(OOwS_HHOWfs)并修复GPU转录降级 | 清理进程彻底完成该视频处理，并删除 transcriber.py 对 torch 的隐式探测依赖，强制启用 CUDA float16 | DEV_LOG.md
 [2026-02-27] | [Bugfix] | 修复后台处理任务与云端状态不同步 | 修复 scheduler.py 运行子进程崩溃时不更新云端状态的核心bug，统一早期退出错误上报机制 | DEV_LOG.md

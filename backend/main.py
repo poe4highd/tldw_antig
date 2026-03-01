@@ -543,7 +543,16 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
                     status_path = f"{RESULTS_DIR}/{task_id}_status.json"
                     if os.path.exists(status_path):
                         with open(status_path, "r") as f:
-                            return json.load(f)
+                            local_status = json.load(f)
+                        # 竞态修复：本地已 failed 但 Supabase 尚未同步，走 failed 分支逻辑
+                        if local_status.get("status") == "failed":
+                            error_path = f"{RESULTS_DIR}/{task_id}_error.json"
+                            detail = "Unknown error"
+                            if os.path.exists(error_path):
+                                with open(error_path, "r") as ef:
+                                    detail = json.load(ef).get("error", detail)
+                            return {"status": "failed", "detail": detail, "progress": 0}
+                        return local_status
                     return {"status": video["status"], "progress": 0, "eta": None}
                 elif video["status"] == "failed":
                     # 任务已失败，从本地错误文件获取详情

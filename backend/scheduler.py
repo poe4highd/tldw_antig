@@ -163,11 +163,22 @@ def run_scheduler():
             print(f"--- [Scheduler] Executing: {' '.join(cmd)} ---")
             try:
                 # Use subprocess.run to wait for completion (sequential)
-                result = subprocess.run(cmd, capture_output=False)
+                # 捕获 stderr 以便在崩溃时保留诊断信息
+                result = subprocess.run(cmd, stderr=subprocess.PIPE, text=True)
                 if result.returncode == 0:
                     print(f"--- [Scheduler] Task {task_id} completed successfully ---")
                 else:
                     print(f"--- [Scheduler] Task {task_id} failed with exit code {result.returncode} ---")
+                    if result.stderr:
+                        print(f"[Scheduler] stderr:\n{result.stderr}", file=sys.stderr)
+                    # 兜底：如果 process_task.py 崩溃前未写 _error.json，由 scheduler 补写
+                    error_file = f"{RESULTS_DIR}/{task_id}_error.json"
+                    if not os.path.exists(error_file):
+                        with open(error_file, "w") as ef:
+                            json.dump({
+                                "error": f"任务进程异常退出 (exit code: {result.returncode})",
+                                "traceback": result.stderr or "No stderr captured"
+                            }, ef, ensure_ascii=False)
                     save_status(task_id, "failed", 100)
                     if supabase:
                         try:
@@ -176,6 +187,14 @@ def run_scheduler():
                             print(f"[Scheduler] Failed to update Supabase status: {up_e}")
             except Exception as e:
                 print(f"--- [Scheduler] Exception running task {task_id}: {e} ---")
+                # 补写 _error.json
+                error_file = f"{RESULTS_DIR}/{task_id}_error.json"
+                if not os.path.exists(error_file):
+                    with open(error_file, "w") as ef:
+                        json.dump({
+                            "error": f"Scheduler 启动任务失败: {e}",
+                            "traceback": str(e)
+                        }, ef, ensure_ascii=False)
                 save_status(task_id, "failed", 100)
                 if supabase:
                     try:

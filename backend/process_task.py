@@ -75,7 +75,11 @@ def process_video_task(task_id):
         url = f"https://www.youtube.com/watch?v={task_id}"
 
     if not url and not local_file:
-        print(f"--- [Process Task] Error: Could not find URL or local file for task {task_id} ---")
+        error_msg = f"无法找到任务 {task_id} 的 URL 或本地文件"
+        print(f"--- [Process Task] Error: {error_msg} ---")
+        # 写入错误文件以便前端展示和调试
+        with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as ef:
+            json.dump({"error": error_msg}, ef, ensure_ascii=False)
         save_status(task_id, "failed", 100)
         if supabase:
             try:
