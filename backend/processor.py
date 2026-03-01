@@ -23,9 +23,11 @@ PROMPT = """
 2. 【标点符号（CRITICAL）】：必须为所有文本添加正确的标点符号。
    - 中文使用全角标点（，。？！“”）。
    - 英文使用半角标点（,.?!""）。
-3. 【分段】：
-   - 根据语义逻辑进行自然分段。
-   - 保持所有原始内容，只是重新组织段落结构。
+3. 【分段（CRITICAL）】：
+   - **以语义话题为单位划分段落**：每个段落围绕一个完整的论点、事例或叙述单元，话题自然切换时才换段。
+   - **段落长度均衡**：目标每段 3～8 句，每段文字量约 80～300 字。严禁出现只有 1 句的"单句段"（除非该句本身构成完整独立单元，如开场白或结束语）；也严禁将整块输入堆入 1～2 个超长段落。
+   - **禁止机械等分**：不要以固定句数均匀切割，要依据内容的语义边界（换话题、转观点、举新例子）决定断句位置。
+   - **保持所有原始内容**，只重新组织段落结构，不得增减文字。
 4. 【语言一致要求】：
    - 必须严格输出指定的【目标语言】。
    - 如果原始文本是繁体但目标是简体（或反之），必须进行转换。
@@ -178,7 +180,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
             response = client.chat.completions.create(
                 model=actual_model,
                 messages=[
-                    {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。"},
+                    {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。分段原则：每段 3～8 句，围绕一个完整语义单元，严禁单句段和超长段。"},
                     {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context, keywords=keywords, context_last_chunk=last_context)}
                 ],
                 response_format={ "type": "json_object" }
