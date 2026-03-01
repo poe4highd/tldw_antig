@@ -265,6 +265,11 @@ def process_video_task(task_id):
             result = json.load(f)
         
         result["url"] = url or "Uploaded File"
+        # 优先使用本地缩略图文件（稳定可靠），仅在不存在时回退到 URL
+        if video_id:
+            local_thumb = f"{DOWNLOADS_DIR}/{video_id}.jpg"
+            if os.path.exists(local_thumb):
+                thumbnail = os.path.basename(local_thumb)
         result["thumbnail"] = thumbnail
         result["media_path"] = os.path.basename(file_path)
         result["user_id"] = user_id

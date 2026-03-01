@@ -113,7 +113,7 @@ export default function PendingPage() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
                         {tasks.map((task) => (
                             <div
                                 key={task.id}

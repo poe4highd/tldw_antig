@@ -1,5 +1,17 @@
 # 2026-03-01 开发日志
 
+### [回顾] 活动任务列表限高滚动 + 缩略图修复
+- **需求**：活动任务列表展示过多（可能 34 行），手机端无法滚动；部分历史缩略图不完善
+- **根因**：
+  1. `tasks/page.tsx` 和 `pending/page.tsx` 活动任务列表无 max-height 限制
+  2. `process_task.py` 缩略图赋值时 metadata URL 覆盖了本地 JPG 文件名（`download_audio` 返回的 thumbnail 被丢弃 `_, _`）
+- **修复**：
+  1. 活动任务容器加 `max-h-[480px] overflow-y-auto`（tasks 页面），pending 页面加 `max-h-[600px]`
+  2. `process_task.py` 和 `main.py`：写入结果前检查本地 `downloads/{video_id}.jpg` 是否存在，优先使用
+  3. 前端 `<img>` 添加 `onError` fallback：本地失败时尝试 YouTube 默认缩略图，再失败则隐藏
+
+---
+
 ### [回顾] 进度状态文本 i18n 多语言支持
 - **需求**：进度条报告的中文状态文字在英文界面下应显示对应英文
 - **方案**：后端 save_status 改为发送英文 key（如 `downloading`、`transcribing_cloud`），前端通过 statusMap 映射到 `t()` 翻译函数

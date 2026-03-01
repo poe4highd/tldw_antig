@@ -479,7 +479,7 @@ export default function TasksPage() {
                                     <p className="text-slate-500 text-sm font-bold">{t("tasks.noActiveTasks")}</p>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
                                     {activeTasks.map((task) => (
                                         <div key={task.id} className="bg-card-bg border border-card-border p-5 rounded-2xl backdrop-blur-md group hover:border-indigo-500/30 transition-all shadow-sm">
                                             <div className="flex justify-between items-start mb-3">
@@ -515,16 +515,25 @@ export default function TasksPage() {
                                         onClick={() => router.push(`/result/${item.id}`)}
                                         className="group bg-card-bg/50 border border-card-border rounded-3xl overflow-hidden cursor-pointer hover:border-indigo-500/30 transition-all hover:-translate-y-1 shadow-md hover:shadow-indigo-500/10"
                                     >
-                                        <div className="aspect-video relative overflow-hidden">
-                                            {item.thumbnail?.startsWith("#") ? (
-                                                <div className="w-full h-full flex items-center justify-center bg-card-bg">
+                                        <div className="aspect-video relative overflow-hidden bg-card-bg">
+                                            {item.thumbnail?.startsWith("#") || !item.thumbnail ? (
+                                                <div className="w-full h-full flex items-center justify-center">
                                                     <Youtube className="w-8 h-8 text-slate-400/20" />
                                                 </div>
                                             ) : (
                                                 <img
-                                                    src={item.thumbnail?.startsWith("http") ? item.thumbnail : (item.thumbnail ? `${getApiBase()}/media/${item.thumbnail}` : "https://images.unsplash.com/photo-1611162617474-5b21e879e113")}
+                                                    src={item.thumbnail?.startsWith("http") ? item.thumbnail : `${getApiBase()}/media/${item.thumbnail}`}
                                                     alt={item.title}
                                                     className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
+                                                    onError={(e) => {
+                                                        const img = e.target as HTMLImageElement;
+                                                        // 如果本地文件失败，尝试 YouTube 默认缩略图
+                                                        if (!img.src.includes("ytimg.com") && item.id.length === 11) {
+                                                            img.src = `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`;
+                                                        } else {
+                                                            img.style.display = "none";
+                                                        }
+                                                    }}
                                                 />
                                             )}
                                             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60"></div>
