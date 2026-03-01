@@ -1,5 +1,19 @@
 # 2026-03-01 开发日志
 
+### [回顾] 进度状态文本 i18n 多语言支持
+- **需求**：进度条报告的中文状态文字在英文界面下应显示对应英文
+- **方案**：后端 save_status 改为发送英文 key（如 `downloading`、`transcribing_cloud`），前端通过 statusMap 映射到 `t()` 翻译函数
+- **改动文件**：
+  - `backend/process_task.py`：3 处中文状态 → 英文 key
+  - `backend/worker.py`：4 处中文状态 → 英文 key
+  - `backend/main.py`：3 处中文状态 → 英文 key（与 process_task.py 同步）
+  - `frontend/translations/en.json`：新增 8 个 status 翻译条目
+  - `frontend/translations/zh.json`：新增 8 个 status 翻译条目
+  - `frontend/app/tasks/page.tsx`：pollStatus 中添加 statusMap 将后端 key 映射为 i18n 翻译
+- **验证**：Next.js build 成功
+
+---
+
 ### [回顾] 修复 yt-dlp 下载失败：过期 Cookies + systemd ffmpeg 路径缺失
 - **需求**：视频 w1IksuH1k-Q 在 scheduler 修复后仍然失败。需要深层排查。
 - **Error Stack**：

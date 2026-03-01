@@ -50,7 +50,7 @@ def main():
         cache_sub_path = f"{CACHE_DIR}/{cache_key}_raw.json"
         
         if os.path.exists(cache_sub_path):
-            save_status(args.task_id, "检测到转录缓存,正在加载...", 50, eta=5)
+            save_status(args.task_id, "loading_cache", 50, eta=5)
             print(f"[Worker] 使用缓存: {cache_sub_path}")
             with open(cache_sub_path, "r", encoding="utf-8") as rf:
                 raw_subtitles = json.load(rf)
@@ -59,7 +59,7 @@ def main():
             hijacked_sub_path = find_downloaded_subtitles(args.video_id) if args.video_id else None
             
             if hijacked_sub_path:
-                save_status(args.task_id, f"发现现有字幕 ({os.path.basename(hijacked_sub_path)}), 正在导入...", 55, eta=5)
+                save_status(args.task_id, "importing_subtitles", 55, eta=5)
                 print(f"[Worker] 拦截到字幕文件: {hijacked_sub_path}")
                 raw_subtitles = parse_vtt_srt(hijacked_sub_path)
                 
@@ -70,9 +70,9 @@ def main():
             if not hijacked_sub_path:
                 # 执行转录
                 save_status(
-                    args.task_id, 
-                    f"正在进行 AI 语音转录 ({'云端模式' if args.mode == 'cloud' else '本地精调模式'})...", 
-                    60, 
+                    args.task_id,
+                    "transcribing_cloud" if args.mode == 'cloud' else "transcribing_local",
+                    60,
                     eta=25 if args.mode == 'cloud' else 120
                 )
                 print(f"[Worker] 开始转录: {args.file} (模式: {args.mode}, 模型: {args.model})")
@@ -92,7 +92,7 @@ def main():
         
         # LLM 处理
         duration = raw_subtitles[-1]["end"] if raw_subtitles else 0
-        save_status(args.task_id, "正在通过 LLM 进行深度语义分割与润色...", 80, eta=10)
+        save_status(args.task_id, "llm_processing", 80, eta=10)
         print(f"[Worker] 开始 LLM 处理...")
         
         paragraphs, llm_usage = split_into_paragraphs(

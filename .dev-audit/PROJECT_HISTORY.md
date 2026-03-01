@@ -1,3 +1,4 @@
+[2026-03-01] | [i18n] | 进度状态文本多语言支持 | 后端status改为英文key，前端通过statusMap+t()翻译，en/zh各新增8条翻译 | DEV_LOG.md
 [2026-03-01] | [Bugfix] | 修复yt-dlp下载失败：过期Cookies回退+ffmpeg路径 | downloader.py添加3层重试策略处理过期cookies和429限流，process_task.py补全systemd环境ffmpeg PATH | DEV_LOG.md
 [2026-03-01] | [Bugfix] | 修复Scheduler使用错误Python解释器导致所有任务失败 | scheduler.py硬编码python3指向anaconda缺少supabase包，改用sys.executable；修复/history端点同类竞态 | DEV_LOG.md
 [2026-02-28] | [Bugfix] | 修复GET /result竞态条件和错误诊断链断裂 | 修复Supabase processing+本地failed的竞态透传bug，Scheduler和process_task早期退出补写_error.json | DEV_LOG.md

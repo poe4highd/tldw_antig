@@ -160,7 +160,18 @@ export default function TasksPage() {
                     setStatus("Failed: " + (data.detail || "Unknown error"));
                     clearInterval(interval);
                 } else {
-                    setStatus(data.status || t("tasks.statusProcessing"));
+                    const statusMap: Record<string, string> = {
+                        scheduling_download: t("tasks.statusSchedulingDownload"),
+                        downloading: t("tasks.statusDownloading"),
+                        extracting_audio: t("tasks.statusExtractingAudio"),
+                        loading_cache: t("tasks.statusLoadingCache"),
+                        importing_subtitles: t("tasks.statusImportingSubtitles"),
+                        transcribing_cloud: t("tasks.statusTranscribingCloud"),
+                        transcribing_local: t("tasks.statusTranscribingLocal"),
+                        llm_processing: t("tasks.statusLlmProcessing"),
+                    };
+                    const raw = data.status || "";
+                    setStatus(statusMap[raw] || raw || t("tasks.statusProcessing"));
                 }
             } catch (e) {
                 setStatus(t("tasks.statusConnectionLost"));

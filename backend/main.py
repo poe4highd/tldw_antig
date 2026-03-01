@@ -153,9 +153,9 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
             if not file_path:
                 def on_download_progress(p):
                     current_p = 20 + (p * 0.2)
-                    save_status(task_id, f"正在下载媒体文件... {p:.1f}%", int(current_p), eta=35)
-                
-                save_status(task_id, "开始调度下载任务...", 20, eta=40)
+                    save_status(task_id, "downloading", int(current_p), eta=35)
+
+                save_status(task_id, "scheduling_download", 20, eta=40)
                 file_path, _, _ = download_audio(url, output_path=DOWNLOADS_DIR, progress_callback=on_download_progress)
         
         # 1.5 Audio Extraction (for uploaded videos)
@@ -168,7 +168,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
 
             # Audio extraction
             if not os.path.exists(extracted_audio_path):
-                save_status(task_id, "正在从视频中提取音频...", 45, eta=10)
+                save_status(task_id, "extracting_audio", 45, eta=10)
                 print(f"--- Extracting audio from {file_path} to {extracted_audio_path} ---")
                 import subprocess
                 try:
