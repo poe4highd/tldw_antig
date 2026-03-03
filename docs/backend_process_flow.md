@@ -106,9 +106,10 @@ Worker 在**独立子进程**中运行，避免 MLX/Torch Metal GPU 冲突。
 
 ### 检查流程 (`scripts/channel_tracker.py`)
 1. **重试失败任务**：`status=failed` 且 `retry_count < 3` 的视频重新入队
-2. **检查新视频**：`yt-dlp --get-id --playlist-items 5` 获取频道最新视频
-3. **去重**：检查视频是否已在 `videos` 表中
-4. **入队**：获取元数据后插入 `videos` 表，`status=queued, source=tracker`
+2. **检查新视频**：`yt-dlp --get-id --playlist-items 5 --match-filter "!is_live & availability=public"` 获取频道最新公开非直播视频
+3. **Cookies 降级**：带 cookies 请求失败时自动去掉 cookies 重试
+4. **去重**：检查视频是否已在 `videos` 表中
+5. **入队**：获取元数据后插入 `videos` 表，`status=queued, source=tracker`
 
 ### 任务队列 (`scheduler.py`)
 - 优先级：`source=manual`（用户提交）> `source=tracker`（自动追踪）
@@ -137,7 +138,7 @@ Worker 在**独立子进程**中运行，避免 MLX/Torch Metal GPU 冲突。
 | 模块 | 文件 | 核心函数 |
 |------|------|---------|
 | API 入口 | `main.py` | `/process` 路由 |
-| 频道追踪调度 | `main.py` | `run_channel_tracker()`, `scheduler_loop()` |
+| 频道追踪调度 | `main.py` | `run_channel_tracker()`, `scheduler_loop()` (日志前缀 `[Tracker]`) |
 | 频道追踪执行 | `scripts/channel_tracker.py` | `main()`, `retry_failed_videos()` |
 | 任务队列 | `scheduler.py` | `get_next_task()`, `run_scheduler()` |
 | 任务处理主进程 | `process_task.py` | `process_video_task()` |

@@ -1528,26 +1528,26 @@ async def update_video_visibility(request: VideoVisibilityRequest):
 
 # ========== 后台调度任务 ==========
 async def run_channel_tracker():
-    """异步运行频道追踪脚本"""
+    """异步运行频道追踪脚本（不阻塞事件循环）"""
     global _daily_video_count, _last_reset_day
-    
+
     from datetime import date
     import subprocess
-    
+
     # 每日重置计数器
     today = date.today()
     if _last_reset_day != today:
         _daily_video_count = 0
         _last_reset_day = today
-        print(f"[Scheduler] 新的一天，重置每日视频计数器")
-    
+        print(f"[Tracker] 新的一天，重置每日视频计数器")
+
     # 检查每日限额
     if _daily_video_count >= MAX_VIDEOS_PER_DAY:
-        print(f"[Scheduler] 已达每日处理上限 ({MAX_VIDEOS_PER_DAY})，跳过本次检查")
+        print(f"[Tracker] 已达每日处理上限 ({MAX_VIDEOS_PER_DAY})，跳过本次检查")
         return
-    
-    print(f"[Scheduler] 开始检查频道更新... (今日已处理: {_daily_video_count}/{MAX_VIDEOS_PER_DAY})")
-    
+
+    print(f"[Tracker] 开始检查频道更新... (今日已处理: {_daily_video_count}/{MAX_VIDEOS_PER_DAY})")
+
     try:
         # 运行 channel_tracker.py
         script_path = os.path.join(os.path.dirname(__file__), "scripts", "channel_tracker.py")
@@ -1555,7 +1555,9 @@ async def run_channel_tracker():
         env = os.environ.copy()
         env["PYTHONPATH"] = os.path.dirname(__file__)
 
-        result = subprocess.run(
+        # 使用 asyncio.to_thread 避免阻塞事件循环
+        result = await asyncio.to_thread(
+            subprocess.run,
             [venv_python, script_path],
             capture_output=True,
             text=True,
@@ -1563,51 +1565,58 @@ async def run_channel_tracker():
             env=env,
             timeout=300  # 5分钟超时
         )
-        
+
         if result.returncode == 0:
-            # 解析添加了多少新任务（包括新视频和重试的失败视频）
+            # 解析添加了多少新任务（channel_tracker.py 通过 print 输出到 stdout）
             import re
             match = re.search(r"Added (\d+) tasks", result.stdout)
             if match:
                 added = int(match.group(1))
                 _daily_video_count += added
-                print(f"[Scheduler] 频道检查完成，已排队 {added} 个任务")
+                print(f"[Tracker] 频道检查完成，已排队 {added} 个任务 (今日累计: {_daily_video_count})")
+            else:
+                print(f"[Tracker] 频道检查完成，但未解析到任务数")
         else:
-            print(f"[Scheduler] 频道检查失败: {result.stderr}")
+            print(f"[Tracker] 频道检查失败 (exit {result.returncode})")
+
+        # 始终输出 stderr 供调试（tracker 的详细日志在 stderr）
+        if result.stderr:
+            for line in result.stderr.strip().split('\n')[-5:]:  # 最后5行
+                print(f"[Tracker] {line}")
     except subprocess.TimeoutExpired:
-        print(f"[Scheduler] 频道检查超时")
+        print(f"[Tracker] 频道检查超时 (>300s)")
     except Exception as e:
-        print(f"[Scheduler] 频道检查异常: {e}")
+        print(f"[Tracker] 频道检查异常: {e}")
 
 
 async def scheduler_loop():
-    """后台调度循环"""
+    """后台频道追踪调度循环"""
     global _scheduler_started
-    
+
     if _scheduler_started:
         return
     _scheduler_started = True
-    
-    print(f"[Scheduler] 启动后台调度器，间隔: {CHANNEL_CHECK_INTERVAL_HOURS}小时")
-    
+
+    print(f"[Tracker] 启动频道追踪调度器，间隔: {CHANNEL_CHECK_INTERVAL_HOURS}小时")
+
     # 首次启动延迟5分钟，避免与服务启动冲突
     await asyncio.sleep(300)
-    
+
     while True:
         try:
             await run_channel_tracker()
         except Exception as e:
-            print(f"[Scheduler] 调度循环异常: {e}")
-        
+            print(f"[Tracker] 调度循环异常: {e}")
+
         # 等待下一个周期
         await asyncio.sleep(CHANNEL_CHECK_INTERVAL_HOURS * 3600)
 
 
 @app.on_event("startup")
 async def start_scheduler():
-    """FastAPI 启动时启动后台调度器"""
+    """FastAPI 启动时启动后台频道追踪调度器"""
     asyncio.create_task(scheduler_loop())
-    print("[Scheduler] 后台调度任务已注册")
+    print("[Tracker] 频道追踪调度任务已注册")
 
 
 if __name__ == "__main__":

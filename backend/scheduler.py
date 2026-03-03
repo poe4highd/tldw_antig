@@ -10,7 +10,9 @@ RESULTS_DIR = "results"
 STUCK_PROCESSING_HOURS = 3
 STUCK_QUEUED_HOURS = 24
 TIMEOUT_CHECK_INTERVAL = 30 * 60  # 秒
+CONSECUTIVE_ERRORS_BEFORE_RECONNECT = 3  # 连续失败次数触发重连
 supabase = get_db()
+_consecutive_db_errors = 0
 
 def save_status(task_id, status, progress, eta=None):
     if not os.path.exists(RESULTS_DIR):
@@ -41,11 +43,13 @@ def check_stuck_tasks():
 
 
 def get_next_task():
+    global supabase, _consecutive_db_errors
+
     if not supabase:
         # Fallback to local status files if no Supabase
         if not os.path.exists(RESULTS_DIR):
             return None
-        
+
         queued_tasks = []
         for f in os.listdir(RESULTS_DIR):
             if f.endswith("_status.json"):
@@ -60,16 +64,14 @@ def get_next_task():
                         continue
         if not queued_tasks:
             return None
-        
+
         # Sort by mtime ascending (oldest first)
         queued_tasks.sort(key=lambda x: x[1])
         return {"id": queued_tasks[0][0], "is_local": True}
-    
+
     try:
         if supabase:
             # 1. First, try to fetch 'manual' tasks (highest priority)
-            # Use ->> to query the source field inside report_data JSONB
-            # Note: We order by created_at ASC to keep FIFO within the same priority level
             response = supabase.table("videos") \
                 .select("id") \
                 .eq("status", "queued") \
@@ -77,12 +79,12 @@ def get_next_task():
                 .order("created_at", desc=False) \
                 .limit(1) \
                 .execute()
-            
+
             if response.data:
+                _consecutive_db_errors = 0
                 return {"id": response.data[0]["id"], "is_local": False}
-                
+
             # 2. If no manual tasks, fetch 'tracker' tasks (or those without a specific source)
-            # This ensures backward compatibility with tasks that didn't have a source yet
             response = supabase.table("videos") \
                 .select("id") \
                 .eq("status", "queued") \
@@ -90,11 +92,22 @@ def get_next_task():
                 .order("created_at", desc=False) \
                 .limit(1) \
                 .execute()
-                
+
             if response.data:
+                _consecutive_db_errors = 0
                 return {"id": response.data[0]["id"], "is_local": False}
+
+            # 查询成功但无任务
+            _consecutive_db_errors = 0
     except Exception as e:
-        print(f"[Scheduler] Error fetching from Supabase: {e}")
+        _consecutive_db_errors += 1
+        print(f"[Scheduler] Error fetching from Supabase ({_consecutive_db_errors}x): {e}")
+
+        # 连续失败多次后尝试重建连接
+        if _consecutive_db_errors >= CONSECUTIVE_ERRORS_BEFORE_RECONNECT:
+            print(f"[Scheduler] 连续 {_consecutive_db_errors} 次失败，重建 Supabase 连接...")
+            supabase = get_db(force_new=True)
+            _consecutive_db_errors = 0
     
     # Fallback to local status files if Supabase is unavailable or returns nothing
     # (Existing local logic remains as fallback)

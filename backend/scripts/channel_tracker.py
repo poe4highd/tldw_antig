@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 import subprocess
 import json
 import logging
@@ -11,53 +12,73 @@ logger = logging.getLogger(__name__)
 
 supabase = get_db()
 
+def _resolve_cookies_path():
+    """查找可用的 cookies 文件路径，不存在则返回 None。"""
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
+    if cookies_path and os.path.exists(cookies_path):
+        return cookies_path
+    if os.path.exists("youtube_cookies.txt"):
+        return "youtube_cookies.txt"
+    return None
+
+
+def _run_ytdlp_get_id(cmd, channel_handle, cookies_path):
+    """执行 yt-dlp 获取视频 ID，带 cookies 失败时自动降级重试。"""
+    # 第一次尝试：带 cookies（如果有）
+    run_cmd = cmd[:]
+    if cookies_path:
+        run_cmd.extend(["--cookies", cookies_path])
+
+    result = subprocess.run(run_cmd, capture_output=True, text=True)
+    video_id = result.stdout.strip()
+    if video_id:
+        return video_id.split('\n')[0].strip()
+
+    # 带 cookies 失败且 cookies 存在时，去掉 cookies 重试
+    if cookies_path and result.returncode != 0:
+        logger.info(f"Cookies 请求失败 (rc={result.returncode})，去掉 cookies 重试 {channel_handle}...")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        video_id = result.stdout.strip()
+        if video_id:
+            return video_id.split('\n')[0].strip()
+
+    # 仍然没有结果
+    if result.returncode != 0 and not result.stdout.strip():
+        logger.info(f"No matching public videos found for {channel_handle} in top 5 items.")
+    elif result.returncode != 0:
+        logger.error(f"Error fetching latest video for {channel_handle}: {result.stderr or result.stdout}")
+
+    return None
+
+
 def get_latest_video_id(channel_handle):
     """Use yt-dlp to get the latest public, non-live video ID from a channel handle."""
     if not channel_handle:
         return None
-    
+
     # Prefix with @ if not present
     if not channel_handle.startswith('@') and not channel_handle.startswith('UC'):
         channel_handle = '@' + channel_handle
-        
+
     url = f"https://www.youtube.com/{channel_handle}/videos"
-    
-    # Use match-filter to skip live and non-public (members) videos
-    # We check top 5 to find the latest valid one
+
     cmd = [
-        "yt-dlp", 
-        "--get-id", 
-        "--playlist-items", "5", 
+        "yt-dlp",
+        "--get-id",
+        "--playlist-items", "5",
         "--match-filter", "!is_live & availability=public",
         "--max-downloads", "1",
         "--quiet",
-        "--js-runtimes", "node",
         url
     ]
-    
-    # Add cookies if available
-    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
-    if cookies_path and os.path.exists(cookies_path):
-        cmd.extend(["--cookies", cookies_path])
-    elif os.path.exists("youtube_cookies.txt"):
-        cmd.extend(["--cookies", "youtube_cookies.txt"])
-        
+
+    cookies_path = _resolve_cookies_path()
+
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        video_id = result.stdout.strip()
-        if video_id:
-            # Take the first line in case of multiple IDs or extra output
-            return video_id.split('\n')[0].strip()
-        
-        # If no video_id found, check return code
-        if result.returncode != 0:
-            if not result.stdout.strip():
-                 logger.info(f"No matching public videos found for {channel_handle} in top 5 items.")
-            else:
-                logger.error(f"Error fetching latest video for {channel_handle}: {result.stderr or result.stdout}")
+        return _run_ytdlp_get_id(cmd, channel_handle, cookies_path)
     except Exception as e:
         logger.error(f"Unexpected error for {channel_handle}: {e}")
-    
+
     return None
 
 
@@ -65,44 +86,53 @@ def get_video_metadata(video_id):
     """Fetch video metadata (title, thumbnail, channel info) using yt-dlp."""
     if not video_id:
         return None
-    
+
     url = f"https://www.youtube.com/watch?v={video_id}"
     cmd = [
-        "yt-dlp", 
-        "--dump-json", 
+        "yt-dlp",
+        "--dump-json",
         "--no-download",
         "--no-playlist",
-        "--js-runtimes", "node",
         url
     ]
-    
-    # Add cookies if available
-    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
-    if cookies_path and os.path.exists(cookies_path):
-        cmd.extend(["--cookies", cookies_path])
-    elif os.path.exists("youtube_cookies.txt"):
-        cmd.extend(["--cookies", "youtube_cookies.txt"])
-    
+
+    cookies_path = _resolve_cookies_path()
+
+    def _try_fetch(use_cookies):
+        run_cmd = cmd[:]
+        if use_cookies and cookies_path:
+            run_cmd.extend(["--cookies", cookies_path])
+        result = subprocess.run(run_cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        data = json.loads(result.stdout)
-        
-        return {
-            "title": data.get("title", "Unknown Title"),
-            "thumbnail": data.get("thumbnail"),
-            "channel_name": data.get("channel") or data.get("uploader"),
-            "channel_id": data.get("channel_id") or data.get("uploader_id"),
-            "duration": data.get("duration"),
-            "view_count": data.get("view_count", 0),
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error fetching metadata for {video_id}: {e.stderr}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Error parsing metadata JSON for {video_id}: {e}")
+        # 先带 cookies 尝试
+        data = _try_fetch(use_cookies=True)
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        if cookies_path:
+            logger.info(f"Cookies 元数据请求失败，去掉 cookies 重试 {video_id}...")
+            try:
+                data = _try_fetch(use_cookies=False)
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Error fetching metadata for {video_id}: {e.stderr}")
+                return None
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing metadata JSON for {video_id}: {e}")
+                return None
+        else:
+            return None
     except Exception as e:
         logger.error(f"Unexpected error fetching metadata for {video_id}: {e}")
-    
-    return None
+        return None
+
+    return {
+        "title": data.get("title", "Unknown Title"),
+        "thumbnail": data.get("thumbnail"),
+        "channel_name": data.get("channel") or data.get("uploader"),
+        "channel_id": data.get("channel_id") or data.get("uploader_id"),
+        "duration": data.get("duration"),
+        "view_count": data.get("view_count", 0),
+    }
 
 def retry_failed_videos():
     """Find failed videos and re-queue them if they haven't reached the retry limit."""
@@ -158,7 +188,7 @@ def retry_failed_videos():
 def main():
     if not supabase:
         logger.error("Supabase client not initialized. Exiting.")
-        return
+        sys.exit(1)
 
     logger.info("Starting channel tracking...")
     
@@ -176,7 +206,7 @@ def main():
         logger.info(f"Found {len(channel_ids)} channels with tracking enabled.")
     except Exception as e:
         logger.error(f"Failed to fetch tracked channel IDs: {e}")
-        return
+        sys.exit(1)
 
     # 2. For each channel, find the latest video
     new_tasks_count = 0
@@ -233,6 +263,8 @@ def main():
 
     total_added = retried_count + new_tasks_count
     logger.info(f"Channel tracking finished. Added {total_added} tasks to the queue ({retried_count} retries, {new_tasks_count} new).")
+    # 同时输出到 stdout 供 main.py 解析（logging 默认输出到 stderr）
+    print(f"Added {total_added} tasks to the queue ({retried_count} retries, {new_tasks_count} new).")
 
 if __name__ == "__main__":
     main()

@@ -16,5 +16,10 @@ else:
     if supabase:
         print("[SUPABASE] Client successfully created")
 
-def get_db():
+def get_db(force_new=False):
+    """获取 Supabase 客户端。force_new=True 时强制重建连接（用于长时间运行进程的连接恢复）。"""
+    global supabase
+    if force_new and url and key:
+        print("[SUPABASE] Rebuilding client connection...")
+        supabase = create_client(url, key)
     return supabase
