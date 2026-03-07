@@ -202,6 +202,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                 try:
                     print(f"--- Automatic Cleanup: Removing original video file: {file_path} ---")
                     os.remove(file_path)
+                    file_path = extracted_audio_path  # 更新路径指向已提取的音频，确保 media_path 正确
                 except Exception as e:
                     print(f"Failed to remove original video: {e}")
 

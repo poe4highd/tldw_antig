@@ -380,7 +380,7 @@ export default function EnhancedResultPage({ params }: { params: Promise<{ id: s
                                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-10">
                                     <audio
                                         ref={audioRef}
-                                        src={`${getApiBase()}/media/${result.media_path}`}
+                                        src={`${getApiBase()}/media/${result.media_path?.replace(/\.(mp4|mov|avi|webm|mkv)$/i, '.mp3') ?? ''}`}
                                         controls
                                         onTimeUpdate={handleLocalTimeUpdate}
                                         onLoadedMetadata={handleAudioLoadedMetadata}
