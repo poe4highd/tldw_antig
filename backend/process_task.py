@@ -39,6 +39,7 @@ def process_video_task(task_id):
     mode = "local"
     user_id = None
     is_public = True
+    existing_report_data = {}
     
     if supabase:
         try:
@@ -47,6 +48,7 @@ def process_video_task(task_id):
                 video = res.data[0]
                 # We'll store temporary info in report_data during queued state if needed
                 temp_data = video.get("report_data", {}) or {}
+                existing_report_data = dict(temp_data)
                 url = temp_data.get("url")
                 local_file = video.get("media_path")
                 # Handle cases where media_path is just a filename
@@ -295,20 +297,23 @@ def process_video_task(task_id):
         # 4. Save to Supabase
         if supabase:
             try:
+                report_data = {
+                    **existing_report_data,
+                    "paragraphs": result["paragraphs"],
+                    "raw_subtitles": result["raw_subtitles"],
+                    "summary": result.get("summary"),
+                    "keywords": result.get("keywords"),
+                    "channel": result.get("channel"),
+                    "channel_id": result.get("channel_id"),
+                    "channel_avatar": result.get("channel_avatar"),
+                }
+
                 video_data = {
                     "id": video_id if url else task_id,
                     "title": result["title"],
                     "thumbnail": thumbnail,
                     "media_path": os.path.basename(transcription_source_path),
-                    "report_data": {
-                        "paragraphs": result["paragraphs"],
-                        "raw_subtitles": result["raw_subtitles"],
-                        "summary": result.get("summary"),
-                        "keywords": result.get("keywords"),
-                        "channel": result.get("channel"),
-                        "channel_id": result.get("channel_id"),
-                        "channel_avatar": result.get("channel_avatar")
-                    },
+                    "report_data": report_data,
                     "usage": result["usage"],
                     "user_id": user_id,
                     "is_public": is_public,

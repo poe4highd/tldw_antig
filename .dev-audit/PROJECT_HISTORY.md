@@ -1,4 +1,7 @@
-[2026-03-03] | [Bugfix] | 修复上传视频文件无法播放 | 后端删除原视频后file_path未更新导致media_path指向已删文件404，前端添加扩展名fallback兼容旧数据 | DEV_LOG.md
+[2026-03-07] | [Bugfix] | 保留自动追踪任务的来源字段与 queued 元数据 | process_task.py 完成态保存结果时改为合并既有 report_data，避免 source=tracker 等元字段被覆盖为 null | DEV_LOG.md
+[2026-03-07] | [审计] | 再次审核频道追踪功能健康度 | 核实 5 个追踪频道、小时级触发、最新自动发现任务 Kys6HuRNwxo 成功闭环；发现 cookies 每轮回退和 report_data.source 被完成态覆盖的可观测性缺口 | DEV_LOG.md
+[2026-03-07] | [Bugfix] | 修复频道追踪器在 systemd 下找不到 yt-dlp | 诊断确认视频处理链正常但 Tracker 每小时触发均因硬编码 yt-dlp 命令失效；channel_tracker.py 改为优先解析 venv/bin/yt-dlp 并验证修复 | DEV_LOG.md
+[2026-03-03] | [Bugfix] | 修复上传视频文件无法播放 | 后端删除原视频后file_path未更新导致media_path指向已删文件404，前端添加扩展名fallback兼容旧数据 | log_20260303.md
 [2026-03-01] | [UX/Bugfix] | 活动任务列表限高滚动+缩略图本地优先修复 | 任务列表加max-h滚动，process_task.py缩略图本地JPG优先，前端img添加onError fallback | DEV_LOG.md
 [2026-03-01] | [i18n] | 进度状态文本多语言支持 | 后端status改为英文key，前端通过statusMap+t()翻译，en/zh各新增8条翻译 | DEV_LOG.md
 [2026-03-01] | [Bugfix] | 修复yt-dlp下载失败：过期Cookies回退+ffmpeg路径 | downloader.py添加3层重试策略处理过期cookies和429限流，process_task.py补全systemd环境ffmpeg PATH | DEV_LOG.md
