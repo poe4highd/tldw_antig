@@ -4,6 +4,7 @@ import sys
 import subprocess
 import json
 import logging
+import shutil
 from db import get_db
 
 # Configure logging
@@ -11,6 +12,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 supabase = get_db()
+
+def _resolve_ytdlp_cmd():
+    """解析 yt-dlp 调用命令，避免 systemd 环境 PATH 缺失导致找不到可执行文件。"""
+    venv_ytdlp = os.path.join(os.path.dirname(sys.executable), "yt-dlp")
+    if os.path.isfile(venv_ytdlp) and os.access(venv_ytdlp, os.X_OK):
+        return [venv_ytdlp]
+
+    ytdlp_in_path = shutil.which("yt-dlp")
+    if ytdlp_in_path:
+        return [ytdlp_in_path]
+
+    # 最后回退到 python -m yt_dlp，尽量不依赖 PATH。
+    return [sys.executable, "-m", "yt_dlp"]
 
 def _resolve_cookies_path():
     """查找可用的 cookies 文件路径，不存在则返回 None。"""
@@ -62,8 +76,7 @@ def get_latest_video_id(channel_handle):
 
     url = f"https://www.youtube.com/{channel_handle}/videos"
 
-    cmd = [
-        "yt-dlp",
+    cmd = _resolve_ytdlp_cmd() + [
         "--get-id",
         "--playlist-items", "5",
         "--match-filter", "!is_live & availability=public",
@@ -88,8 +101,7 @@ def get_video_metadata(video_id):
         return None
 
     url = f"https://www.youtube.com/watch?v={video_id}"
-    cmd = [
-        "yt-dlp",
+    cmd = _resolve_ytdlp_cmd() + [
         "--dump-json",
         "--no-download",
         "--no-playlist",
