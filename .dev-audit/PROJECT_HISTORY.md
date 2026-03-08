@@ -1,3 +1,5 @@
+[2026-03-07] | [Bugfix] | 修复 UC 频道 ID 被误判为 cookies 失败 | channel_tracker.py 改正 UC... 频道的 videos URL 拼接并收敛误导性日志，验证后成功新入队 VP09PAKYUq4 | DEV_LOG.md
+[2026-03-07] | [验证] | 手动触发 Tracker 测试 youtube_cookies.txt | 手动运行 channel_tracker.py 证实 Tracker 可正常执行整轮检查，但当前 cookies 文件仍会先失败再降级回退 | DEV_LOG.md
 [2026-03-07] | [Bugfix] | 保留自动追踪任务的来源字段与 queued 元数据 | process_task.py 完成态保存结果时改为合并既有 report_data，避免 source=tracker 等元字段被覆盖为 null | DEV_LOG.md
 [2026-03-07] | [审计] | 再次审核频道追踪功能健康度 | 核实 5 个追踪频道、小时级触发、最新自动发现任务 Kys6HuRNwxo 成功闭环；发现 cookies 每轮回退和 report_data.source 被完成态覆盖的可观测性缺口 | DEV_LOG.md
 [2026-03-07] | [Bugfix] | 修复频道追踪器在 systemd 下找不到 yt-dlp | 诊断确认视频处理链正常但 Tracker 每小时触发均因硬编码 yt-dlp 命令失效；channel_tracker.py 改为优先解析 venv/bin/yt-dlp 并验证修复 | DEV_LOG.md

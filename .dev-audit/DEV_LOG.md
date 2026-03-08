@@ -1,5 +1,35 @@
 # 2026-03-07 开发日志
 
+### [回顾] 定位并修复 `UC...` 频道被误判为 cookies 失败
+- **需求**：用户要求继续定位 `backend/youtube_cookies.txt` 在 Tracker 场景下“看起来失效”的根因，并在确认后修复问题。
+- **根因定位**：
+  1. 先对比 `yt-dlp` 在同一频道上的带 cookies / 不带 cookies 行为，发现 `UC26hLZoe-haxcuLYxzWAiNg` 在正确 URL `https://www.youtube.com/channel/UC26hLZoe-haxcuLYxzWAiNg/videos` 下两者都能返回视频 ID `VP09PAKYUq4`。
+  2. 继续对照 `backend/scripts/channel_tracker.py` 后发现，代码对 `UC...` 类型频道 ID 拼接成了 `https://www.youtube.com/UC.../videos`，漏掉了 `/channel/` 段。
+  3. 因此此前日志里的“Cookies 请求失败”并非 cookies 文件本身损坏，而是 Tracker 访问了错误的频道页面 URL，导致该频道拿不到结果，再被误记成 cookies 回退问题。
+- **实际改动**：
+  1. `backend/scripts/channel_tracker.py`：新增 `_build_channel_videos_url()`，对 `UC...` 频道 ID 统一使用 `/channel/<id>/videos`，对普通 handle 继续使用 `/@handle/videos`。
+  2. `backend/scripts/channel_tracker.py`：将日志文案从 `Cookies 请求失败` 调整为 `带 cookies 未取到结果`，避免把 URL / 匹配条件类问题误标为 cookies 故障。
+- **验证**：
+  1. `./venv/bin/python3 -m py_compile scripts/channel_tracker.py` 通过。
+  2. 手动触发 `PYTHONPATH=. ./venv/bin/python3 scripts/channel_tracker.py` 后，`UC26hLZoe-haxcuLYxzWAiNg` 不再报 cookies 回退，成功识别出新视频 `VP09PAKYUq4`。
+  3. 本轮 Tracker 成功写入 Supabase：`Successfully queued video: VP09PAKYUq4`，整轮结果为 `Added 1 tasks to the queue (0 retries, 1 new)`。
+
+### [经验] 频道标识不能混用 handle URL 与 channel ID URL
+- `@handle` 与 `UC...` 是两种不同的 YouTube 路径协议：前者走 `/@handle/videos`，后者必须走 `/channel/<id>/videos`。把它们混成同一套 URL 模板时，症状很容易伪装成 cookies、权限或 yt-dlp 问题。
+
+### [回顾] 手动触发 Tracker 测试当前 `youtube_cookies.txt`
+- **需求**：用户要求手动触发一次 Tracker，确认当前 `backend/youtube_cookies.txt` 是否可用。
+- **执行方式**：
+  1. 首次直接运行 `./venv/bin/python3 scripts/channel_tracker.py` 因缺少 `PYTHONPATH=.` 失败，属于脚本运行环境问题，不是 Tracker 业务故障。
+  2. 按服务实际环境重跑：`PYTHONPATH=. ./venv/bin/python3 scripts/channel_tracker.py`。
+- **结果**：
+  1. Tracker 能正常连接 Supabase，成功读取到 5 个启用追踪频道，并完整跑完一轮检查。
+  2. 当前 `backend/youtube_cookies.txt` 在频道检查阶段仍然不可用；每个频道都会先出现 `Cookies 请求失败 (rc=1)`，随后自动回退到无 cookies 路径继续执行。
+  3. 本轮业务结果正常：已存在视频被正确跳过，整轮结束 `Added 0 tasks to the queue (0 retries, 0 new)`。
+- **结论**：
+  1. Tracker 功能本身正常，回退机制可用。
+  2. 但当前 `backend/youtube_cookies.txt` 不能算“有效 cookies”，只能算“存在但会失败，然后靠降级继续工作”。
+
 ### [前置] 修复自动追踪任务完成后丢失 `report_data.source`
 - **需求**：在频道追踪健康审计中发现，自动追踪创建的视频在完成处理后，`report_data.source` 会从 `tracker` 变成 `null`，削弱来源追踪与统计能力。用户要求先修复这个问题并提交。
 - **根因**：

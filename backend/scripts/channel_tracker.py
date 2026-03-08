@@ -36,6 +36,15 @@ def _resolve_cookies_path():
     return None
 
 
+def _build_channel_videos_url(channel_handle):
+    """根据 @handle 或 UC... 频道 ID 构造正确的 videos 页 URL。"""
+    if channel_handle.startswith("UC"):
+        return f"https://www.youtube.com/channel/{channel_handle}/videos"
+    if not channel_handle.startswith("@"):
+        channel_handle = "@" + channel_handle
+    return f"https://www.youtube.com/{channel_handle}/videos"
+
+
 def _run_ytdlp_get_id(cmd, channel_handle, cookies_path):
     """执行 yt-dlp 获取视频 ID，带 cookies 失败时自动降级重试。"""
     # 第一次尝试：带 cookies（如果有）
@@ -50,7 +59,7 @@ def _run_ytdlp_get_id(cmd, channel_handle, cookies_path):
 
     # 带 cookies 失败且 cookies 存在时，去掉 cookies 重试
     if cookies_path and result.returncode != 0:
-        logger.info(f"Cookies 请求失败 (rc={result.returncode})，去掉 cookies 重试 {channel_handle}...")
+        logger.info(f"带 cookies 未取到结果 (rc={result.returncode})，去掉 cookies 重试 {channel_handle}...")
         result = subprocess.run(cmd, capture_output=True, text=True)
         video_id = result.stdout.strip()
         if video_id:
@@ -70,11 +79,7 @@ def get_latest_video_id(channel_handle):
     if not channel_handle:
         return None
 
-    # Prefix with @ if not present
-    if not channel_handle.startswith('@') and not channel_handle.startswith('UC'):
-        channel_handle = '@' + channel_handle
-
-    url = f"https://www.youtube.com/{channel_handle}/videos"
+    url = _build_channel_videos_url(channel_handle)
 
     cmd = _resolve_ytdlp_cmd() + [
         "--get-id",
