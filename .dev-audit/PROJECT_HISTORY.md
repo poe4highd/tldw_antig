@@ -1,3 +1,6 @@
+[2026-03-09] | [Feature] | 加权语言检测覆盖韩/日/多语言 | detect_language_preference() 改为字符计数，transcriber.py 暴露 Whisper info.language，worker.py 加权合并，summarize_text() 增加韩/日/通用 prompt | DEV_LOG.md
+[2026-03-06] | [Feature] | AI 摘要语言随视频原语言自动适配 | processor.py summarize_text() 按 detect_language_preference() 结果选用英/繁/简三套 prompt | DEV_LOG.md
+[2026-03-06] | [Feature] | SEO 英文市场战略 + 结果页 SSR 动态 Metadata | result/[id] 拆分 Server/Client Component，generateMetadata 动态生成 title/OG，新增 sitemap.ts、robots.txt，layout.tsx 英文化 | DEV_LOG.md
 [2026-03-07] | [Bugfix] | 修复 UC 频道 ID 被误判为 cookies 失败 | channel_tracker.py 改正 UC... 频道的 videos URL 拼接并收敛误导性日志，验证后成功新入队 VP09PAKYUq4 | DEV_LOG.md
 [2026-03-07] | [验证] | 手动触发 Tracker 测试 youtube_cookies.txt | 手动运行 channel_tracker.py 证实 Tracker 可正常执行整轮检查，但当前 cookies 文件仍会先失败再降级回退 | DEV_LOG.md
 [2026-03-07] | [Bugfix] | 保留自动追踪任务的来源字段与 queued 元数据 | process_task.py 完成态保存结果时改为合并既有 report_data，避免 source=tracker 等元字段被覆盖为 null | DEV_LOG.md

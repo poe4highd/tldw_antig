@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /result/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
+Disallow: /tasks
+
+Sitemap: https://read-tube.vercel.app/sitemap.xml

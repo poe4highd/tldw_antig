@@ -127,23 +127,23 @@ def transcribe_sensevoice_onnx(file_path: str):
     
     results = []
     chunk_size = int(0.1 * sample_rate) # 100ms
-    
+
     start_time = time.time()
     for i in range(0, len(samples), chunk_size):
         chunk = samples[i : i + chunk_size]
         vad.accept_waveform(chunk)
-        
+
         while not vad.empty():
             segment = vad.front
             # Transcribe segment
             stream = recognizer.create_stream()
             stream.accept_waveform(sample_rate, segment.samples)
             recognizer.decode_stream(stream)
-            
+
             start_s = segment.start / sample_rate
             duration_s = len(segment.samples) / sample_rate
             text = stream.result.text.strip()
-            
+
             if text:
                 results.append({
                     "start": start_s,
@@ -154,11 +154,11 @@ def transcribe_sensevoice_onnx(file_path: str):
                 # Progress logging for long files
                 if len(results) % 10 == 0:
                      print(f"--- [Progress] Transcribed {start_s:.1f}s... ---")
-            
+
             vad.pop()
-    
+
     print(f"--- SenseVoice ONNX (VAD) finished in {time.time() - start_time:.2f}s ---")
-    return results
+    return results, None  # SenseVoice ONNX 无单一语言码输出
 
 def transcribe_funasr(file_path: str, model_name="iic/SenseVoiceSmall"):
     model = get_funasr_model(model_name)
@@ -200,16 +200,15 @@ def transcribe_funasr(file_path: str, model_name="iic/SenseVoiceSmall"):
                 })
     
     print(f"--- FunASR 转录完成 ---")
-    
+
     import torch
     import gc
     # Resource Cleanup (especially for Mac/MPS)
-    # Global cache is maintained, but we can trigger collection
     if torch.backends.mps.is_available():
         torch.mps.empty_cache()
     gc.collect()
-    
-    return results
+
+    return results, None  # FunASR 无可靠单一语言码输出
 
 def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str = "large-v3-turbo"):
     # Map friendly names to actual model paths
@@ -243,15 +242,15 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
                 hf_repo = f"mlx-community/whisper-{actual_model}"
             else:
                 hf_repo = f"mlx-community/whisper-{actual_model}-mlx"
-                
+
             print(f"--- [GPU 加速] 使用 mlx-whisper ({actual_model}) 为 {file_path} 进行转录 ---")
             output = mlx_whisper.transcribe(
-                file_path, 
-                path_or_hf_repo=hf_repo, 
+                file_path,
+                path_or_hf_repo=hf_repo,
                 word_timestamps=True,
                 initial_prompt=initial_prompt
             )
-            
+
             results = []
             for segment in output.get("segments", []):
                 results.append({
@@ -260,8 +259,9 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
                     "text": segment["text"].strip(),
                     "words": segment.get("words", [])
                 })
-            print(f"--- GPU 转录完成: {len(results)} segments found ---")
-            return results
+            detected_lang = output.get("language", None)
+            print(f"--- GPU 转录完成: {len(results)} segments, language={detected_lang} ---")
+            return results, detected_lang
         except ImportError:
             print("--- mlx-whisper 未安装，回退至 CPU 模式 ---")
         except Exception as e:
@@ -272,7 +272,7 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
     model = get_faster_whisper_model(model_size)
     print(f"--- [CPU 模式] 使用 faster-whisper 为 {file_path} 进行转录 ---")
     segments, info = model.transcribe(file_path, beam_size=5, word_timestamps=True, initial_prompt=initial_prompt)
-    
+
     results = []
     for segment in segments:
         results.append({
@@ -281,13 +281,14 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
             "text": segment.text.strip(),
             "words": [{"start": w.start, "end": w.end, "text": w.word} for w in segment.words] if segment.words else []
         })
-    print(f"--- CPU 转录完成: {len(results)} segments found ---")
-    return results
+    detected_lang = getattr(info, "language", None)
+    print(f"--- CPU 转录完成: {len(results)} segments, language={detected_lang} ---")
+    return results, detected_lang
 
 def transcribe_cloud(file_path: str, initial_prompt: str = None):
     # 灰度锁定：强制路由到本地处理，锁定 OpenAI 云端调用
     print(f"--- [Cloud Lock] 正在拦截云端请求并强制路由至本地处理 ({os.path.basename(file_path)}) ---")
-    return transcribe_local(file_path, initial_prompt=initial_prompt, model_size="large-v3-turbo")
+    return transcribe_local(file_path, initial_prompt=initial_prompt, model_size="large-v3-turbo")  # 返回元组，透传
 
     # 原逻辑已屏蔽
     # file_size = os.path.getsize(file_path)

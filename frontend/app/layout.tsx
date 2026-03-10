@@ -14,8 +14,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Read-Tube",
-  description: "AI 驱动的音视频个人书架 - 极速转录与深度阅读",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://read-tube.vercel.app'),
+  title: {
+    default: "Read-Tube – AI YouTube Transcript & Summary",
+    template: "%s | Read-Tube",
+  },
+  description: "Instantly transcribe YouTube videos and audio files with AI. Read transcripts, get AI summaries, and explore content faster than watching.",
+  keywords: ["youtube transcript", "AI video summary", "youtube to text", "video transcription", "AI summarizer", "youtube subtitle"],
+  authors: [{ name: "Read-Tube" }],
+  openGraph: {
+    siteName: "Read-Tube",
+    type: "website",
+    locale: "en_US",
+    title: "Read-Tube – AI YouTube Transcript & Summary",
+    description: "Instantly transcribe YouTube videos and audio files with AI. Read transcripts, get AI summaries, and explore content faster than watching.",
+    images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "Read-Tube" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Read-Tube – AI YouTube Transcript & Summary",
+    description: "Instantly transcribe YouTube videos and audio files with AI.",
+    images: ["/og-default.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 import { LanguageProvider } from "@/contexts/LanguageContext";

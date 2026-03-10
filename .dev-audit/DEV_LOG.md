@@ -1,5 +1,31 @@
 # 2026-03-07 开发日志
 
+### [Feature] 加权语言检测：标题主信号 + Whisper 30秒辅助，覆盖韩/日/多语言
+- **需求**：`detect_language_preference()` 仅能识别中英三类，韩语/日语混英文场景误判。用户确定策略：标题/描述字符统计为主，Whisper 音频检测为辅（防止开头非主要语言片段干扰）。
+- **实际改动**：
+  1. `processor.py` `detect_language_preference()`：改为统计各语言字符数（韩文音节 `\uac00-\ud7a3`、平假名片假名 `\u3040-\u30ff`、中文），以数量最多者为主，无 CJK 则 fallback 英文。
+  2. `transcriber.py`：`transcribe_local()`（mlx-whisper 和 faster-whisper 两条路径）、`transcribe_funasr()`、`transcribe_sensevoice_onnx()` 均改为返回 `(results, detected_lang)` 元组，Whisper 路径暴露 `info.language`，FunASR/SenseVoice 返回 `None`。
+  3. `worker.py`：接收 `whisper_lang`，加权合并（标题含 CJK 则直接采信标题；标题无 CJK 且 Whisper 检测到非英非中语言则采信 Whisper），结果存入 `result["detected_language"]`，传给 `summarize_text(language=...)`。
+  4. `processor.py` `summarize_text()`：新增 `language` 参数，按 ISO 码分支：`en`/`zh-TW`/`ko`/`ja`/`zh`/通用兜底，韩语和日语各有原生 prompt。
+- **验证**：`python3 -m py_compile processor.py transcriber.py worker.py` ✓
+
+### [Feature] AI 摘要/关键词语言随视频原语言自动适配
+- **需求**：AI Insight 的重点应跟视频原语言一致，不能强制输出中文。
+- **根因**：`processor.py` 的 `summarize_text()` prompt 硬编码 "总结部分必须全部使用中文回复（无论视频原本是什么语言）"。同文件已有 `detect_language_preference()` 但未被 `summarize_text()` 调用。
+- **实际改动**：`backend/processor.py`：在 `summarize_text()` 内部调用 `detect_language_preference(title, description)`，按 `english` / `traditional` / `simplified` 三条分支分别选用对应语言的 prompt，其余 LLM 调用与后处理逻辑不变。
+- **验证**：`python3 -m py_compile processor.py` ✓
+
+### [规划] SEO 英文市场战略 + 结果页 SSR 动态 Metadata
+- **需求**：站点流量主要来自 Google 搜索，但 SEO 几乎为零基础，讨论如何提升吸引力并制定开发方向。
+- **计划**：
+  1. 确定战略方向：瞄准英文市场（`youtube transcript`、`AI video summarizer` 等目标词）。
+  2. 核心改造：`/result/[id]` 页面从纯客户端渲染拆分为 Server Component + Client Component，实现动态 `generateMetadata`（title、description、OG 标签均来自视频真实数据）。
+  3. 补全 SEO 基础设施：`sitemap.ts`、`robots.txt`、根布局英文化。
+  4. 创建 `dev_docs/seo-english-market-strategy.md` 记录完整策略文档。
+- **受影响文件**：`result/[id]/page.tsx`、新增 `ResultClient.tsx`、`layout.tsx`、`sitemap.ts`、`robots.txt`。
+
+
+
 ### [回顾] 定位并修复 `UC...` 频道被误判为 cookies 失败
 - **需求**：用户要求继续定位 `backend/youtube_cookies.txt` 在 Tracker 场景下“看起来失效”的根因，并在确认后修复问题。
 - **根因定位**：

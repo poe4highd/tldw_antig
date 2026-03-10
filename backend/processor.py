@@ -16,12 +16,12 @@ PROMPT = """
 1. 【同音字纠错（仅限必要替换）】：
    - **只替换明显的同音错别字**，替换时必须保持1:1字数对应。
    - **禁止删除任何内容**：即使某个词看起来多余或重复，也不得删除。
-   - **标题权重优先（CRITICAL）**：如果原始转录中的文字，其【拼音或读音】与下方视频上下文（标题、描述）中的核心关键词、长句高度相似，哪怕字面上看起来完全不同，也**必须优先替换为上下文中的正确词汇**。（例如：标题有“灵修”，正文听成“零修”或“领袖”，必须统一改为“灵修”）。
+   - **标题权重优先（CRITICAL）**：如果原始转录中的文字，其【拼音或读音】与下方视频上下文（标题、描述）中的核心关键词、长句高度相似，哪怕字面上看起来完全不同，也**必须优先替换为上下文中的正确词汇**。（例如：标题有"灵修"，正文听成"零修"或"领袖"，必须统一改为"灵修"）。
    - **深度识别同音错别字**：尤其是那些【同音但不同语调】的候选字。请结合上下文语义和视频主题背景，找出最符合逻辑的字进行替换。
    - **确保术语一致性**：对于全文反复出现的特定词组或术语，必须确保其写法和语义在全篇范围一致。
    - **禁止合并简化**：不要将多个词合并为一个词，不要用概括性词语替代原文。
 2. 【标点符号（CRITICAL）】：必须为所有文本添加正确的标点符号。
-   - 中文使用全角标点（，。？！“”）。
+   - 中文使用全角标点（，。？！""）。
    - 英文使用半角标点（,.?!""）。
 3. 【分段（CRITICAL）】：
    - **以语义话题为单位划分段落**：每个段落围绕一个完整的论点、事例或叙述单元，话题自然切换时才换段。
@@ -101,22 +101,34 @@ def get_youtube_thumbnail_url(url):
 def detect_language_preference(title, description):
     """
     根据标题和描述自动识别语言偏好。
-    返回: "traditional", "english", "simplified"
+    返回: "english", "korean", "japanese", "traditional", "simplified"
+    策略：以字符数量最多的语言为主（高权重），英文作为无 CJK 字符时的兜底。
     """
-    # 组合标题和描述进行检查
-    content_to_check = (title or "") + " " + (description or "")
-    
-    # 检测英文 (大部分是英文)
-    # 简单启发式：如果非中文字符占比极高，且包含较多英文字符
-    if re.search(r'[a-zA-Z]{5,}', title) and not re.search(r'[\u4e00-\u9fa5]', title):
-         return "english"
-    
-    # 常用繁体字特征字符集
-    trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
-    if re.search(trad_patterns, content_to_check):
-        return "traditional"
-    
-    return "simplified"
+    content = (title or "") + " " + (description or "")
+
+    # 统计各语言专属字符数量
+    chinese_chars  = len(re.findall(r'[\u4e00-\u9fa5]', content))
+    korean_chars   = len(re.findall(r'[\uac00-\ud7a3]', content))       # 韩文音节
+    japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', content))  # 平假名+片假名
+
+    lang_counts = {
+        "korean":   korean_chars,
+        "japanese": japanese_chars,
+        "chinese":  chinese_chars,
+    }
+    dominant = max(lang_counts, key=lang_counts.get)
+
+    if lang_counts[dominant] > 0:
+        if dominant == "korean":
+            return "korean"
+        if dominant == "japanese":
+            return "japanese"
+        if dominant == "chinese":
+            trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
+            return "traditional" if re.search(trad_patterns, content) else "simplified"
+
+    # 无 CJK 字符：默认英文
+    return "english"
 
 def extract_keywords(title, description=""):
     """
@@ -259,16 +271,134 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
 
     return all_paragraphs, total_usage
 
-def summarize_text(full_text, title="", description=""):
+def summarize_text(full_text, title="", description="", language=None):
     """
     调用 LLM 对全文本进行总结并提炼关键词。
+    语言优先使用 language 参数（ISO 码，由 worker.py 加权检测后传入），
+    未传入时 fallback 到标题/描述文本检测。
     """
     client = get_llm_client()
     if not client:
         return {"summary": "无总结", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
 
-    system_prompt = "你是一位专业的视频内容分析师。请通过阅读视频标题、描述及包含时间戳的转录全文，总结核心观点并提取 5-10 个最能代表视频核心主题且具备分类或搜索价值的关键词（Tag）。"
-    user_prompt = f"""
+    # 确定语言：优先使用外部传入的 ISO 语言码
+    if language:
+        lang = language
+    else:
+        lang_pref = detect_language_preference(title, description)
+        lang = {"english": "en", "traditional": "zh-TW", "simplified": "zh",
+                "korean": "ko", "japanese": "ja"}.get(lang_pref, "en")
+
+    print(f"[summarize_text] 使用语言: {lang}")
+
+    if lang == "en":
+        system_prompt = "You are a professional video content analyst. Read the video title, description, and timestamped transcript to summarize key insights and extract 5-10 relevant tags."
+        user_prompt = f"""
+Video title: {title}
+Video description: {description}
+
+Transcript to analyze:
+{full_text}
+
+[Requirements]:
+1. Summarize the video into exactly 7 key points.
+2. Each point should be no more than 3 sentences.
+3. Each point must end with a timestamp indicating when it appears in the video (format: [01:23]), based on the timestamps in the transcript.
+4. **Strict chronological order**: The 7 timestamps must be strictly increasing (point 1 < point 2 < ... < point 7). No time reversal allowed.
+5. Write the entire summary in English (matching the video's original language).
+6. Extract keywords combining core concepts from the title and details discussed in the transcript.
+7. Choose tags that are useful for filtering and discovery (e.g.: AI, productivity, finance, science, etc.).
+8. **English only**: Keywords must be concise English terms (1-3 words). No Chinese characters.
+9. Exclude generic or meaningless terms.
+
+Output strictly in the following JSON format:
+{{
+  "summary": "The 7 key points with timestamps, one per line...",
+  "keywords": ["keyword1", "keyword2"]
+}}
+"""
+    elif lang in ("zh-TW", "yue"):
+        system_prompt = "你是一位專業的視頻內容分析師。請透過閱讀視頻標題、描述及包含時間戳的轉錄全文，總結核心觀點並提取 5-10 個最能代表視頻核心主題且具備分類或搜索價值的關鍵詞（Tag）。"
+        user_prompt = f"""
+視頻標題: {title}
+視頻描述: {description}
+
+待分析轉錄文本:
+{full_text}
+
+【任務要求】：
+1. 總結視頻內容為恰好 7 個重點內容。
+2. 每個重點不超過 3 句話。
+3. 每個重點末尾必須添加對應內容在視頻中出現位置的時間戳（格式如 [01:23]），依據所提供文本中的時間標識。
+4. **嚴格按視頻播放順序排列**：7 個重點的時間戳必須嚴格遞增（第1條 < 第2條 < … < 第7條），不允許出現時間倒退。
+5. 總結部分必須全部使用繁體中文回覆。
+6. 綜合標題中的核心概念和全文討論的細節提取關鍵詞。
+7. 提取具備通用性、能幫助用戶快速點擊篩選的關鍵詞（如：AI, 科技, 生產力, 財經, 育兒 等）。
+8. **繁體中文為主**：關鍵詞使用繁體中文，如有行業通用英文術語可附英文（格式：繁中詞 (English)）。
+9. 關鍵詞應簡潔有力，排除掉沒意義的泛指詞。
+
+請嚴格按以下 JSON 格式輸出:
+{{
+  "summary": "以文本格式輸出的重點總結內容（由於需支持多段落，請結合換行符排版）...",
+  "keywords": ["關鍵詞1", "關鍵詞2"]
+}}
+"""
+    elif lang == "ko":
+        system_prompt = "당신은 전문 영상 콘텐츠 분석가입니다. 영상 제목, 설명, 타임스탬프가 포함된 전체 스크립트를 읽고 핵심 내용을 요약하고 5-10개의 키워드를 추출하세요."
+        user_prompt = f"""
+영상 제목: {title}
+영상 설명: {description}
+
+분석할 스크립트:
+{full_text}
+
+【요구 사항】:
+1. 영상 내용을 정확히 7개의 핵심 포인트로 요약하세요.
+2. 각 포인트는 3문장 이내로 작성하세요.
+3. 각 포인트 끝에 해당 내용이 영상에서 등장하는 시간의 타임스탬프를 추가하세요 (형식: [01:23]).
+4. **엄격한 시간순 정렬**: 7개 포인트의 타임스탬프는 반드시 순서대로 증가해야 합니다.
+5. 요약 전체를 한국어로 작성하세요.
+6. 제목의 핵심 개념과 스크립트에서 논의된 세부 사항을 결합하여 키워드를 추출하세요.
+7. 필터링과 검색에 유용한 키워드를 선택하세요 (예: AI, 생산성, 재테크, 과학 등).
+8. **한국어 우선**: 키워드는 한국어로 작성하고, 필요시 영어 전문 용어를 병기하세요 (예: 인공지능 (AI)).
+9. 의미 없는 일반적인 단어는 제외하세요.
+
+다음 JSON 형식으로 엄격히 출력하세요:
+{{
+  "summary": "타임스탬프가 포함된 7개의 핵심 포인트 (줄바꿈으로 구분)...",
+  "keywords": ["키워드1", "키워드2"]
+}}
+"""
+    elif lang == "ja":
+        system_prompt = "あなたはプロのビデオコンテンツアナリストです。ビデオのタイトル、説明、タイムスタンプ付き文字起こしを読んで、重要なポイントをまとめ、5〜10個のキーワードを抽出してください。"
+        user_prompt = f"""
+動画タイトル: {title}
+動画説明: {description}
+
+分析するトランスクリプト:
+{full_text}
+
+【要件】:
+1. 動画の内容をちょうど7つのポイントに要約してください。
+2. 各ポイントは3文以内にしてください。
+3. 各ポイントの末尾に、その内容が動画で登場するタイムスタンプを追加してください（形式: [01:23]）。
+4. **厳密な時系列順**: 7つのポイントのタイムスタンプは必ず増加する順序にしてください。
+5. 要約全体を日本語で記述してください。
+6. タイトルのコアコンセプトと文字起こしで議論された詳細を組み合わせてキーワードを抽出してください。
+7. フィルタリングと検索に役立つキーワードを選んでください（例: AI, 生産性, 財務, 科学など）。
+8. **日本語優先**: キーワードは日本語で記述し、必要に応じて英語の専門用語を付記してください（例: 人工知能 (AI)）。
+9. 意味のない一般的な用語は除外してください。
+
+以下のJSON形式で厳密に出力してください:
+{{
+  "summary": "タイムスタンプ付きの7つの重要ポイント（改行で区切り）...",
+  "keywords": ["キーワード1", "キーワード2"]
+}}
+"""
+    elif lang in ("zh", "cmn"):
+        # simplified Chinese (default for Mandarin)
+        system_prompt = "你是一位专业的视频内容分析师。请通过阅读视频标题、描述及包含时间戳的转录全文，总结核心观点并提取 5-10 个最能代表视频核心主题且具备分类或搜索价值的关键词（Tag）。"
+        user_prompt = f"""
 视频标题: {title}
 视频描述: {description}
 
@@ -280,16 +410,43 @@ def summarize_text(full_text, title="", description=""):
 2. 每个重点不超过 3 句话。
 3. 每个重点末尾必须添加对应内容在视频中出现位置的时间戳（格式如 [01:23]），依据所提供文本中的时间标识。
 4. **严格按视频播放顺序排列**：7 个重点的时间戳必须严格递增（第1条 < 第2条 < … < 第7条），不允许出现时间倒退。
-5. 总结部分必须全部使用中文回复（无论视频原本是什么语言）。
+5. 总结部分必须全部使用简体中文回复。
 6. 综合标题中的核心概念和全文讨论的细节提取关键词。
 7. 提取具备通用性、能帮助用户快速点击筛选的关键词（如：AI, 科技, 生产力, 财经, 育儿 等）。
-8. **中英双语对齐（CRITICAL）**：对于具备行业通用性或分类价值的关键词，必须输出为”中文 (English)”格式。例如：将”财经”输出为”财经 (Finance)”，”人工智能”输出为”人工智能 (AI)”。
+8. **中英双语对齐（CRITICAL）**：对于具备行业通用性或分类价值的关键词，必须输出为"中文 (English)"格式。例如：将"财经"输出为"财经 (Finance)"，"人工智能"输出为"人工智能 (AI)"。
 9. 关键词应简洁有力，通常为 2-4 个汉字配合英文，排除掉没意义的泛指词。
 
 请严格按以下 JSON 格式输出:
 {{
   "summary": "以文本格式输出的重点总结内容（由于需支持多段落，请结合换行符排版，切勿使用 JSON 不支持的单行纯文本限制）...",
   "keywords": ["关键词1", "关键词2"]
+}}
+"""
+    else:
+        # 通用兜底：其他语言（法语、西班牙语、阿拉伯语等）
+        system_prompt = "You are a professional video content analyst. Read the video title, description, and timestamped transcript to summarize key insights and extract 5-10 relevant tags."
+        user_prompt = f"""
+Video title: {title}
+Video description: {description}
+
+Transcript to analyze:
+{full_text}
+
+[Requirements]:
+1. Summarize the video into exactly 7 key points.
+2. Each point should be no more than 3 sentences.
+3. Each point must end with a timestamp indicating when it appears in the video (format: [01:23]), based on the timestamps in the transcript.
+4. **Strict chronological order**: The 7 timestamps must be strictly increasing (point 1 < point 2 < ... < point 7). No time reversal allowed.
+5. **Respond entirely in the same language as the video transcript** (detected language: {lang}).
+6. Extract keywords combining core concepts from the title and details discussed in the transcript.
+7. Choose tags that are useful for filtering and discovery.
+8. Keywords should be in the video's primary language; append English equivalent in parentheses if it aids searchability.
+9. Exclude generic or meaningless terms.
+
+Output strictly in the following JSON format:
+{{
+  "summary": "The 7 key points with timestamps, one per line...",
+  "keywords": ["keyword1", "keyword2"]
 }}
 """
 

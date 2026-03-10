@@ -49,6 +49,8 @@ def main():
         cache_key = f"{args.video_id or args.task_id}_{args.mode}_{args.model}"
         cache_sub_path = f"{CACHE_DIR}/{cache_key}_raw.json"
         
+        whisper_lang = None  # Whisper 检测到的语言码（辅助信号）
+
         if os.path.exists(cache_sub_path):
             save_status(args.task_id, "loading_cache", 50, eta=5)
             print(f"[Worker] 使用缓存: {cache_sub_path}")
@@ -57,16 +59,16 @@ def main():
         else:
             # 尝试拦截现有字幕
             hijacked_sub_path = find_downloaded_subtitles(args.video_id) if args.video_id else None
-            
+
             if hijacked_sub_path:
                 save_status(args.task_id, "importing_subtitles", 55, eta=5)
                 print(f"[Worker] 拦截到字幕文件: {hijacked_sub_path}")
                 raw_subtitles = parse_vtt_srt(hijacked_sub_path)
-                
+
                 if not raw_subtitles:
                     print(f"[Worker] 警告: 字幕文件解析为空，将回退至正常转录流程")
                     hijacked_sub_path = None
-            
+
             if not hijacked_sub_path:
                 # 执行转录
                 save_status(
@@ -77,15 +79,15 @@ def main():
                 )
                 print(f"[Worker] 开始转录: {args.file} (模式: {args.mode}, 模型: {args.model})")
                 print(f"[Worker] 提示词: {args.title}")
-                
-                raw_subtitles = transcribe_audio(
-                    args.file, 
-                    mode=args.mode, 
+
+                raw_subtitles, whisper_lang = transcribe_audio(
+                    args.file,
+                    mode=args.mode,
                     initial_prompt=args.title,
                     model_size=args.model
                 )
-            
-            # 保存缓存
+
+            # 保存缓存（仅保存字幕列表）
             with open(cache_sub_path, "w", encoding="utf-8") as wf:
                 json.dump(raw_subtitles, wf, ensure_ascii=False)
             print(f"[Worker] 转录/导入完成,已保存缓存")
@@ -103,7 +105,7 @@ def main():
         
         # 8.5 提炼摘要与关键词 (新步骤)
         print(f"[Worker] 开始提取全文摘要与关键词...")
-        from processor import summarize_text
+        from processor import summarize_text, detect_language_preference
         full_text = ""
         for p in paragraphs:
             for s in p["sentences"]:
@@ -112,11 +114,26 @@ def main():
                 m, s_v = divmod(r, 60)
                 ts = f"[{h:02d}:{m:02d}:{s_v:02d}]" if h > 0 else f"[{m:02d}:{s_v:02d}]"
                 full_text += f"{ts} {s['text']}\n"
-        
+
+        # 加权语言检测：标题/描述为主信号，Whisper 为辅助校验
+        title_lang = detect_language_preference(args.title, args.description)
+        lang_map = {"english": "en", "simplified": "zh", "traditional": "zh-TW",
+                    "korean": "ko", "japanese": "ja"}
+        title_lang_iso = lang_map.get(title_lang, "en")
+        # 标题判为 english（无 CJK 特征）时，若 Whisper 检测到其他语言则以 Whisper 为准
+        # 防止韩/日语视频因标题无 CJK 字符被误判为英文
+        if title_lang == "english" and whisper_lang and whisper_lang not in ("en", "zh", "yue"):
+            detected_language = whisper_lang
+            print(f"[Worker] 语言检测: 标题={title_lang_iso}, Whisper={whisper_lang} → 采用 Whisper 结果")
+        else:
+            detected_language = title_lang_iso
+            print(f"[Worker] 语言检测: 标题={title_lang_iso}, Whisper={whisper_lang} → 采用标题结果")
+
         summary_data, summary_usage = summarize_text(
             full_text,
             title=args.title,
-            description=args.description
+            description=args.description,
+            language=detected_language
         )
         
         # 合并 LLM Usage
@@ -136,6 +153,7 @@ def main():
             "youtube_id": args.video_id,
             "thumbnail": None,  # 由主进程填充
             "media_path": os.path.basename(args.file) if args.file else None,
+            "detected_language": detected_language,
             "summary": summary_data.get("summary", ""),
             "keywords": summary_data.get("keywords", []),
             "paragraphs": paragraphs,
