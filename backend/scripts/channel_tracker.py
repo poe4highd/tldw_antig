@@ -45,25 +45,25 @@ def _build_channel_videos_url(channel_handle):
     return f"https://www.youtube.com/{channel_handle}/videos"
 
 
-def _run_ytdlp_get_id(cmd, channel_handle, cookies_path):
-    """执行 yt-dlp 获取视频 ID，带 cookies 失败时自动降级重试。"""
+def _run_ytdlp_get_ids(cmd, channel_handle, cookies_path):
+    """执行 yt-dlp 获取视频 ID 列表，带 cookies 失败时自动降级重试。"""
     # 第一次尝试：带 cookies（如果有）
     run_cmd = cmd[:]
     if cookies_path:
         run_cmd.extend(["--cookies", cookies_path])
 
     result = subprocess.run(run_cmd, capture_output=True, text=True)
-    video_id = result.stdout.strip()
-    if video_id:
-        return video_id.split('\n')[0].strip()
+    ids = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    if ids:
+        return ids
 
     # 带 cookies 失败且 cookies 存在时，去掉 cookies 重试
     if cookies_path and result.returncode != 0:
-        logger.info(f"带 cookies 未取到结果 (rc={result.returncode})，去掉 cookies 重试 {channel_handle}...")
+        logger.info(f"Cookies 请求失败 (rc={result.returncode})，去掉 cookies 重试 {channel_handle}...")
         result = subprocess.run(cmd, capture_output=True, text=True)
-        video_id = result.stdout.strip()
-        if video_id:
-            return video_id.split('\n')[0].strip()
+        ids = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+        if ids:
+            return ids
 
     # 仍然没有结果
     if result.returncode != 0 and not result.stdout.strip():
@@ -71,21 +71,20 @@ def _run_ytdlp_get_id(cmd, channel_handle, cookies_path):
     elif result.returncode != 0:
         logger.error(f"Error fetching latest video for {channel_handle}: {result.stderr or result.stdout}")
 
-    return None
+    return []
 
 
-def get_latest_video_id(channel_handle):
-    """Use yt-dlp to get the latest public, non-live video ID from a channel handle."""
+def get_latest_video_ids(channel_handle):
+    """Use yt-dlp to get the latest 5 public, non-live video IDs from a channel handle."""
     if not channel_handle:
-        return None
+        return []
 
     url = _build_channel_videos_url(channel_handle)
 
     cmd = _resolve_ytdlp_cmd() + [
         "--get-id",
-        "--playlist-items", "5",
+        "--playlist-items", "1:5",
         "--match-filter", "!is_live & availability=public",
-        "--max-downloads", "1",
         "--quiet",
         url
     ]
@@ -93,11 +92,11 @@ def get_latest_video_id(channel_handle):
     cookies_path = _resolve_cookies_path()
 
     try:
-        return _run_ytdlp_get_id(cmd, channel_handle, cookies_path)
+        return _run_ytdlp_get_ids(cmd, channel_handle, cookies_path)
     except Exception as e:
         logger.error(f"Unexpected error for {channel_handle}: {e}")
 
-    return None
+    return []
 
 
 def get_video_metadata(video_id):
@@ -225,58 +224,60 @@ def main():
         logger.error(f"Failed to fetch tracked channel IDs: {e}")
         sys.exit(1)
 
-    # 2. For each channel, find the latest video
+    # 2. For each channel, find the latest videos (up to 5)
     new_tasks_count = 0
     for channel_id in channel_ids:
         logger.info(f"Checking channel: {channel_id}")
-        latest_vid = get_latest_video_id(channel_id)
-        
-        if not latest_vid:
+        latest_vids = get_latest_video_ids(channel_id)
+
+        if not latest_vids:
             continue
-            
-        # 3. Check if this video already exists in our database
-        try:
-            check_res = supabase.table("videos").select("id").eq("id", latest_vid).execute()
-            if not check_res.data:
-                # 4. New video found! Fetch metadata first
-                logger.info(f"New video found: {latest_vid} for channel {channel_id}. Fetching metadata...")
-                
-                metadata = get_video_metadata(latest_vid)
-                if not metadata:
-                    logger.error(f"Failed to fetch metadata for {latest_vid}. Skipping.")
-                    continue
-                
-                logger.info(f"Got metadata: {metadata.get('title')}")
-                
-                # Insert with required fields
-                supabase.table("videos").insert({
-                    "id": latest_vid,
-                    "title": metadata["title"],
-                    "thumbnail": metadata.get("thumbnail"),
-                    "status": "queued",
-                    "report_data": {
-                        "channel_id": metadata.get("channel_id"),
-                        "channel": metadata.get("channel_name"),
-                        "duration": metadata.get("duration"),
-                        "view_count": metadata.get("view_count"),
-                        "source": "tracker"
-                    }
-                }).execute()
-                
-                # Also create a status file for immediate visibility in UI
-                results_dir = "results"
-                if not os.path.exists(results_dir):
-                    os.makedirs(results_dir)
-                
-                with open(f"{results_dir}/{latest_vid}_status.json", "w") as f:
-                    json.dump({"status": "queued", "progress": 0}, f)
-                    
-                new_tasks_count += 1
-                logger.info(f"Successfully queued video: {latest_vid}")
-            else:
-                logger.info(f"Video {latest_vid} already exists. Skipping.")
-        except Exception as e:
-            logger.error(f"Error checking/inserting video {latest_vid}: {e}")
+
+        for latest_vid in latest_vids:
+            # 3. Check if this video already exists in our database
+            try:
+                check_res = supabase.table("videos").select("id").eq("id", latest_vid).execute()
+                if not check_res.data:
+                    # 4. New video found! Fetch metadata first
+                    logger.info(f"New video found: {latest_vid} for channel {channel_id}. Fetching metadata...")
+
+                    metadata = get_video_metadata(latest_vid)
+                    if not metadata:
+                        logger.error(f"Failed to fetch metadata for {latest_vid}. Skipping.")
+                        continue
+
+                    logger.info(f"Got metadata: {metadata.get('title')}")
+
+                    # Insert with required fields
+                    supabase.table("videos").insert({
+                        "id": latest_vid,
+                        "title": metadata["title"],
+                        "thumbnail": metadata.get("thumbnail"),
+                        "status": "queued",
+                        "report_data": {
+                            "channel_id": metadata.get("channel_id"),
+                            "channel": metadata.get("channel_name"),
+                            "channel_name": metadata.get("channel_name"),
+                            "duration": metadata.get("duration"),
+                            "view_count": metadata.get("view_count"),
+                            "source": "tracker"
+                        }
+                    }).execute()
+
+                    # Also create a status file for immediate visibility in UI
+                    results_dir = "results"
+                    if not os.path.exists(results_dir):
+                        os.makedirs(results_dir)
+
+                    with open(f"{results_dir}/{latest_vid}_status.json", "w") as f:
+                        json.dump({"status": "queued", "progress": 0}, f)
+
+                    new_tasks_count += 1
+                    logger.info(f"Successfully queued video: {latest_vid}")
+                else:
+                    logger.info(f"Video {latest_vid} already exists. Skipping.")
+            except Exception as e:
+                logger.error(f"Error checking/inserting video {latest_vid}: {e}")
 
     total_added = retried_count + new_tasks_count
     logger.info(f"Channel tracking finished. Added {total_added} tasks to the queue ({retried_count} retries, {new_tasks_count} new).")
