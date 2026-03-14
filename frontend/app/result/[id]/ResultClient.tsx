@@ -334,7 +334,7 @@ export default function ResultClient({ id }: { id: string }) {
                         <div className="p-1.5 bg-card-bg border border-card-border rounded-lg group-hover:border-indigo-500/50 transition-colors">
                             <img src="/icon.png" alt="Logo" className="w-4 h-4" />
                         </div>
-                        <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{result.title}</span>
+                        <span className="text-sm font-bold">Read Tube</span>
                     </Link>
                 </div>
 
@@ -360,7 +360,7 @@ export default function ResultClient({ id }: { id: string }) {
             <main className="max-w-[1440px] mx-auto px-6 py-3 flex flex-col gap-3 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar">
 
                 {/* Top Section: Video (1/3) */}
-                <div className="w-full flex-shrink-0 h-[33vh] min-h-[250px] relative bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
+                <div className="w-full flex-shrink-0 h-[22vh] md:h-[33vh] min-h-[160px] md:min-h-[250px] relative bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
                     <div className="relative w-full h-full group">
                         {useLocalAudio ? (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 group">
@@ -464,13 +464,13 @@ export default function ResultClient({ id }: { id: string }) {
                 })()}
 
                 {/* Middle Section: Title & Stats (1/6) */}
-                <div className="w-full flex-shrink-0 py-2 flex flex-col justify-center gap-2 md:gap-3">
-                    <h2 className="text-lg md:text-xl font-black tracking-tight line-clamp-2 leading-snug px-1">{result.title}</h2>
+                <div className="w-full flex-shrink-0 py-1 md:py-2 flex flex-col justify-center gap-1 md:gap-3">
+                    <h2 className="text-sm md:text-xl font-black tracking-tight line-clamp-2 leading-snug px-1">{result.title}</h2>
 
                     {/* Stats & Actions Row */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 w-full">
-                        {/* Left side: Stats & Heatmap */}
-                        <div className="flex flex-wrap items-center gap-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest px-1">
+                    <div className="flex items-center justify-between gap-2 md:gap-4 w-full">
+                        {/* Left side: Stats */}
+                        <div className="flex items-center gap-2 md:gap-4 text-[9px] md:text-xs font-black text-slate-600 uppercase tracking-widest px-1 shrink-0">
                             <span>{viewCount.toLocaleString()} {t("result.views")}</span>
                             <span>{t("result.date")}: {(() => {
                                 const date = result.mtime ? new Date(result.mtime) : new Date();
@@ -479,33 +479,24 @@ export default function ResultClient({ id }: { id: string }) {
                                 }).replace(/\//g, '.');
                             })()}</span>
 
-                            {/* Heatmap as 1 line tall after date */}
-                            <div className="flex items-center gap-2 flex-1 max-w-[250px] ml-1 md:ml-4 bg-card-bg/50 px-3 py-1.5 rounded-full border border-card-border/50 shadow-inner">
-                                <span className="shrink-0 text-[8px] md:text-[10px] text-indigo-500">{t("result.keyInterest")}:</span>
-                                <div className="flex-1 h-1.5 bg-background border border-card-border rounded-full overflow-hidden flex">
-                                    <div className="h-full bg-indigo-500" style={{ width: '45%' }}></div>
-                                    <div className="h-full bg-indigo-600 opacity-50" style={{ width: '20%' }}></div>
-                                    <div className="h-full bg-indigo-400" style={{ width: '35%' }}></div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Right side: Action Bar */}
-                        <div className="flex items-center gap-3 py-1.5 px-3 bg-card-bg/50 border border-card-border rounded-2xl md:rounded-full backdrop-blur-sm">
-                            <div className="flex items-center space-x-1.5 md:space-x-2">
+                        <div className="flex items-center gap-1.5 md:gap-3 py-1 md:py-1.5 px-2 md:px-3 bg-card-bg/50 border border-card-border rounded-xl md:rounded-full backdrop-blur-sm">
+                            <div className="flex items-center space-x-1 md:space-x-2">
                                 <button
                                     onClick={copyFullText}
-                                    className="px-3 md:px-4 py-1.5 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                                    className="p-1.5 md:px-4 md:py-1.5 bg-background border border-card-border rounded-lg md:rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center md:space-x-2 group"
                                 >
-                                    {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />}
-                                    <span>{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
+                                    {copyStatus ? <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400 group-hover:text-white" />}
+                                    <span className="hidden md:inline">{copyStatus ? t("result.copied") : t("result.copyFullText")}</span>
                                 </button>
                                 <button
                                     onClick={downloadSRT}
-                                    className="px-3 md:px-4 py-1.5 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group"
+                                    className="p-1.5 md:px-4 md:py-1.5 bg-background border border-card-border rounded-lg md:rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center md:space-x-2 group"
                                 >
-                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
-                                    <span>SRT</span>
+                                    <Download className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="hidden md:inline">SRT</span>
                                 </button>
                                 <button
                                     onClick={() => {
@@ -518,25 +509,23 @@ export default function ResultClient({ id }: { id: string }) {
                                         a.download = `${result.title}.txt`;
                                         a.click();
                                     }}
-                                    className="px-3 md:px-4 py-1.5 bg-background border border-card-border rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center space-x-1.5 md:space-x-2 group hidden sm:flex"
+                                    className="p-1.5 md:px-4 md:py-1.5 bg-background border border-card-border rounded-lg md:rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center md:space-x-2 group hidden sm:flex"
                                 >
-                                    <Download className="w-3.5 h-3.5 md:w-4 h-4 text-slate-400 group-hover:text-white" />
-                                    <span>TXT</span>
+                                    <Download className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="hidden md:inline">TXT</span>
                                 </button>
                             </div>
                             <div className="h-4 w-px bg-card-border hidden md:block"></div>
-                            <div>
-                                <button
-                                    onClick={handleToggleLike}
-                                    className={cn(
-                                        "px-3 md:px-4 py-1.5 border rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center space-x-1.5 md:space-x-2 shadow-sm",
-                                        isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
-                                    )}
-                                >
-                                    <Heart className={cn("w-3.5 h-3.5 md:w-4 h-4", isLiked && "fill-current")} />
-                                    <span>{likeCount}</span>
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleToggleLike}
+                                className={cn(
+                                    "p-1.5 md:px-4 md:py-1.5 border rounded-lg md:rounded-xl text-[10px] md:text-xs font-black transition-all flex items-center md:space-x-2 shadow-sm",
+                                    isLiked ? "bg-rose-500 border-rose-500 text-white" : "bg-background border-card-border text-foreground hover:bg-rose-500 hover:border-rose-500 hover:text-white"
+                                )}
+                            >
+                                <Heart className={cn("w-3.5 h-3.5 md:w-4 md:h-4", isLiked && "fill-current")} />
+                                <span className="hidden md:inline">{likeCount}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -547,7 +536,7 @@ export default function ResultClient({ id }: { id: string }) {
                         ref={subtitleContainerRef}
                         onScroll={handleManualScroll}
                         data-testid="subtitle-container"
-                        className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-4 md:p-6 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
+                        className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-2.5 md:p-6 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
                     >
                         <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-foreground/[0.02] pointer-events-none select-none italic">
                             Read Tube
@@ -556,7 +545,7 @@ export default function ResultClient({ id }: { id: string }) {
                         <div className="space-y-5 md:space-y-6 relative z-10">
                             {/* AI Summary Section */}
                             {result.summary && (
-                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-4 md:p-5 mb-4 md:mb-6 shadow-sm">
+                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-2.5 md:p-5 mb-2 md:mb-6 shadow-sm">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
                                             <Send className="w-4 h-4 text-white transform -rotate-45" />
