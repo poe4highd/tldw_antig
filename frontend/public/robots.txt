@@ -6,4 +6,4 @@ Disallow: /settings
 Disallow: /admin
 Disallow: /tasks
 
-Sitemap: https://read-tube.vercel.app/sitemap.xml
+Sitemap: https://read-tube.com/sitemap.xml
