@@ -656,7 +656,7 @@ export default function ResultClient({ id }: { id: string }) {
                         </div>
                     )}
                     {/* Mobile floating nav buttons */}
-                    <div className="fixed bottom-6 left-3 z-[60] flex flex-col gap-1.5 md:hidden">
+                    <div className="fixed bottom-6 right-3 z-[60] flex flex-col gap-1.5 md:hidden">
                         <button
                             onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
                             className="p-2 bg-black/50 backdrop-blur-md border border-white/10 rounded-full text-white/70 active:text-white active:bg-indigo-500 transition-all shadow-lg"
