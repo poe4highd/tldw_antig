@@ -21,7 +21,9 @@ import {
     ArrowDownToLine,
     Sun,
     Moon,
-    Heart
+    Heart,
+    ChevronUp,
+    ChevronDown
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -78,6 +80,7 @@ export default function ResultClient({ id }: { id: string }) {
     const [videoDuration, setVideoDuration] = useState(0);
     const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false); // New state for scroll control
     const subtitleContainerRef = useRef<HTMLDivElement>(null); // Ref for custom scrolling
+    const mainRef = useRef<HTMLDivElement>(null);
     const isProgrammaticScroll = useRef(false); // Flag to distinguish auto-scroll from user scroll
 
     const [viewCount, setViewCount] = useState(0);
@@ -325,7 +328,7 @@ export default function ResultClient({ id }: { id: string }) {
     return (
         <div className="min-h-screen bg-background text-foreground font-sans">
             {/* Top Navigation Bar */}
-            <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border px-6 py-2.5 flex items-center justify-between">
+            <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-card-border px-3 md:px-6 py-1.5 md:py-2.5 flex items-center justify-between">
                 <div className="flex items-center space-x-6">
                     <Link href="/" className="p-2 hover:bg-card-bg rounded-xl transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-400 hover:text-foreground" />
@@ -357,7 +360,7 @@ export default function ResultClient({ id }: { id: string }) {
                 </div>
             </nav>
 
-            <main className="max-w-[1440px] mx-auto px-6 py-3 flex flex-col gap-3 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar">
+            <main ref={mainRef} className="max-w-[1440px] mx-auto px-3 md:px-6 py-2 md:py-3 flex flex-col gap-3 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar">
 
                 {/* Top Section: Video (1/3) */}
                 <div className="w-full flex-shrink-0 h-[22vh] md:h-[33vh] min-h-[160px] md:min-h-[250px] relative bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-card-border/10 ring-1 ring-card-border/5 group transition-all duration-300">
@@ -464,7 +467,7 @@ export default function ResultClient({ id }: { id: string }) {
                 })()}
 
                 {/* Middle Section: Title & Stats (1/6) */}
-                <div className="w-full flex-shrink-0 py-1 md:py-2 flex flex-col justify-center gap-1 md:gap-3">
+                <div className="w-full flex-shrink-0 py-0 md:py-2 flex flex-col justify-center gap-0.5 md:gap-3">
                     <h2 className="text-sm md:text-xl font-black tracking-tight line-clamp-2 leading-snug px-1">{result.title}</h2>
 
                     {/* Stats & Actions Row */}
@@ -531,12 +534,12 @@ export default function ResultClient({ id }: { id: string }) {
                 </div>
 
                 {/* Bottom Section: Transcript & Summary (1/2) */}
-                <div className="relative w-full flex-shrink-0 h-[50vh] min-h-[400px]">
+                <div className="relative w-full flex-shrink-0 md:h-[50vh] md:min-h-[400px]">
                     <div
                         ref={subtitleContainerRef}
                         onScroll={handleManualScroll}
                         data-testid="subtitle-container"
-                        className="w-full h-full bg-card-bg/30 border border-card-border rounded-[2.5rem] p-2.5 md:p-6 overflow-y-auto no-scrollbar scroll-smooth shadow-inner relative"
+                        className="w-full md:h-full bg-card-bg/30 border border-card-border rounded-2xl md:rounded-[2.5rem] p-2 md:p-6 md:overflow-y-auto no-scrollbar md:scroll-smooth shadow-inner relative"
                     >
                         <div className="absolute top-8 right-8 text-[80px] md:text-[120px] font-black text-foreground/[0.02] pointer-events-none select-none italic">
                             Read Tube
@@ -545,14 +548,14 @@ export default function ResultClient({ id }: { id: string }) {
                         <div className="space-y-5 md:space-y-6 relative z-10">
                             {/* AI Summary Section */}
                             {result.summary && (
-                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-2.5 md:p-5 mb-2 md:mb-6 shadow-sm">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
-                                            <Send className="w-4 h-4 text-white transform -rotate-45" />
+                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl md:rounded-3xl p-2 md:p-5 mb-1.5 md:mb-6 shadow-sm">
+                                    <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4">
+                                        <div className="p-1.5 md:p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
+                                            <Send className="w-3.5 h-3.5 md:w-4 md:h-4 text-white transform -rotate-45" />
                                         </div>
-                                        <h3 className="text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
+                                        <h3 className="text-sm md:text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
                                     </div>
-                                    <div className="space-y-2 mb-6">
+                                    <div className="space-y-1 md:space-y-2 mb-3 md:mb-6">
                                         {result.summary.split('\n').filter(Boolean).map((line, i) => {
                                             const color = SUMMARY_COLORS[i % SUMMARY_COLORS.length];
                                             const parts = line.split(/(\[\d{2}:\d{2}(?::\d{2})?\])/g);
@@ -569,7 +572,7 @@ export default function ResultClient({ id }: { id: string }) {
                                                     key={i}
                                                     onClick={() => seekTo(itemSeconds)}
                                                     style={{ backgroundColor: `${color}18`, borderLeftColor: color }}
-                                                    className="px-3 py-2 rounded-r-xl border-l-[3px] text-sm md:text-base leading-relaxed font-medium text-foreground/90 cursor-pointer hover:brightness-110 transition-all"
+                                                    className="px-2 md:px-3 py-1 md:py-2 rounded-r-xl border-l-[3px] text-xs md:text-base leading-snug md:leading-relaxed font-medium text-foreground/90 cursor-pointer hover:brightness-110 transition-all"
                                                 >
                                                     {parts.map((part, j) => {
                                                         const timeMatch = part.match(/^\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
@@ -652,6 +655,21 @@ export default function ResultClient({ id }: { id: string }) {
                             </button>
                         </div>
                     )}
+                    {/* Mobile floating nav buttons */}
+                    <div className="fixed bottom-6 left-3 z-[60] flex flex-col gap-1.5 md:hidden">
+                        <button
+                            onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                            className="p-2 bg-black/50 backdrop-blur-md border border-white/10 rounded-full text-white/70 active:text-white active:bg-indigo-500 transition-all shadow-lg"
+                        >
+                            <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => mainRef.current?.scrollTo({ top: mainRef.current.scrollHeight, behavior: 'smooth' })}
+                            className="p-2 bg-black/50 backdrop-blur-md border border-white/10 rounded-full text-white/70 active:text-white active:bg-indigo-500 transition-all shadow-lg"
+                        >
+                            <ChevronDown className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Discussion Panel Moved to Bottom */}
