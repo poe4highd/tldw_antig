@@ -595,10 +595,13 @@ export default function ResultClient({ id }: { id: string }) {
                                             <Send className="w-3.5 h-3.5 md:w-4 md:h-4 text-white transform -rotate-45" />
                                         </div>
                                         <h3 className="text-sm md:text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
-                                        {/* Ask AI Buttons - right aligned */}
-                                        <div className="flex items-center gap-1.5 ml-auto">
-                                            <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest mr-0.5 hidden md:inline">
-                                                {t('result.askAiTitle')}
+                                        {/* Ask AI Buttons - right aligned container */}
+                                        <div className="flex items-center gap-1.5 md:gap-2 ml-auto px-2 py-1 md:px-3 md:py-1.5 bg-slate-500/8 dark:bg-slate-400/10 border border-slate-500/15 dark:border-slate-400/15 rounded-xl animate-[askAiBounce_0.6s_ease-out_1s_1]">
+                                            <span className="text-[9px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden md:inline">
+                                                ✨ {t('result.askAiTitle')}
+                                            </span>
+                                            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 md:hidden">
+                                                ✨
                                             </span>
                                             {(Object.keys(AI_SERVICES) as Array<keyof typeof AI_SERVICES>).map((key) => {
                                                 const svc = AI_SERVICES[key];
