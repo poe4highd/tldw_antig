@@ -595,6 +595,30 @@ export default function ResultClient({ id }: { id: string }) {
                                             <Send className="w-3.5 h-3.5 md:w-4 md:h-4 text-white transform -rotate-45" />
                                         </div>
                                         <h3 className="text-sm md:text-lg font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{t("result.aiSummary")}</h3>
+                                        {/* Ask AI Buttons - right aligned */}
+                                        <div className="flex items-center gap-1.5 ml-auto">
+                                            <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest mr-0.5 hidden md:inline">
+                                                {t('result.askAiTitle')}
+                                            </span>
+                                            {(Object.keys(AI_SERVICES) as Array<keyof typeof AI_SERVICES>).map((key) => {
+                                                const svc = AI_SERVICES[key];
+                                                return (
+                                                    <button
+                                                        key={key}
+                                                        onClick={() => openAskAiModal(key)}
+                                                        className={`px-2 py-0.5 md:px-2.5 md:py-1 ${svc.bg} ${svc.border} border rounded-md md:rounded-lg text-[9px] md:text-[10px] font-black ${svc.text} ${svc.hoverBg} hover:text-white transition-all`}
+                                                    >
+                                                        {svc.name}
+                                                    </button>
+                                                );
+                                            })}
+                                            <div className="relative group">
+                                                <Info className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 cursor-help" />
+                                                <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-foreground text-background text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                                                    {t('result.askAiInfo')}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="space-y-1 md:space-y-2 mb-3 md:mb-6">
                                         {result.summary.split('\n').filter(Boolean).map((line, i) => {
@@ -643,30 +667,6 @@ export default function ResultClient({ id }: { id: string }) {
                                             ))}
                                         </div>
                                     )}
-                                    {/* Ask AI Buttons */}
-                                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-indigo-500/10">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-1">
-                                            {t('result.askAiTitle')}
-                                        </span>
-                                        {(Object.keys(AI_SERVICES) as Array<keyof typeof AI_SERVICES>).map((key) => {
-                                            const svc = AI_SERVICES[key];
-                                            return (
-                                                <button
-                                                    key={key}
-                                                    onClick={() => openAskAiModal(key)}
-                                                    className={`px-2.5 py-1 ${svc.bg} ${svc.border} border rounded-lg text-[10px] font-black ${svc.text} ${svc.hoverBg} hover:text-white transition-all`}
-                                                >
-                                                    {svc.name}
-                                                </button>
-                                            );
-                                        })}
-                                        <div className="relative group ml-1">
-                                            <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-foreground text-background text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
-                                                {t('result.askAiInfo')}
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             )}
 
