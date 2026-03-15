@@ -178,7 +178,15 @@
         "analytics": "Attention Heatmap",
         "live": "LIVE",
         "keyInterest": "Key Interest Area",
-        "analyticsAdvice": "The interaction is highest in the area, highly recommended to read."
+        "analyticsAdvice": "The interaction is highest in the area, highly recommended to read.",
+        "askAiTitle": "Ask AI",
+        "askAiQuestion": "Your Question",
+        "askAiPlaceholder": "Type your question (max 200 chars)...",
+        "askAiPrompt": "Prompt Preview (editable)",
+        "askAiSubmit": "Submit",
+        "askAiInfo": "Currently only Claude and ChatGPT support direct prompt linking",
+        "askAiCharCount": "chars",
+        "askAiPromptTemplate": "Please answer my question about this YouTube video.\n\nVideo Title: {title}\n\nKey Points:\n{summary}\n\nMy Question: {question}"
     },
     "pending": {
         "title": "Processing Queue",

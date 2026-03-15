@@ -23,7 +23,10 @@ import {
     Moon,
     Heart,
     ChevronUp,
-    ChevronDown
+    ChevronDown,
+    X,
+    ExternalLink,
+    Info
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -37,6 +40,12 @@ function cn(...inputs: ClassValue[]) {
 
 // Okabe-Ito colorblind-friendly palette for summary segments
 const SUMMARY_COLORS = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7'];
+
+// AI services for "Ask AI" feature
+const AI_SERVICES = {
+    claude: { name: 'Claude', url: 'https://claude.ai/new', bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-600 dark:text-amber-400', hoverBg: 'hover:bg-amber-500' },
+    chatgpt: { name: 'ChatGPT', url: 'https://chat.openai.com/', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-600 dark:text-emerald-400', hoverBg: 'hover:bg-emerald-500' },
+} as const;
 
 // Types
 interface Sentence {
@@ -88,6 +97,38 @@ export default function ResultClient({ id }: { id: string }) {
     const [newComment, setNewComment] = useState("");
     const [user, setUser] = useState<any>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+
+    // Ask AI states
+    const [askAiModal, setAskAiModal] = useState<'claude' | 'chatgpt' | null>(null);
+    const [askAiQuestion, setAskAiQuestion] = useState('');
+    const [askAiPrompt, setAskAiPrompt] = useState('');
+
+    const buildAiPrompt = (question: string) => {
+        if (!result) return '';
+        return t('result.askAiPromptTemplate')
+            .replace('{title}', result.title)
+            .replace('{summary}', result.summary || '')
+            .replace('{question}', question);
+    };
+
+    const openAskAiModal = (service: 'claude' | 'chatgpt') => {
+        setAskAiModal(service);
+        setAskAiQuestion('');
+        setAskAiPrompt(buildAiPrompt(''));
+    };
+
+    const handleAskAiQuestionChange = (q: string) => {
+        if (q.length > 200) q = q.slice(0, 200);
+        setAskAiQuestion(q);
+        setAskAiPrompt(buildAiPrompt(q));
+    };
+
+    const handleAskAiSubmit = () => {
+        if (!askAiModal || !askAiQuestion.trim()) return;
+        const service = AI_SERVICES[askAiModal];
+        const url = service.url + '?q=' + encodeURIComponent(askAiPrompt);
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -602,6 +643,30 @@ export default function ResultClient({ id }: { id: string }) {
                                             ))}
                                         </div>
                                     )}
+                                    {/* Ask AI Buttons */}
+                                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-indigo-500/10">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-1">
+                                            {t('result.askAiTitle')}
+                                        </span>
+                                        {(Object.keys(AI_SERVICES) as Array<keyof typeof AI_SERVICES>).map((key) => {
+                                            const svc = AI_SERVICES[key];
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => openAskAiModal(key)}
+                                                    className={`px-2.5 py-1 ${svc.bg} ${svc.border} border rounded-lg text-[10px] font-black ${svc.text} ${svc.hoverBg} hover:text-white transition-all`}
+                                                >
+                                                    {svc.name}
+                                                </button>
+                                            );
+                                        })}
+                                        <div className="relative group ml-1">
+                                            <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-foreground text-background text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                                                {t('result.askAiInfo')}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -752,6 +817,81 @@ export default function ResultClient({ id }: { id: string }) {
 
                 </div>
             </main >
+            {/* Ask AI Modal */}
+            {askAiModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setAskAiModal(null)}
+                    />
+                    <div className="relative bg-card-bg border border-card-border rounded-2xl w-full max-w-lg shadow-2xl">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-card-border">
+                            <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                                <span className={AI_SERVICES[askAiModal].text}>{AI_SERVICES[askAiModal].name}</span>
+                                <span className="text-slate-500">·</span>
+                                <span>{t('result.askAiTitle')}</span>
+                            </h3>
+                            <button
+                                onClick={() => setAskAiModal(null)}
+                                className="p-1.5 hover:bg-background rounded-lg transition-colors"
+                            >
+                                <X className="w-4 h-4 text-slate-400" />
+                            </button>
+                        </div>
+                        {/* Body */}
+                        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                            {/* User Question */}
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        {t('result.askAiQuestion')}
+                                    </label>
+                                    <span className={cn("text-[10px] font-bold", askAiQuestion.length >= 200 ? "text-red-500" : "text-slate-400")}>
+                                        {askAiQuestion.length}/200 {t('result.askAiCharCount')}
+                                    </span>
+                                </div>
+                                <textarea
+                                    value={askAiQuestion}
+                                    onChange={(e) => handleAskAiQuestionChange(e.target.value)}
+                                    placeholder={t('result.askAiPlaceholder')}
+                                    className="w-full px-3 py-2 bg-background border border-card-border rounded-xl text-sm text-foreground placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none"
+                                    rows={3}
+                                    autoFocus
+                                />
+                            </div>
+                            {/* Prompt Preview (editable) */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 block">
+                                    {t('result.askAiPrompt')}
+                                </label>
+                                <textarea
+                                    value={askAiPrompt}
+                                    onChange={(e) => setAskAiPrompt(e.target.value)}
+                                    className="w-full px-3 py-2 bg-background/50 border border-card-border rounded-xl text-xs text-foreground/80 focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
+                                    rows={8}
+                                />
+                            </div>
+                        </div>
+                        {/* Footer */}
+                        <div className="flex items-center justify-end p-4 border-t border-card-border">
+                            <button
+                                onClick={handleAskAiSubmit}
+                                disabled={!askAiQuestion.trim()}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2",
+                                    askAiQuestion.trim()
+                                        ? `${AI_SERVICES[askAiModal].bg} ${AI_SERVICES[askAiModal].text} ${AI_SERVICES[askAiModal].border} border hover:opacity-80`
+                                        : "bg-background text-slate-400 border border-card-border cursor-not-allowed"
+                                )}
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                {t('result.askAiSubmit')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

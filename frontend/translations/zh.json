@@ -178,7 +178,15 @@
         "analytics": "关注热度统计",
         "live": "实时",
         "keyInterest": "重点关注区域",
-        "analyticsAdvice": "本视频的互动区域如下，建议重点阅读。"
+        "analyticsAdvice": "本视频的互动区域如下，建议重点阅读。",
+        "askAiTitle": "向 AI 提问",
+        "askAiQuestion": "你的问题",
+        "askAiPlaceholder": "输入你想问的问题（200字以内）...",
+        "askAiPrompt": "提示词预览（可编辑）",
+        "askAiSubmit": "提交提问",
+        "askAiInfo": "目前仅支持 Claude 和 ChatGPT 的直接跳转提问",
+        "askAiCharCount": "字",
+        "askAiPromptTemplate": "请就这个YouTube视频的内容来回答问题。\n\n视频标题：{title}\n\n视频核心要点：\n{summary}\n\n我的问题：{question}"
     },
     "pending": {
         "title": "处理队列",
