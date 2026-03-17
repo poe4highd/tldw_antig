@@ -17,6 +17,7 @@ YouTube / Audio / Video Quick Reader
 - 👉 **[后端处理流程详解](docs/backend_process_flow.md)**：后端音视频处理、转录及结果生成的完整数据流转说明。
 - 👉 **[产品公测与路线图 (Roadmap)](docs/product_roadmap.md)**：了解未来的开发规划与商业化路径。
 - 👉 **[AI 协作偏好与规范](docs/ai_agent_dev_preferences_cn.md)**：记录项目开发中的 AI 协作习惯与规范。
+- 👉 **[网站分析工具指南](docs/analytics_tools.md)**：GSC / GA4 / Clarity 的配置、使用与日常检查清单。
 
 ---
 
