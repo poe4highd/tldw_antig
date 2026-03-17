@@ -1,3 +1,4 @@
+[2026-03-16] | [Bugfix] | 修复上传音频 channel 未定义崩溃 | process_task.py channel/channel_id/channel_avatar 初始化提到分支外，Worker 成功后清理残留 _error.json | DEV_LOG.md
 [2026-03-09] | [Feature] | 加权语言检测覆盖韩/日/多语言 | detect_language_preference() 改为字符计数，transcriber.py 暴露 Whisper info.language，worker.py 加权合并，summarize_text() 增加韩/日/通用 prompt | DEV_LOG.md
 [2026-03-06] | [Feature] | AI 摘要语言随视频原语言自动适配 | processor.py summarize_text() 按 detect_language_preference() 结果选用英/繁/简三套 prompt | DEV_LOG.md
 [2026-03-06] | [Feature] | SEO 英文市场战略 + 结果页 SSR 动态 Metadata | result/[id] 拆分 Server/Client Component，generateMetadata 动态生成 title/OG，新增 sitemap.ts、robots.txt，layout.tsx 英文化 | DEV_LOG.md

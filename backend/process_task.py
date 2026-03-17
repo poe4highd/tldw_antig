@@ -106,6 +106,9 @@ def process_video_task(task_id):
     try:
         video_id = ""
         description = ""
+        channel = None
+        channel_id = None
+        channel_avatar = None
         if url:
             id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
             if id_match:
@@ -139,9 +142,6 @@ def process_video_task(task_id):
                 'nocheckcertificate': True,
             }
             
-            channel = None
-            channel_id = None
-            channel_avatar = None
             channel_url = None
 
             try:
@@ -272,7 +272,13 @@ def process_video_task(task_id):
             raise Exception(f"Worker 进程失败 (exit code: {return_code})")
         
         print(f"--- Worker 进程成功完成 ---")
-        
+
+        # 清理残留错误文件（重试场景下可能存在上次失败的 _error.json）
+        error_file = f"{RESULTS_DIR}/{task_id}_error.json"
+        if os.path.exists(error_file):
+            os.remove(error_file)
+            print(f"--- 清理残留错误文件: {error_file} ---")
+
         # 3. Finalize results
         result_file = f"{RESULTS_DIR}/{task_id}.json"
         with open(result_file, "r", encoding="utf-8") as f:
