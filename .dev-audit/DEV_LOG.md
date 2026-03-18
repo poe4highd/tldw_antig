@@ -1,3 +1,13 @@
+# 2026-03-17 开发日志
+
+### [Bugfix] /process 端点增加 URL 格式校验
+- **需求**：用户反映任务 `1773761314` 处理失败。排查发现该任务通过 `/process` 端点提交，URL 值为 "Xxx"（无效），`media_path` 为 null。后端无 URL 校验直接入队，yt-dlp 下载 "Xxx" 报错。
+- **根因**：`/process` 端点不校验 URL 格式，任何文本都能入队。非 YouTube ID 且非 HTTP URL 的输入会生成时间戳 task_id 并白白浪费 scheduler 资源。
+- **实际改动**：
+  1. `backend/main.py` `/process` 端点：新增 URL 基础校验，必须是 `http(s)://` 开头或 11 位 YouTube ID，否则返回 400
+  2. `frontend/app/tasks/page.tsx` `startProcess()`：前端提交前同步校验，无效输入即时提示
+- **验证**：`python3 -m py_compile main.py` ✓
+
 # 2026-03-16 开发日志
 
 ### [Bugfix] 修复上传音频处理因 channel 变量未定义而崩溃

@@ -84,6 +84,13 @@ export default function TasksPage() {
 
     const startProcess = async () => {
         if (!url) return;
+        const trimmed = url.trim();
+        const isYoutubeId = /^[0-9A-Za-z_-]{11}$/.test(trimmed);
+        const isValidUrl = /^https?:\/\//.test(trimmed);
+        if (!isYoutubeId && !isValidUrl) {
+            setStatus(t("tasks.invalidUrl") || "请输入有效的 YouTube 链接或视频 ID");
+            return;
+        }
         setStatus(t("tasks.statusInit"));
         setProgress(0);
         setEta(null);

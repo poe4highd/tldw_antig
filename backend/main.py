@@ -351,8 +351,15 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
     # 优先使用 YouTube ID 作为 task_id
     url = request.url
     task_id = None
-    
+
     if url:
+        url = url.strip()
+        # URL 基础校验：必须是 HTTP(S) 链接或 11 位 YouTube ID
+        is_youtube_id = len(url) == 11 and re.match(r"^[0-9A-Za-z_-]{11}$", url)
+        is_valid_url = url.startswith("http://") or url.startswith("https://")
+        if not is_youtube_id and not is_valid_url:
+            raise HTTPException(status_code=400, detail="请输入有效的 YouTube 链接或视频 ID")
+
         # 更精确地正则匹配 YouTube ID，避免误匹配本站结果页
         youtube_regex = r"(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})(?:[?&]|$)"
         if "youtube.com" in url or "youtu.be" in url:

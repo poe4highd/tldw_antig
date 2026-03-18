@@ -1,3 +1,4 @@
+[2026-03-17] | [Bugfix] | /process 端点增加 URL 格式校验 | 前后端双重校验拒绝无效 URL 输入，防止无效任务入队浪费资源 | DEV_LOG.md
 [2026-03-16] | [Bugfix] | 修复上传音频 channel 未定义崩溃 | process_task.py channel/channel_id/channel_avatar 初始化提到分支外，Worker 成功后清理残留 _error.json | DEV_LOG.md
 [2026-03-09] | [Feature] | 加权语言检测覆盖韩/日/多语言 | detect_language_preference() 改为字符计数，transcriber.py 暴露 Whisper info.language，worker.py 加权合并，summarize_text() 增加韩/日/通用 prompt | DEV_LOG.md
 [2026-03-06] | [Feature] | AI 摘要语言随视频原语言自动适配 | processor.py summarize_text() 按 detect_language_preference() 结果选用英/繁/简三套 prompt | DEV_LOG.md
