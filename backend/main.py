@@ -689,7 +689,7 @@ async def get_history(user_id: str = None):
                     active_taskId_set.add(v["id"])
 
             # Then fetch history
-            query = supabase.table("submissions").select("created_at, videos(id, title, thumbnail, usage)")
+            query = supabase.table("submissions").select("created_at, videos(id, title, thumbnail, usage, status)")
             if user_id:
                 # Basic UUID check to avoid Supabase error
                 import re

@@ -1,5 +1,12 @@
 # 2026-03-17 开发日志
 
+### [Bugfix] 修复 /history Supabase 查询缺少 status 字段导致 fallback 到本地文件
+- **需求**：上传文件未出现在用户处理历史和书架中。
+- **根因**：`/history` 端点 Supabase 查询 `videos(id, title, thumbnail, usage)` 漏了 `status` 字段。L713 检查 `video.get("status") != "completed"` 得到 `None != "completed"` = True，导致所有 Supabase 记录被跳过，history 一直走本地 JSON 文件 fallback。本地 fallback 按 `user_id` 过滤，上传文件 `user_id` 为 None（未登录上传），被过滤掉。
+- **实际改动**：`backend/main.py` L692：查询添加 `status` 字段 → `videos(id, title, thumbnail, usage, status)`
+- **验证**：修复后查询正确返回 `status=completed`，Supabase 路径正常工作
+- **经验**：Supabase join select 必须显式列出所有后续代码依赖的字段。这个 bug 潜伏很久未被发现，是因为本地文件 fallback 恰好兜住了，功能看起来正常。
+
 ### [UX] 上传文件报告页自动切换到 MP3 播放器
 - **需求**：上传的音频/视频没有 YouTube 链接，报告页面默认显示 YouTube 播放器导致"该视频不能观看"。应自动根据来源类型切换：YouTube → YouTube 播放器，上传文件 → MP3 播放器。同时删除手动切换按钮。
 - **实际改动**：

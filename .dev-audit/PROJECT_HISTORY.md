@@ -1,3 +1,4 @@
+[2026-03-17] | [Bugfix] | 修复 /history Supabase 查询缺 status 字段 | videos join select 漏了 status 导致所有记录被跳过，history 一直走本地 fallback | DEV_LOG.md
 [2026-03-17] | [UX] | 上传文件报告页自动切换 MP3 播放器 | useLocalAudio 根据 youtube_id 自动判断，删除手动切换按钮 | DEV_LOG.md
 [2026-03-17] | [Bugfix] | /process 端点增加 URL 格式校验 | 前后端双重校验拒绝无效 URL 输入，防止无效任务入队浪费资源 | DEV_LOG.md
 [2026-03-16] | [Bugfix] | 修复上传音频 channel 未定义崩溃 | process_task.py channel/channel_id/channel_avatar 初始化提到分支外，Worker 成功后清理残留 _error.json | DEV_LOG.md
