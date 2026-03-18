@@ -1,5 +1,12 @@
 # 2026-03-17 开发日志
 
+### [UX] 上传文件报告页自动切换到 MP3 播放器
+- **需求**：上传的音频/视频没有 YouTube 链接，报告页面默认显示 YouTube 播放器导致"该视频不能观看"。应自动根据来源类型切换：YouTube → YouTube 播放器，上传文件 → MP3 播放器。同时删除手动切换按钮。
+- **实际改动**：
+  1. `frontend/app/result/[id]/ResultClient.tsx` L86-87：`useLocalAudio` 从 `useState(false)` 改为根据 `result.youtube_id` 自动判断（`up_` 前缀或无 youtube_id → 本地音频）
+  2. 同文件：删除 "Sync Audio" / "YouTube" 手动切换按钮
+- **验证**：`npx next build` ✓
+
 ### [Bugfix] /process 端点增加 URL 格式校验
 - **需求**：用户反映任务 `1773761314` 处理失败。排查发现该任务通过 `/process` 端点提交，URL 值为 "Xxx"（无效），`media_path` 为 null。后端无 URL 校验直接入队，yt-dlp 下载 "Xxx" 报错。
 - **根因**：`/process` 端点不校验 URL 格式，任何文本都能入队。非 YouTube ID 且非 HTTP URL 的输入会生成时间戳 task_id 并白白浪费 scheduler 资源。

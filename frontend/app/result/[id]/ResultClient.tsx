@@ -83,7 +83,8 @@ export default function ResultClient({ id }: { id: string }) {
     const playerRef = useRef<any>(null); // YouTube Player instance ref
     const [isPlayerReady, setIsPlayerReady] = useState(false); // Track readiness for UI/polling
     const audioRef = useRef<HTMLAudioElement>(null);
-    const [useLocalAudio, setUseLocalAudio] = useState(false);
+    // 自动判断：上传文件用本地音频播放，YouTube 视频用 YouTube 播放器
+    const useLocalAudio = !result?.youtube_id || result.youtube_id.startsWith('up_');
 
     const [currentTime, setCurrentTime] = useState(0);
     const [videoDuration, setVideoDuration] = useState(0);
@@ -450,16 +451,6 @@ export default function ResultClient({ id }: { id: string }) {
                                 }}
                             />
                         )}
-                        <button
-                            onClick={() => setUseLocalAudio(!useLocalAudio)}
-                            className="absolute top-4 md:top-6 right-4 md:right-6 z-20 px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500 transition-all shadow-xl"
-                        >
-                            {useLocalAudio ? (
-                                <span className="flex items-center gap-2"><Play className="w-3 h-3" /> YouTube</span>
-                            ) : (
-                                <span className="flex items-center gap-2"><ArrowDownToLine className="w-3 h-3" /> {t("result.syncAudio")}</span>
-                            )}
-                        </button>
 
                     </div>
                 </div>
