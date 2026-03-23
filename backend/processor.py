@@ -68,25 +68,39 @@ PROMPT = """
 {text_with_timestamps}
 """
 
-def get_llm_client():
+def get_llm_client(fallback=False):
     """
     根据环境变量 LLM_PROVIDER 返回对应的 OpenAI 或 Ollama 客户端。
+    fallback=True 时返回备用 provider 客户端（OpenAI→Ollama 或 Ollama→OpenAI）。
+    返回 (client, provider_name) 元组。
     """
     provider = os.getenv("LLM_PROVIDER", "openai").lower()
-    
+
+    if fallback:
+        if provider != "ollama":
+            # 主是 OpenAI，fallback 到 Ollama
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+            ollama_model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+            print(f"--- [LLM Fallback] Switching to Ollama: {base_url}, model={ollama_model} ---")
+            return OpenAI(base_url=base_url, api_key="ollama"), "ollama"
+        else:
+            # 主是 Ollama，fallback 到 OpenAI
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                return None, None
+            print(f"--- [LLM Fallback] Switching to OpenAI ---")
+            return OpenAI(api_key=api_key), "openai"
+
     if provider == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
         print(f"--- Using Ollama Provider: {base_url} ---")
-        return OpenAI(
-            base_url=base_url,
-            api_key="ollama"  # Ollama 不需要真正的 key，但 OpenAI 客户端初始化通常需要非空字符串
-        )
-    
+        return OpenAI(base_url=base_url, api_key="ollama"), "ollama"
+
     # 默认使用 OpenAI
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return None
-    return OpenAI(api_key=api_key)
+        return None, None
+    return OpenAI(api_key=api_key), "openai"
 
 def get_youtube_thumbnail_url(url):
     video_id = ""
@@ -172,8 +186,8 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     keywords = extract_keywords(title, description)
     current_prompt = PROMPT + "\n" + lang_instruction
 
-    client = get_llm_client()
-    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if os.getenv("LLM_PROVIDER") == "ollama" else "gpt-4o-mini"
+    client, provider = get_llm_client()
+    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if provider == "ollama" else "gpt-4o-mini"
     actual_model = model if model != "gpt-4o-mini" else default_model
     
     # 如果片段太多（超过 100 个），分块处理以防输出被截断
@@ -277,7 +291,7 @@ def summarize_text(full_text, title="", description="", language=None):
     语言优先使用 language 参数（ISO 码，由 worker.py 加权检测后传入），
     未传入时 fallback 到标题/描述文本检测。
     """
-    client = get_llm_client()
+    client, provider = get_llm_client()
     if not client:
         return {"summary": "无总结", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
 
@@ -450,78 +464,103 @@ Output strictly in the following JSON format:
 }}
 """
 
-    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if os.getenv("LLM_PROVIDER") == "ollama" else "gpt-4o-mini"
-    
-    try:
-        response = client.chat.completions.create(
-            model=default_model,
+    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if provider == "ollama" else "gpt-4o-mini"
+
+    def _call_llm(llm_client, llm_model, use_json_format=True):
+        """执行 LLM 调用，返回 (data, usage)。"""
+        kwargs = dict(
+            model=llm_model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            response_format={ "type": "json_object" }
         )
-        
+        if use_json_format:
+            kwargs["response_format"] = {"type": "json_object"}
+        response = llm_client.chat.completions.create(**kwargs)
         content = response.choices[0].message.content
-        data = json.loads(content)
-        usage = {
-            "prompt_tokens": response.usage.prompt_tokens,
-            "completion_tokens": response.usage.completion_tokens,
-            "total_tokens": response.usage.total_tokens
-        }
-        # Post-process summary for consistent format
-        if data.get("summary"):
+        # 从 response 中提取 JSON（Ollama 可能把 JSON 嵌在 markdown 代码块里）
+        try:
+            data = json.loads(content)
+        except Exception:
             import re as _re
+            match = _re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, _re.DOTALL)
+            if match:
+                data = json.loads(match.group(1))
+            else:
+                match2 = _re.search(r'\{.*\}', content, _re.DOTALL)
+                data = json.loads(match2.group(0)) if match2 else {}
+        usage_obj = response.usage
+        usage = {
+            "prompt_tokens": usage_obj.prompt_tokens if usage_obj else 0,
+            "completion_tokens": usage_obj.completion_tokens if usage_obj else 0,
+            "total_tokens": usage_obj.total_tokens if usage_obj else 0,
+        }
+        return data, usage
 
-            def _ts_to_sec(ts):
-                m = _re.match(r'\[(\d{2}):(\d{2})(?::(\d{2}))?\]', ts)
-                if not m: return 0
-                h = int(m.group(1)) if m.group(3) else 0
-                mn = int(m.group(2)) if m.group(3) else int(m.group(1))
-                s = int(m.group(3)) if m.group(3) else int(m.group(2))
-                return h * 3600 + mn * 60 + s
+    def _postprocess(data):
+        """对 summary 做后处理：分行、整理时间戳、排序。"""
+        if not data.get("summary"):
+            return data
+        import re as _re
 
-            summary = data["summary"]
+        def _ts_to_sec(ts):
+            m = _re.match(r'\[(\d{2}):(\d{2})(?::(\d{2}))?\]', ts)
+            if not m: return 0
+            h = int(m.group(1)) if m.group(3) else 0
+            mn = int(m.group(2)) if m.group(3) else int(m.group(1))
+            s = int(m.group(3)) if m.group(3) else int(m.group(2))
+            return h * 3600 + mn * 60 + s
 
-            # Fix 1: if AI returned a single-line summary, split by numbered item markers
-            # e.g. "1. text[ts] 2. text[ts]..." → split at "N. " boundaries
-            lines = [l for l in summary.split('\n') if l.strip()]
-            if len(lines) <= 1:
-                # Try splitting by "数字. " pattern (e.g. "1. ", "2. ")
-                parts = _re.split(r'(?=\d+\.\s)', summary.strip())
+        summary = data["summary"]
+        lines = [l for l in summary.split('\n') if l.strip()]
+        if len(lines) <= 1:
+            parts = _re.split(r'(?=\d+\.\s)', summary.strip())
+            parts = [p.strip() for p in parts if p.strip()]
+            if len(parts) > 1:
+                lines = parts
+            else:
+                parts = _re.split(r'(?<=\[\d{2}:\d{2}\])\s*(?=\S)|(?<=\[\d{2}:\d{2}:\d{2}\])\s*(?=\S)', summary.strip())
                 parts = [p.strip() for p in parts if p.strip()]
                 if len(parts) > 1:
                     lines = parts
-                else:
-                    # Fallback: split at each [timestamp] boundary
-                    parts = _re.split(r'(?<=\[\d{2}:\d{2}\])\s*(?=\S)|(?<=\[\d{2}:\d{2}:\d{2}\])\s*(?=\S)', summary.strip())
-                    parts = [p.strip() for p in parts if p.strip()]
-                    if len(parts) > 1:
-                        lines = parts
 
-            # Fix 2: ensure each line ends with its timestamp (move inline ts to end if needed)
-            fixed_lines = []
-            for line in lines:
-                timestamps = _re.findall(r'\[\d{2}:\d{2}(?::\d{2})?\]', line)
-                if timestamps:
-                    # Remove all timestamps from text body, append the last one at end
-                    last_ts = timestamps[-1]
-                    text = _re.sub(r'\s*\[\d{2}:\d{2}(?::\d{2})?\]\s*', ' ', line).strip()
-                    fixed_lines.append(f"{text}{last_ts}")
-                else:
-                    fixed_lines.append(line)
+        fixed_lines = []
+        for line in lines:
+            timestamps = _re.findall(r'\[\d{2}:\d{2}(?::\d{2})?\]', line)
+            if timestamps:
+                last_ts = timestamps[-1]
+                text = _re.sub(r'\s*\[\d{2}:\d{2}(?::\d{2})?\]\s*', ' ', line).strip()
+                fixed_lines.append(f"{text}{last_ts}")
+            else:
+                fixed_lines.append(line)
 
-            # Fix 3: sort by timestamp (chronological order)
-            if any(_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) for l in fixed_lines):
-                fixed_lines.sort(key=lambda l: _ts_to_sec(
-                    _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l).group()
-                    if _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) else '[00:00]'
-                ))
+        if any(_re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) for l in fixed_lines):
+            fixed_lines.sort(key=lambda l: _ts_to_sec(
+                _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l).group()
+                if _re.search(r'\[\d{2}:\d{2}(?::\d{2})?\]', l) else '[00:00]'
+            ))
 
-            data["summary"] = '\n'.join(fixed_lines)
-        return data, usage
+        data["summary"] = '\n'.join(fixed_lines)
+        return data
+
+    try:
+        data, usage = _call_llm(client, default_model, use_json_format=True)
+        return _postprocess(data), usage
     except Exception as e:
-        print(f"Summarization Error: {e}")
+        print(f"Summarization Error ({provider}): {e}")
+        # Fallback：切换到备用 provider 重试一次
+        fb_client, fb_provider = get_llm_client(fallback=True)
+        if fb_client:
+            try:
+                fb_model = os.getenv("OLLAMA_MODEL", "qwen3:8b") if fb_provider == "ollama" else "gpt-4o-mini"
+                print(f"[summarize_text] Retrying with fallback provider: {fb_provider}, model={fb_model}")
+                # Ollama 对 json_object 支持不稳定，先不传 response_format
+                use_json = fb_provider != "ollama"
+                data, usage = _call_llm(fb_client, fb_model, use_json_format=use_json)
+                return _postprocess(data), usage
+            except Exception as e2:
+                print(f"Summarization Fallback Error ({fb_provider}): {e2}")
         return {"summary": "总结生成失败", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
 
 def group_by_time(subtitles, seconds=45):
