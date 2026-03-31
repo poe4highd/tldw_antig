@@ -1,38 +1,26 @@
-# 2026-03-17 开发日志
+# 2026-03-30 开发日志
 
-### [Bugfix] 修复 /history Supabase 查询缺少 status 字段导致 fallback 到本地文件
-- **需求**：上传文件未出现在用户处理历史和书架中。
-- **根因**：`/history` 端点 Supabase 查询 `videos(id, title, thumbnail, usage)` 漏了 `status` 字段。L713 检查 `video.get("status") != "completed"` 得到 `None != "completed"` = True，导致所有 Supabase 记录被跳过，history 一直走本地 JSON 文件 fallback。本地 fallback 按 `user_id` 过滤，上传文件 `user_id` 为 None（未登录上传），被过滤掉。
-- **实际改动**：`backend/main.py` L692：查询添加 `status` 字段 → `videos(id, title, thumbnail, usage, status)`
-- **验证**：修复后查询正确返回 `status=completed`，Supabase 路径正常工作
-- **经验**：Supabase join select 必须显式列出所有后续代码依赖的字段。这个 bug 潜伏很久未被发现，是因为本地文件 fallback 恰好兜住了，功能看起来正常。
+### [Perf] 降低 Supabase Egress 超量 — 轮询瘦身 + SELECT 精简
 
-### [UX] 上传文件报告页自动切换到 MP3 播放器
-- **需求**：上传的音频/视频没有 YouTube 链接，报告页面默认显示 YouTube 播放器导致"该视频不能观看"。应自动根据来源类型切换：YouTube → YouTube 播放器，上传文件 → MP3 播放器。同时删除手动切换按钮。
-- **实际改动**：
-  1. `frontend/app/result/[id]/ResultClient.tsx` L86-87：`useLocalAudio` 从 `useState(false)` 改为根据 `result.youtube_id` 自动判断（`up_` 前缀或无 youtube_id → 本地音频）
-  2. 同文件：删除 "Sync Audio" / "YouTube" 手动切换按钮
-- **验证**：`npx next build` ✓
-
-### [Bugfix] /process 端点增加 URL 格式校验
-- **需求**：用户反映任务 `1773761314` 处理失败。排查发现该任务通过 `/process` 端点提交，URL 值为 "Xxx"（无效），`media_path` 为 null。后端无 URL 校验直接入队，yt-dlp 下载 "Xxx" 报错。
-- **根因**：`/process` 端点不校验 URL 格式，任何文本都能入队。非 YouTube ID 且非 HTTP URL 的输入会生成时间戳 task_id 并白白浪费 scheduler 资源。
-- **实际改动**：
-  1. `backend/main.py` `/process` 端点：新增 URL 基础校验，必须是 `http(s)://` 开头或 11 位 YouTube ID，否则返回 400
-  2. `frontend/app/tasks/page.tsx` `startProcess()`：前端提交前同步校验，无效输入即时提示
-- **验证**：`python3 -m py_compile main.py` ✓
-
-# 2026-03-16 开发日志
-
-### [Bugfix] 修复上传音频处理因 channel 变量未定义而崩溃
-- **需求**：用户反映上传音频文件未被正确处理。排查发现最近两次上传（`up_da05b8c0`、`up_c033b14b`）均在 finalize 阶段报 `UnboundLocalError: cannot access local variable 'channel'`。
-- **根因**：`process_task.py` 中 `channel`、`channel_id`、`channel_avatar` 三个变量只在 `if url:` 分支（YouTube 路径 L142-144）内初始化，上传文件走 `elif local_file:` 分支跳过了初始化，但 L290-292 无条件引用这三个变量。Worker 子进程（转录+摘要）实际已成功完成，但 finalize 写结果时崩溃，导致 GPU 算力白烧。
+- **需求**：Supabase Free Plan egress 限额 5GB，本计费周期已用 9.74GB（超量 4.74GB）。分析原因并优化数据传输量。
+- **根因分析**：
+  1. `tasks/page.tsx` 进度轮询每 2 秒拉一次 `/result/{taskId}`（含 report_data ~85KB 大字段），5 分钟任务产生 ~12.5MB 出流量
+  2. `tasks/page.tsx` 历史记录每 15 秒无条件轮询，历史数据变化频率极低
+  3. `pending/page.tsx` 队列页每 5 秒无条件轮询，队列为空时完全无意义
+  4. `main.py` `/bookshelf` 使用 `videos(*)` 拉全量 video 记录（含 paragraphs/raw_subtitles 大字段）
 - **计划**：
-  1. 将 `channel`/`channel_id`/`channel_avatar` 初始化提到 `if url:` 之前（与 `video_id`、`description` 同级）
-  2. Worker 成功后清理残留的 `_error.json`，防止重试场景下状态混乱
+  1. 进度轮询降频：2000ms → 30000ms
+  2. 历史记录改为事件驱动：任务完成时触发一次，移除定时器
+  3. 队列轮询改为条件触发：`active_tasks.length > 0` 时才轮询
+  4. `videos(*)` 改为精确字段选择，通过 PostgREST JSON path 仅拉 summary/keywords
 - **实际改动**：
-  1. `backend/process_task.py` L109-111：新增 `channel = None` / `channel_id = None` / `channel_avatar = None` 默认初始化
-  2. `backend/process_task.py` L145：删除 `if url:` 内的重复初始化（保留 `channel_url = None`，因其仅在该分支使用）
-  3. `backend/process_task.py` L276-280：Worker 成功后检查并删除残留 `_error.json`
-- **验证**：`python3 -m py_compile process_task.py` ✓
-- **经验**：变量作用域问题——当多个分支共享后续代码时，公共变量必须在分支之前初始化。重试场景需要清理上次失败的残留状态文件。
+  1. `frontend/app/tasks/page.tsx:186` 轮询间隔 2000 → 30000
+  2. `frontend/app/tasks/page.tsx` 移除 `setInterval(() => fetchHistory(), 15000)`，在任务 completed 分支加 `fetchHistory()` 触发一次
+  3. `frontend/app/pending/page.tsx` 拆分 useEffect：初始加载独立，轮询条件依赖 `tasks.length > 0`
+  4. `backend/main.py:1022/1030` `videos(*)` → `videos(id, title, thumbnail, status, is_public, report_data->summary, report_data->keywords)`
+  5. 同步修改后端取值：`video.get("report_data", {}).get("summary")` → `video.get("summary")`
+- **验证**：
+  1. 代码层面逻辑验证通过，字段对齐
+  2. PostgREST JSON path 选择器（`report_data->summary`）需上线后在 Supabase Dashboard → API Logs 验证字段提升是否生效；如异常可 fallback 到 `report_data` 整列
+  3. 预计每日 egress 从 300-500MB 降至 100-150MB
+- **经验**：轮询场景要区分"用户主动在看的动态数据"与"变化频率低的静态列表"——前者可以轮询但要瘦身载荷，后者应改为事件驱动或手动触发。SELECT * 在 JOIN 场景代价尤其高，report_data 大字段（paragraphs/raw_subtitles）应通过 JSON path 选择器按需提取。

@@ -59,9 +59,13 @@ export default function PendingPage() {
 
     useEffect(() => {
         fetchTasks();
+    }, []);
+
+    useEffect(() => {
+        if (tasks.length === 0) return;
         const timer = setInterval(fetchTasks, 5000);
         return () => clearInterval(timer);
-    }, []);
+    }, [tasks.length]);
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-indigo-500/30">

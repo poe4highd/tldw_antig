@@ -162,6 +162,7 @@ export default function TasksPage() {
                     setStatus(t("tasks.statusCompleted"));
                     setIsFinished(true);
                     setFinishedTaskId(taskId);
+                    fetchHistory();
                 } else if (data.status === "failed") {
                     setProgress(0);
                     setStatus("Failed: " + (data.detail || "Unknown error"));
@@ -183,7 +184,7 @@ export default function TasksPage() {
             } catch (e) {
                 setStatus(t("tasks.statusConnectionLost"));
             }
-        }, 2000);
+        }, 30000);
     };
 
     const handleSignOut = async () => {
@@ -219,8 +220,6 @@ export default function TasksPage() {
         if (!user?.id) return;
 
         fetchHistory();
-        const interval = setInterval(() => fetchHistory(), 15000);
-        return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 

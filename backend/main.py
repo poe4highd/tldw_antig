@@ -1021,7 +1021,7 @@ async def get_bookshelf(request: Request, user_id: str, limit: int = 40):
         # Define fetch functions for parallel execution
         def fetch_submissions():
             return supabase.table("submissions") \
-                .select("video_id, created_at, videos(*)") \
+                .select("video_id, created_at, videos(id, title, thumbnail, status, is_public, report_data->summary, report_data->keywords)") \
                 .eq("user_id", user_id) \
                 .order("created_at", desc=True) \
                 .limit(limit) \
@@ -1029,7 +1029,7 @@ async def get_bookshelf(request: Request, user_id: str, limit: int = 40):
 
         def fetch_likes():
             return supabase.table("user_likes") \
-                .select("video_id, created_at, videos(*)") \
+                .select("video_id, created_at, videos(id, title, thumbnail, status, is_public, report_data->summary, report_data->keywords)") \
                 .eq("user_id", user_id) \
                 .order("created_at", desc=True) \
                 .limit(limit) \
@@ -1055,8 +1055,8 @@ async def get_bookshelf(request: Request, user_id: str, limit: int = 40):
                     "mtime": item["created_at"],
                     "status": video["status"],
                     "is_public": video.get("is_public", True),
-                    "summary": video.get("report_data", {}).get("summary") if video.get("report_data") else None,
-                    "keywords": video.get("report_data", {}).get("keywords") if video.get("report_data") else [],
+                    "summary": video.get("summary"),
+                    "keywords": video.get("keywords") or [],
                     "source": "submission"
                 }
 
@@ -1073,8 +1073,8 @@ async def get_bookshelf(request: Request, user_id: str, limit: int = 40):
                         "mtime": item["created_at"],
                         "status": video["status"],
                         "is_public": video.get("is_public", True),
-                        "summary": video.get("report_data", {}).get("summary") if video.get("report_data") else None,
-                        "keywords": video.get("report_data", {}).get("keywords") if video.get("report_data") else [],
+                        "summary": video.get("summary"),
+                        "keywords": video.get("keywords") or [],
                         "source": "like",
                         "is_liked": True
                     }
