@@ -1,6 +1,44 @@
 # Read-Tube
 YouTube / Audio / Video Quick Reader
 
+## 技术栈
+
+### 前端
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Next.js | 16.1.1 | React 框架，SSR/SSG |
+| React | 19.2.3 | UI 框架 |
+| TypeScript | 5.x | 类型系统 |
+| Tailwind CSS | 4.x | 样式 |
+| Framer Motion | 12.x | 动画 |
+| Supabase JS | 2.x | 数据库客户端 |
+| Lucide React | — | 图标库 |
+| react-youtube | — | YouTube 播放器嵌入 |
+| react-markdown | — | Markdown 渲染 |
+| Vercel Analytics | — | 前端分析 |
+
+### 后端
+| 技术 | 用途 |
+|------|------|
+| FastAPI + Uvicorn | API 框架与 ASGI 服务器 |
+| Supabase (Python) | 云数据库（用户数据、任务记录） |
+| OpenAI SDK | LLM 二次加工（GPT-4o-mini 等） |
+| Ollama | 本地 LLM fallback |
+| yt-dlp | YouTube / 音视频下载 |
+| ffmpeg-python | 音频格式转换与预处理 |
+| python-dotenv | 环境变量管理 |
+| Pydantic | 数据校验 |
+
+### 语音转录引擎（ASR）
+| 引擎 | 模型 | 平台 | 备注 |
+|------|------|------|------|
+| faster-whisper | large-v3-turbo | Linux / CUDA | 主力引擎，float16 |
+| mlx-whisper | large-v3-turbo | Apple Silicon (M1/M2/M3) | Mac 优先，MPS 加速 |
+| FunASR (SenseVoiceSmall) | SenseVoiceSmall | Mac MPS / CPU | 中文特化 |
+| FunASR (Paraformer-zh) | iic/Paraformer-zh | Mac MPS / CPU | 中文特化备选 |
+| sherpa-onnx (SenseVoice) | model.int8.onnx | 跨平台 | ONNX 推理 + Silero VAD |
+
+---
 
 ## 系统要求
 - Python 3.9+
@@ -48,12 +86,12 @@ OPENAI_API_KEY=sk-xxxx
 访问 `http://localhost:3000` 即可。
 
 ## AI 处理逻辑
-系统不仅进行语音转录，还会将结果提交给 OpenAI LLM (GPT-4o-mini) 进行二次加工。
+系统不仅进行语音转录，还会将结果提交给 LLM (GPT-4o-mini 或 Ollama 本地模型) 进行二次加工。
 
 ### LLM Prompt 核心指令
 为了提供极致的阅读体验，AI 遵循以下指令：
 - **精准修正**：在不改变字数的前提下，根据上下文纠正多音字或同音字。
-- **标点与分段**：为文本添加精准的标点符号（如，。？！“”），并根据逻辑进行自然分段。
+- **标点与分段**：为文本添加精准的标点符号（如，。？！""），并根据逻辑进行自然分段。
 - **简繁自适应**：自动识别标题语言。如果标题是繁体字，则转录结果也自动转换为繁体中文。
 - **禁止删减**：绝对禁止删除任何词汇（包括口语词），确保转录的完整性。
 
