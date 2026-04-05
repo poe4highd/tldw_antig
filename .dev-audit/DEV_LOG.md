@@ -1,26 +1,36 @@
-# 2026-03-30 开发日志
+# 2026-04-04 开发日志
 
-### [Perf] 降低 Supabase Egress 超量 — 轮询瘦身 + SELECT 精简
+### [Eval] Gemma 4 本地字幕矫正评测 — gemma4:e2b vs qwen3:8b vs gpt-4o-mini
 
-- **需求**：Supabase Free Plan egress 限额 5GB，本计费周期已用 9.74GB（超量 4.74GB）。分析原因并优化数据传输量。
-- **根因分析**：
-  1. `tasks/page.tsx` 进度轮询每 2 秒拉一次 `/result/{taskId}`（含 report_data ~85KB 大字段），5 分钟任务产生 ~12.5MB 出流量
-  2. `tasks/page.tsx` 历史记录每 15 秒无条件轮询，历史数据变化频率极低
-  3. `pending/page.tsx` 队列页每 5 秒无条件轮询，队列为空时完全无意义
-  4. `main.py` `/bookshelf` 使用 `videos(*)` 拉全量 video 记录（含 paragraphs/raw_subtitles 大字段）
+- **需求**：Google 新发布 Gemma 4，探索 RTX 4060（8GB VRAM）能流畅运行的最大版本，集成到本地 Ollama，测试其在字幕矫正步骤（`split_into_paragraphs`）中的表现是否可替代现有 qwen3:8b。
+
 - **计划**：
-  1. 进度轮询降频：2000ms → 30000ms
-  2. 历史记录改为事件驱动：任务完成时触发一次，移除定时器
-  3. 队列轮询改为条件触发：`active_tasks.length > 0` 时才轮询
-  4. `videos(*)` 改为精确字段选择，通过 PostgREST JSON path 仅拉 summary/keywords
+  1. 确认 4060 适配版本（gemma4:e2b，7.2GB）
+  2. 升级 Ollama 至 ≥0.20.0（原版本 0.15.5 不支持 Gemma 4）
+  3. 在测试视频 QVBpiuph3rM 上生成 Whisper 转录缓存
+  4. 修改 `evaluate_accuracy.py` 增加 Gemma 4 对比轮次
+  5. 跑三模型 CER 对比（gemma4:e2b / qwen3:8b / gpt-4o-mini）
+
 - **实际改动**：
-  1. `frontend/app/tasks/page.tsx:186` 轮询间隔 2000 → 30000
-  2. `frontend/app/tasks/page.tsx` 移除 `setInterval(() => fetchHistory(), 15000)`，在任务 completed 分支加 `fetchHistory()` 触发一次
-  3. `frontend/app/pending/page.tsx` 拆分 useEffect：初始加载独立，轮询条件依赖 `tasks.length > 0`
-  4. `backend/main.py:1022/1030` `videos(*)` → `videos(id, title, thumbnail, status, is_public, report_data->summary, report_data->keywords)`
-  5. 同步修改后端取值：`video.get("report_data", {}).get("summary")` → `video.get("summary")`
-- **验证**：
-  1. 代码层面逻辑验证通过，字段对齐
-  2. PostgREST JSON path 选择器（`report_data->summary`）需上线后在 Supabase Dashboard → API Logs 验证字段提升是否生效；如异常可 fallback 到 `report_data` 整列
-  3. 预计每日 egress 从 300-500MB 降至 100-150MB
-- **经验**：轮询场景要区分"用户主动在看的动态数据"与"变化频率低的静态列表"——前者可以轮询但要瘦身载荷，后者应改为事件驱动或手动触发。SELECT * 在 JOIN 场景代价尤其高，report_data 大字段（paragraphs/raw_subtitles）应通过 JSON path 选择器按需提取。
+  1. `backend/scripts/evaluate_accuracy.py`：输出文件名改为含模型名（`eval_{model_name}_{video_id}.json`，避免覆盖）；`main()` 新增 `gemma4:e2b` 评测轮次
+  2. `backend/requirements.txt`：补充遗漏依赖 `zhconv`（`compare_subs.py` 需要，之前只在系统 Python 存在）
+  3. Ollama 服务器（192.168.1.182）升级：0.15.5 → 0.20.2，拉取 `gemma4:e2b`（7.2GB）
+
+- **评测结果**（测试集：QVBpiuph3rM，基准字数 7496）：
+
+  | 模型 | CER | 准确率 | 输出字数 |
+  |------|-----|--------|----------|
+  | gpt-4o-mini | **12.26%** | **87.74%** | 8015 |
+  | qwen3:8b | 28.52% | 71.48% | 6447 |
+  | gemma4:e2b | 37.05% | 62.95% | 5675 |
+
+- **问题发现**：
+  - Gemma 4 e2b 存在明显 JSON 输出不稳定（chunk 1 空段落、chunk 2 截断），导致部分分块内容丢失
+  - 输出字数比基准少 24%（丢字严重），是 CER 高的主要原因
+  - Ollama 对 JSON mode 的支持在小模型上不稳定，现有正则容错（processor.py:219-226）有一定缓解但不足以保证质量
+
+- **经验**：
+  - gemma4:e2b（2B 激活参数 MoE）对复杂中文指令跟随能力不足，不建议用于字幕矫正任务
+  - 若要用 Gemma 4，需要 gemma4:e4b（9.6GB）或以上，但超出 8GB VRAM；可以考虑量化版本
+  - 本地 Ollama 矫正整体质量与 gpt-4o-mini 差距仍大，可作为离线降级方案但不建议作为主力
+  - Ollama 版本需与模型要求匹配，升级前务必确认 `api/version`
