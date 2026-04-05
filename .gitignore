@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 backend/results/
 /results/
+backend/validation/
 backend/downloads/
 backend/cache/
 backend/models/

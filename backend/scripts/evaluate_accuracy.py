@@ -41,7 +41,7 @@ def run_correction(provider, model_name):
         "model": model_name
     }
     
-    output_path = os.path.join(backend_dir, "results", f"eval_{provider}_{VIDEO_ID}.json")
+    output_path = os.path.join(backend_dir, "results", f"eval_{model_name.replace(':', '_')}_{VIDEO_ID}.json")
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     
@@ -73,17 +73,21 @@ def main():
             print(f"Error: No cache found for {VIDEO_ID}")
             return
 
-    # 1. 运行 Ollama
+    # 1. 运行 Ollama (qwen3:8b，原有基准)
     ollama_model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
     ollama_res = run_correction("ollama", ollama_model)
-    
-    # 2. 运行 OpenAI
+
+    # 2. 运行 Gemma 4 e2b（新增：适合 8GB VRAM 的最大 Gemma 4 版本）
+    gemma4_res = run_correction("ollama", "gemma4:e2b")
+
+    # 3. 运行 OpenAI（基准线）
     openai_res = run_correction("openai", "gpt-4o-mini")
-    
-    # 3. 评估两者
+
+    # 4. 评估三者
     evaluate_cer(ollama_res)
+    evaluate_cer(gemma4_res)
     evaluate_cer(openai_res)
-    
+
     print("\n评估完成。请检查 backend/validation 目录下的报告。")
 
 if __name__ == "__main__":

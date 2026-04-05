@@ -21,3 +21,4 @@ apscheduler
 pyppeteer
 aiofiles
 loguru
+zhconv
