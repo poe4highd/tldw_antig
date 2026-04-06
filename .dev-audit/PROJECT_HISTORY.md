@@ -1,3 +1,4 @@
+[2026-04-06] | [Eval] | Gemma 4 e4b 矫正评测 | gemma4:e4b CER 13.43%，与 gpt-4o-mini（12.26%）差距仅 1.17%，可作本地主力方案 | DEV_LOG.md
 [2026-04-04] | [Eval] | Gemma 4 本地矫正评测 | gemma4:e2b CER 37%，不如 qwen3:8b（28%），gpt-4o-mini 最优（12%）；Ollama 升级至 0.20.2，补 zhconv 依赖 | log_20260404.md
 [2026-03-30] | [Perf] | Supabase Egress 超量优化 | 进度轮询 2s→30s、历史改事件驱动、队列条件轮询、videos(*) 改精确字段，预计 egress 降 ~4.5GB/月 | log_20260330.md
 [2026-03-22] | [Docs] | 创作者故事与产品介绍文章 | 在 dev_docs 新增周末/夜晚构建 Read-Tube 的英文文章，附产品截图占位与 ASCII 架构/流程图 | log_20260322.md

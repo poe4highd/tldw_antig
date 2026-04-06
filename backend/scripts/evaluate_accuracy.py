@@ -73,20 +73,31 @@ def main():
             print(f"Error: No cache found for {VIDEO_ID}")
             return
 
-    # 1. 运行 Ollama (qwen3:8b，原有基准)
-    ollama_model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
-    ollama_res = run_correction("ollama", ollama_model)
+    results_dir = os.path.join(backend_dir, "results")
 
-    # 2. 运行 Gemma 4 e2b（新增：适合 8GB VRAM 的最大 Gemma 4 版本）
-    gemma4_res = run_correction("ollama", "gemma4:e2b")
+    # 已有结果的模型直接复用，不重跑
+    cached_models = [
+        ("ollama", "qwen3:8b"),
+        ("ollama", "gemma4:e2b"),
+        ("openai", "gpt-4o-mini"),
+    ]
+    all_results = []
+    for provider, model_name in cached_models:
+        path = os.path.join(results_dir, f"eval_{model_name.replace(':', '_')}_{VIDEO_ID}.json")
+        if os.path.exists(path):
+            print(f">>> Skipping {model_name} (cached: {path})")
+            all_results.append(path)
+        else:
+            print(f">>> No cache for {model_name}, running correction...")
+            all_results.append(run_correction(provider, model_name))
 
-    # 3. 运行 OpenAI（基准线）
-    openai_res = run_correction("openai", "gpt-4o-mini")
+    # 只新跑 gemma4:e4b
+    gemma4_e4b_res = run_correction("ollama", "gemma4:e4b")
+    all_results.append(gemma4_e4b_res)
 
-    # 4. 评估三者
-    evaluate_cer(ollama_res)
-    evaluate_cer(gemma4_res)
-    evaluate_cer(openai_res)
+    # 评估所有模型 CER
+    for path in all_results:
+        evaluate_cer(path)
 
     print("\n评估完成。请检查 backend/validation 目录下的报告。")
 
