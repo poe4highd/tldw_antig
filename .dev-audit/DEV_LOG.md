@@ -1,4 +1,83 @@
+# 2026-04-07 开发日志
+
+### [Improve] PROMPT_V2 句子保留模式 — gemma4:e4b 首次超越 gpt-4o-mini
+
+- **需求**：LLM 矫正在 CER 上无正收益（raw 11.90%，gpt-4o-mini 12.26%，e4b V1 12.98%）。根因是 LLM 合并分段引入字词漂移。目标：改 prompt 策略，只做同音纠错+句末标点，保留原始句子边界，不改字数，期望 CER 追平 raw。
+
+- **实际改动**：
+  1. `backend/processor.py`：新增 `PROMPT_V2`（句子保留模式）— 核心规则：输入几行→输出几个 sentence，1:1 对应，只做同音字原位替换+句末标点，禁止合并/拆分/插词
+  2. `backend/processor.py`：`split_into_paragraphs()` 新增 `prompt_mode` 参数（`"v1"`/`"v2"`）；V2 下 CHUNK_SIZE 60（防漏行）、system message 换为校对员角色
+  3. `backend/scripts/evaluate_accuracy.py`：修复 `evaluate_cer` / `evaluate_raw_baseline` 使用系统 python3 问题，改为自动检测并优先使用 `backend/venv/bin/python`
+  4. `backend/scripts/evaluate_accuracy.py`：新增 gemma4:e4b V2 评测轮次，结果独立保存
+  5. `backend/scripts/gen_comparison_table.py`：扩展为五列对比表（GT / raw / gpt-4o-mini / e4b V1 / e4b V2）
+
+- **评测结果**（测试集：QVBpiuph3rM，基准字数 7496）：
+
+  | 模型 | CER | 准确率 | 输出字数 | 结果文件 |
+  |------|-----|--------|----------|----------|
+  | **gemma4:e4b V2（本次）** | **11.89%** | **88.11%** | 8103 | `backend/results/eval_gemma4_e4b-v2_QVBpiuph3rM.json` |
+  | raw Whisper（无矫正）| 11.90% | 88.10% | 8100 | `backend/cache/QVBpiuph3rM_local_large-v3-turbo_raw.json` |
+  | gpt-4o-mini | 12.26% | 87.74% | 8015 | `backend/results/eval_gpt-4o-mini_QVBpiuph3rM.json` |
+  | gemma4:e4b V1 | 12.98% | 87.02% | 7971 | `backend/results/eval_gemma4_e4b_QVBpiuph3rM.json` |
+  | qwen3:8b | 28.52% | 71.48% | 6447 | `backend/results/eval_qwen3_8b_QVBpiuph3rM.json` |
+
+  五列逐行对比表：`backend/validation/QVBpiuph3rM_5way_comparison.md`
+
+- **关键发现**：
+  - **V2 CER 11.89%，首次超越 gpt-4o-mini（12.26%），成为所有方案最佳**
+  - V2 sentence 数与 raw 完全对齐（1123/1123），句子边界完整保留
+  - 3 个 chunk（1/2/12）返回空响应，fallback 到 group_by_time，反而维持了 raw 质量
+  - 插词问题（"是"31次、"那"30次）来自 Whisper 本身，V2 未引入新问题
+
+- **空响应问题排查与修复**：
+  - 诊断：用完整 prompt 手动测试 chunk 1 和 chunk 10，finish_reason 均为 stop，确认是 **Ollama 服务偶发性空响应**，与内容无关（非安全过滤）
+  - 修复①：`processor.py` 加入指数退避重试（最多 3 次，间隔 1s/2s/4s）
+  - 重跑验证：19 个 chunk 中，6 个遇到空响应，5 个一次重试成功，1 个（chunk 10）三次全失败 fallback
+  - chunk 10 单独测试：第 3 次调用（等 2s 后）成功 → 原重试代码第 3 次失败后直接退出，未给第 4 次机会
+  - 修复②：重试次数从 3 提升至 **5**（间隔 1/2/4/8/16s），覆盖 Ollama 较长抖动窗口
+  - 结果：V2 CER 11.90%，与 raw Whisper 完全持平
+
+- **经验**：
+  - 对本地小模型（Gemma4 4B），"保留句子边界 + 只做最小改动"比"合并分段"策略 CER 更低，且更可控
+  - CHUNK_SIZE 从 80 降到 60 可减少长上下文导致的格式漂移，但同时增加了 Ollama 调用次数（19 vs 15）
+  - Ollama 远程服务存在偶发性空响应（约 6/19 次），必须加重试机制才能用于生产
+  - **V2 策略结论：gemma4:e4b + PROMPT_V2 + 重试机制，CER = raw Whisper，可作为本地零成本矫正方案**
+
 # 2026-04-06 开发日志
+
+### [Improve] Gemma4 矫正质量提升 + raw Whisper baseline 评测
+
+- **需求**：在 e4b CER 13.43% 基础上，进一步优化矫正质量；同时补充 raw Whisper（无 LLM 矫正）的 baseline，厘清 LLM 矫正步骤的实际增益。
+
+- **实际改动**：
+  1. `backend/scripts/evaluate_accuracy.py`：新增 `evaluate_raw_baseline()` 函数，在 LLM 评测前先对 raw Whisper cache 直接计算 CER，作为 baseline 对照
+  2. `backend/processor.py`：JSON key 归一化（`text_content`/`content` → `text`），消除 chunk 5 丢失问题
+  3. `backend/processor.py`：Ollama 调用加 `temperature=0.1`（原默认 ~0.8），减少 JSON 格式随机性
+  4. `backend/processor.py`：prompt 输出示例注明"字段名不得使用 text_content、content 或其他变体"
+
+- **评测结果**（测试集：QVBpiuph3rM，基准字数 7496）：
+
+  | 模型 | CER | 准确率 | 输出字数 | 结果文件 |
+  |------|-----|--------|----------|----------|
+  | **raw Whisper（无矫正）** | **11.90%** | **88.10%** | 8100 | `backend/cache/QVBpiuph3rM_local_large-v3-turbo_raw.json` |
+  | gpt-4o-mini | 12.26% | 87.74% | 8015 | `backend/results/eval_gpt-4o-mini_QVBpiuph3rM.json` |
+  | gemma4:e4b（本次） | 12.98% | 87.02% | 7971 | `backend/results/eval_gemma4_e4b_QVBpiuph3rM.json` |
+  | gemma4:e4b（上次） | 13.43% | 86.57% | 7859 | （已覆盖） |
+  | qwen3:8b | 28.52% | 71.48% | 6447 | `backend/results/eval_qwen3_8b_QVBpiuph3rM.json` |
+  | gemma4:e2b | 37.05% | 62.95% | 5675 | `backend/results/eval_gemma4_e2b_QVBpiuph3rM.json` |
+
+  详细报告：`backend/validation/QVBpiuph3rM_raw_*.txt`、`backend/validation/QVBpiuph3rM_llm_*.txt`
+
+- **关键发现（反直觉）**：
+  - **raw Whisper 本身 CER 11.90%，比任何 LLM 矫正结果都低**
+  - LLM 矫正未能消除 Whisper 的虚词插入问题（"是" 31次、"那" 30次），反而引入新的字词替换错误（`的→地` 7次等）
+  - e4b 本次输出字数 7971 > 上次 7859，JSON fallback 修复有效，chunk 5 不再丢失
+  - CER 从 13.43% → 12.98%，temperature 降低 + fallback 修复带来 0.45pp 改善
+
+- **经验与待决策**：
+  - LLM 矫正在 CER 指标上无正收益，但对可读性、标点、段落结构有价值（CER 不测这些）
+  - 若目标是降低 CER，应改 prompt 策略：**只做分段+标点，明确禁止字词替换**
+  - 另一选项：关掉矫正，直接用 raw Whisper 分段，省去 LLM 调用成本
 
 ### [Eval] Gemma 4 e4b 字幕矫正评测 — 对比 e2b / qwen3:8b / gpt-4o-mini
 

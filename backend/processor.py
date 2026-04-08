@@ -1,10 +1,63 @@
 import os
 import json
 import re
+import time
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
+
+PROMPT_V2 = """
+你是一位专业的语音转录校对员。我会给你一段带有时间戳的原始语音转录，每行格式为 `[时间] 文字`。
+
+【任务：原句校对，严禁改变句子数量或合并句子】
+
+规则如下：
+1. 【严格保持句子数量和边界】（CRITICAL）
+   - 输入有多少行，输出就必须有多少个 sentence。
+   - **禁止合并、拆分或跳过任何一行**。每一行输入对应输出中恰好一个 sentence，时间戳完全不变。
+
+2. 【同音字纠错（原位替换）】
+   - 只替换明显的同音/近音错别字，替换后字数必须与原文相同（1换1）。
+   - **禁止增加或删除任何字**，不得插入语气词、连词或额外解释。
+   - **标题关键词优先**：若原文读音与视频标题/描述的关键词高度接近，必须优先替换为正确词汇。
+   - 示例：`零修→灵修`、`抄令→操练`、`质疑→旨意`、`哭乾→枯干`。
+
+3. 【仅添加句末标点】
+   - 在每个句子末尾加上适当的中文全角标点（，。？！）。
+   - 句子内部**不得插入额外标点**（逗号、顿号等），保持原始分词节奏。
+   - 英文句子使用半角标点。
+
+4. 【不做任何其他改动】
+   - 不重组段落，不改变语序，不做语义润色，不翻译。
+
+视频上下文参考：
+===== START OF CONTEXT =====
+{video_context}
+核心关键词（必须优先匹配）：{keywords}
+-----
+上一段上下文参考（跨块一致性）：
+{context_last_chunk}
+===== END OF CONTEXT =====
+
+输出格式（字段名严格为 "start" 和 "text"，不得使用其他变体）：
+{{
+  "paragraphs": [
+    {{
+      "sentences": [
+        {{"start": 0.43, "text": "他要像一棵树栽在溪水旁，"}},
+        {{"start": 3.53, "text": "按时候结果子，叶子也不枯干。"}},
+        {{"start": 6.49, "text": "凡他所作的尽都顺利。"}}
+      ]
+    }}
+  ]
+}}
+
+注意：输出的 sentences 数量必须与下方输入行数完全一致。
+
+原始文本（请处理以下内容）：
+{text_with_timestamps}
+"""
 
 PROMPT = """
 你是一位专业的视频文本编辑。我会给你一段带有时间戳的原始语音转录。
@@ -52,7 +105,7 @@ PROMPT = """
 {context_last_chunk}
 ===== END OF CONTEXT =====
 
-输出示例：
+输出示例（严格遵守字段名，不得使用 text_content、content 或其他变体）：
 {{
   "paragraphs": [
     {{
@@ -162,10 +215,14 @@ def extract_keywords(title, description=""):
     
     return ", ".join(keywords)
 
-def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-mini"):
+def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-mini", prompt_mode="v1"):
     """
     使用 LLM 将原始碎片段合并为自然段落。支持超长文本分段处理。
     并根据标题和描述自动选择简繁体或英文。
+
+    prompt_mode:
+      "v1" - 原版：合并分段 + 同音纠错（默认，适合 OpenAI）
+      "v2" - 句子保留：保持原始句子边界，只做同音纠错和句末标点（适合本地 Ollama）
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -184,14 +241,20 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     
     video_context = f"标题: {title or '无'}\n描述: {description or '无'}"
     keywords = extract_keywords(title, description)
-    current_prompt = PROMPT + "\n" + lang_instruction
 
     client, provider = get_llm_client()
     default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if provider == "ollama" else "gpt-4o-mini"
     actual_model = model if model != "gpt-4o-mini" else default_model
-    
-    # 如果片段太多（超过 100 个），分块处理以防输出被截断
-    CHUNK_SIZE = 80 
+
+    # 选择 prompt 模板
+    if prompt_mode == "v2":
+        base_prompt = PROMPT_V2
+    else:
+        base_prompt = PROMPT
+    current_prompt = base_prompt + "\n" + lang_instruction
+
+    # V2 用更小的 chunk，保证输入行数 ≤ 60，减少遗漏输出行的概率
+    CHUNK_SIZE = 60 if prompt_mode == "v2" else 80
     chunks = [subtitles[i:i + CHUNK_SIZE] for i in range(0, len(subtitles), CHUNK_SIZE)]
     
     all_paragraphs = []
@@ -203,23 +266,49 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     for idx, chunk in enumerate(chunks):
         raw_input = "\n".join([f"[{s['start']:.1f}] {s['text']}" for s in chunk])
         try:
-            response = client.chat.completions.create(
+            if prompt_mode == "v2":
+                system_msg = (
+                    "你是一位专业的语音转录校对员。"
+                    "输入有多少行，输出 sentences 就必须有多少个，不得合并或跳过任何一行。"
+                    "只做同音字原位替换和句末标点，禁止增删字词。必须输出 JSON。"
+                )
+            else:
+                system_msg = (
+                    "你是一位专业的转录文本处理专家。"
+                    "你必须为文本添加标点符号并分段，且必须输出 JSON。"
+                    "分段原则：每段 3～8 句，围绕一个完整语义单元，严禁单句段和超长段。"
+                )
+            call_kwargs = dict(
                 model=actual_model,
                 messages=[
-                    {"role": "system", "content": "你是一位专业的转录文本处理专家。你必须为文本添加标点符号并分段，且必须输出 JSON。分段原则：每段 3～8 句，围绕一个完整语义单元，严禁单句段和超长段。"},
+                    {"role": "system", "content": system_msg},
                     {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context, keywords=keywords, context_last_chunk=last_context)}
                 ],
                 response_format={ "type": "json_object" }
             )
-            
+            # Ollama 默认 temperature 偏高（~0.8），容易导致 JSON 字段名漂移
+            if provider == "ollama":
+                call_kwargs["temperature"] = 0.1
+
+            # 空响应重试（Ollama 偶发性返回空内容，最多5次，指数退避）
+            content = None
+            max_attempts = 5
+            for attempt in range(max_attempts):
+                response = client.chat.completions.create(**call_kwargs)
+                content = response.choices[0].message.content
+                if content and content.strip():
+                    break
+                wait = 2 ** attempt
+                print(f"Chunk {idx+1}: empty response (attempt {attempt+1}/{max_attempts}), retrying in {wait}s...")
+                time.sleep(wait)
+
             print(f"--- Chunk {idx+1}/{len(chunks)} LLM Response Received ---")
-            content = response.choices[0].message.content
             try:
                 data = json.loads(content)
             except Exception as je:
                 print(f"JSON Decode Error in chunk {idx+1}: {je}")
                 # 尝试用正则强行提取可能是 JSON 的内容
-                match = re.search(r'\{.*\}', content, re.DOTALL)
+                match = re.search(r'\{.*\}', content or "", re.DOTALL)
                 if match:
                     data = json.loads(match.group(0))
                 else:
@@ -255,6 +344,12 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
             chunk_results_text = []
             for p in chunk_paras:
                 if isinstance(p, dict) and "sentences" in p:
+                    # 归一化 sentence 字段名：Gemma4 等模型有时输出 text_content 代替 text
+                    for s in p["sentences"]:
+                        if "text" not in s and "text_content" in s:
+                            s["text"] = s.pop("text_content")
+                        elif "text" not in s and "content" in s:
+                            s["text"] = s.pop("content")
                     all_paragraphs.append(p)
                     for s in p["sentences"]: chunk_results_text.append(s.get("text", ""))
                 elif isinstance(p, dict) and "text" in p:
