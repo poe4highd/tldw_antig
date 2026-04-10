@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 import subprocess
 from dotenv import load_dotenv
 
@@ -35,9 +36,12 @@ def run_correction(provider, model_name, prompt_mode="v1", suffix=""):
     with open(CACHE_PATH, "r", encoding="utf-8") as f:
         raw_subtitles = json.load(f)
 
+    t0 = time.perf_counter()
     paragraphs, usage = split_into_paragraphs(
         raw_subtitles, title=TITLE, description=DESCRIPTION, prompt_mode=prompt_mode
     )
+    elapsed = time.perf_counter() - t0
+    print(f">>> 耗时: {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
     result = {
         "paragraphs": paragraphs,
@@ -125,9 +129,15 @@ def main():
     else:
         all_results.append(run_correction("ollama", "gemma4:e4b", prompt_mode="v1"))
 
-    # gemma4:e4b V2（句子保留模式，新跑）
-    e4b_v2_res = run_correction("ollama", "gemma4:e4b", prompt_mode="v2", suffix="-v2")
-    all_results.append(e4b_v2_res)
+    # gemma4:e4b V2（句子保留模式）
+    e4b_v2_path = os.path.join(results_dir, f"eval_gemma4_e4b-v2_{VIDEO_ID}.json")
+    if os.path.exists(e4b_v2_path):
+        print(f">>> Skipping gemma4:e4b v2 (cached: {e4b_v2_path})")
+        all_results.append(e4b_v2_path)
+    else:
+        all_results.append(run_correction("ollama", "gemma4:e4b", prompt_mode="v2", suffix="-v2"))
+
+    # gemma4:26b — OOM on MacStudio, skipped
 
     # 评估所有模型 CER
     for path in all_results:

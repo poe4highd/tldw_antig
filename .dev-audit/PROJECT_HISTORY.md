@@ -1,3 +1,4 @@
+[2026-04-09] | [Perf] | 182 本机 Ollama GPU 加速 | RTX 4060 42层 offload，推理从 17.9→37.8 t/s（×2.1），与 MacStudio 持平 | DEV_LOG.md
 [2026-04-07] | [Improve] | PROMPT_V2 句子保留模式 + Ollama 重试机制 | gemma4:e4b V2 CER 11.90%，首次持平 raw Whisper，超越 gpt-4o-mini（12.26%）；加空响应重试（max 5次指数退避） | DEV_LOG.md
 [2026-04-06] | [Eval] | Gemma 4 e4b 矫正质量提升 | JSON fallback 修复（text_content→text）、temperature=0.1、raw baseline CER 11.90% 建立；e4b V1 CER 12.98% | DEV_LOG.md
 [2026-04-06] | [Eval] | Gemma 4 e4b 矫正评测 | gemma4:e4b CER 13.43%，与 gpt-4o-mini（12.26%）差距仅 1.17%，可作本地主力方案 | DEV_LOG.md

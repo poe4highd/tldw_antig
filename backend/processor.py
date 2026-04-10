@@ -289,6 +289,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
             # Ollama 默认 temperature 偏高（~0.8），容易导致 JSON 字段名漂移
             if provider == "ollama":
                 call_kwargs["temperature"] = 0.1
+                call_kwargs["extra_body"] = {"options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))}}
 
             # 空响应重试（Ollama 偶发性返回空内容，最多5次，指数退避）
             content = None

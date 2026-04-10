@@ -1,3 +1,39 @@
+# 2026-04-09 开发日志
+
+### [Perf] 182 本机 Ollama 启用 RTX 4060 GPU 推理，速度提升 2.1x
+
+- **背景**：评测发现 182 本机 Ollama 跑 gemma4:e4b V2 耗时 73 min，而 176 MacStudio 仅 34 min。怀疑本机未使用 GPU。
+
+- **排查过程**：
+  1. `nvidia-smi` 确认 RTX 4060（8GB 显存）存在且驱动正常
+  2. `ollama ps` 显示 `66%/34% CPU/GPU`，推理时 GPU 显存仅 ~3.4GB
+  3. `journalctl -u ollama` 关键日志：`allocating 9086.21 MiB on device 0: cudaMalloc failed: out of memory` → 降级 CPU
+  4. num_gpu 层数逐步测试：num_gpu=42 成功（3752MB），num_gpu=43 失败（模型只有 42 层）
+  5. `ollama ps` 的 `66%/34%` 是**内存占比**而非层数比：42/43 层在 GPU，output layer 在 CPU，权重文件 6.6GB 在系统内存
+
+- **根因**：`OLLAMA_GPU_LAYERS` 未配置，Ollama 默认尝试全量 43 层（需 9.1GB 显存），超出 8GB 后整体降级 CPU，**不自动做部分 offload**。
+
+- **修复**：`/etc/systemd/system/ollama.service.d/override.conf` 新增 `Environment="OLLAMA_GPU_LAYERS=42"`，重启服务。
+
+- **额外发现**：`processor.py` 通过 OpenAI SDK 的 `extra_body={"options": {"num_gpu": 42}}` 传参，**对 Ollama OpenAI 兼容接口无效**，服务端环境变量才是正确做法。
+
+- **速度测试结果**：
+
+  | 配置 | tokens/s | 全程耗时（19 chunks） |
+  |------|---------|---------------------|
+  | 182 纯 CPU（修复前） | 17.9 | 73 min |
+  | 182 GPU num_gpu=42（修复后） | 37.8 | 预计 ~33 min |
+  | 176 MacStudio | ~40 | 34 min |
+
+- **代码改动**：
+  - `backend/processor.py`：加 `extra_body` 传 `num_gpu`（服务端兜底，无实际效果但留作文档）
+  - `backend/scripts/evaluate_accuracy.py`：加计时输出、e4b V2 / 26b V2 加缓存检查、删除 26b 评测块（OOM）
+
+- **经验**：
+  - Ollama 显存不足时**不会自动降层数**，直接全量降级 CPU，必须显式配置 `OLLAMA_GPU_LAYERS`
+  - `ollama ps` 的 CPU/GPU 比例显示的是**显存占比**，不是层数比例，容易误判
+  - 8GB 显存装 8B Q4_K_M 模型（~4.7GB 权重 + KV cache + runtime）刚好够，42/43 层可全 GPU
+
 # 2026-04-07 开发日志
 
 ### [Improve] PROMPT_V2 句子保留模式 — gemma4:e4b 首次超越 gpt-4o-mini
