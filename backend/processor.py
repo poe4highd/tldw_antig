@@ -2,8 +2,11 @@ import os
 import json
 import re
 import time
+import itertools
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 from dotenv import load_dotenv
+from server_pool import ServerPool, OllamaServer
 
 load_dotenv()
 
@@ -224,9 +227,12 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
       "v1" - 原版：合并分段 + 同音纠错（默认，适合 OpenAI）
       "v2" - 句子保留：保持原始句子边界，只做同音纠错和句末标点（适合本地 Ollama）
     """
+    # 检查是否有可用的 LLM 提供者（Ollama 不需要 API key）
+    llm_provider = os.getenv("LLM_PROVIDER", "openai").lower()
     api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("⚠️ Warning: OPENAI_API_KEY not found. Using fallback grouping.")
+    has_ollama = os.getenv("OLLAMA_SERVERS") or os.getenv("OLLAMA_BASE_URL")
+    if not api_key and llm_provider != "ollama" and not has_ollama:
+        print("⚠️ Warning: No LLM provider configured. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     # 检测语言偏好 (不再使用 subtitles 样本)
@@ -257,127 +263,338 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     CHUNK_SIZE = 60 if prompt_mode == "v2" else 80
     chunks = [subtitles[i:i + CHUNK_SIZE] for i in range(0, len(subtitles), CHUNK_SIZE)]
     
-    all_paragraphs = []
-    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-    last_context = "无（这是第一段）"
+    # ── 预计算每个 chunk 的上下文（用原始字幕文本，消除串行依赖） ──
+    chunk_contexts = ["无（这是第一段）"]
+    for i in range(1, len(chunks)):
+        raw_text = "".join([s["text"] for s in chunks[i - 1]])
+        chunk_contexts.append("..." + raw_text[-200:])
 
-    print(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks ---")
+    # ── 构建共享参数 ──
+    chunk_params = dict(
+        actual_model=actual_model,
+        current_prompt=current_prompt,
+        video_context=video_context,
+        keywords=keywords,
+        prompt_mode=prompt_mode,
+        total_chunks=len(chunks),
+    )
 
-    for idx, chunk in enumerate(chunks):
-        raw_input = "\n".join([f"[{s['start']:.1f}] {s['text']}" for s in chunk])
-        try:
-            if prompt_mode == "v2":
-                system_msg = (
-                    "你是一位专业的语音转录校对员。"
-                    "输入有多少行，输出 sentences 就必须有多少个，不得合并或跳过任何一行。"
-                    "只做同音字原位替换和句末标点，禁止增删字词。必须输出 JSON。"
-                )
-            else:
-                system_msg = (
-                    "你是一位专业的转录文本处理专家。"
-                    "你必须为文本添加标点符号并分段，且必须输出 JSON。"
-                    "分段原则：每段 3～8 句，围绕一个完整语义单元，严禁单句段和超长段。"
-                )
-            call_kwargs = dict(
-                model=actual_model,
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": current_prompt.format(text_with_timestamps=raw_input, video_context=video_context, keywords=keywords, context_last_chunk=last_context)}
-                ],
-                response_format={ "type": "json_object" }
-            )
-            # Ollama 默认 temperature 偏高（~0.8），容易导致 JSON 字段名漂移
-            if provider == "ollama":
-                call_kwargs["temperature"] = 0.1
-                call_kwargs["extra_body"] = {"options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))}}
+    # ── 判断并行 or 串行 ──
+    pool = ServerPool()
+    available = pool.get_available_servers()
 
-            # 空响应重试（Ollama 偶发性返回空内容，最多5次，指数退避）
-            content = None
-            max_attempts = 5
-            for attempt in range(max_attempts):
-                response = client.chat.completions.create(**call_kwargs)
-                content = response.choices[0].message.content
-                if content and content.strip():
-                    break
-                wait = 2 ** attempt
-                print(f"Chunk {idx+1}: empty response (attempt {attempt+1}/{max_attempts}), retrying in {wait}s...")
-                time.sleep(wait)
+    print(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks "
+          f"(servers available: {len(available)}) ---")
 
-            print(f"--- Chunk {idx+1}/{len(chunks)} LLM Response Received ---")
-            try:
-                data = json.loads(content)
-            except Exception as je:
-                print(f"JSON Decode Error in chunk {idx+1}: {je}")
-                # 尝试用正则强行提取可能是 JSON 的内容
-                match = re.search(r'\{.*\}', content or "", re.DOTALL)
-                if match:
-                    data = json.loads(match.group(0))
-                else:
-                    raise je
-            
-            # 记录 Token
-            total_usage["prompt_tokens"] += response.usage.prompt_tokens
-            total_usage["completion_tokens"] += response.usage.completion_tokens
-            total_usage["total_tokens"] += response.usage.total_tokens
-
-            # 解析段落 (更加鲁棒的查找)
-            chunk_paras = []
-            if isinstance(data, dict):
-                # 优先清理键值对（处理 LLM 可能多带进来的换行符键名）
-                clean_data = {k.strip().replace('"', ''): v for k, v in data.items()}
-                
-                if "paragraphs" in clean_data:
-                    chunk_paras = clean_data["paragraphs"]
-                else:
-                    # 寻找第一个列表类型的值
-                    for val in clean_data.values():
-                        if isinstance(val, list):
-                            chunk_paras = val
-                            break
-            elif isinstance(data, list):
-                chunk_paras = data
-
-            # 如果还是空，尝试 fallback
-            if not chunk_paras:
-                 print(f"Warning: No paragraphs found in chunk {idx+1} JSON. Keys: {list(data.keys())}")
-
-            # 结构化
-            chunk_results_text = []
-            for p in chunk_paras:
-                if isinstance(p, dict) and "sentences" in p:
-                    # 归一化 sentence 字段名：Gemma4 等模型有时输出 text_content 代替 text
-                    for s in p["sentences"]:
-                        if "text" not in s and "text_content" in s:
-                            s["text"] = s.pop("text_content")
-                        elif "text" not in s and "content" in s:
-                            s["text"] = s.pop("content")
-                    all_paragraphs.append(p)
-                    for s in p["sentences"]: chunk_results_text.append(s.get("text", ""))
-                elif isinstance(p, dict) and "text" in p:
-                    all_paragraphs.append({"sentences": [{"start": p.get("start", 0), "text": p["text"]}]})
-                    chunk_results_text.append(p["text"])
-                elif isinstance(p, str):
-                    all_paragraphs.append({"sentences": [{"start": 0, "text": p}]})
-                    chunk_results_text.append(p)
-            
-            # 更新上下文给下一块
-            if chunk_results_text:
-                full_text = "".join(chunk_results_text)
-                last_context = "..." + full_text[-200:] # 取最后 200 字作为下文参考
-            
-            print(f"Chunk {idx+1}/{len(chunks)} structured.")
-
-        except Exception as e:
-            print(f"Error processing chunk {idx+1}: {e}")
-            print(f"--- Raw LLM Response for Chunk {idx+1} ---")
-            print(content if 'content' in locals() else "No content received")
-            print("--- End Raw Response ---")
-            # 失败块使用基础分组
-            fallback_paras = group_by_time(chunk)
-            all_paragraphs.extend(fallback_paras)
+    if len(available) > 1 and len(chunks) > 1:
+        all_paragraphs, total_usage = _process_chunks_parallel(
+            chunks, chunk_contexts, pool, chunk_params)
+    else:
+        # 单服务器或单 chunk：使用原有串行逻辑
+        server = available[0] if available else pool.servers[0] if pool.servers else None
+        fallback_client = server.client if server else client
+        all_paragraphs, total_usage = _process_chunks_sequential(
+            chunks, chunk_contexts, fallback_client, provider, chunk_params)
 
     if not all_paragraphs:
         return group_by_time(subtitles), total_usage
+
+    return all_paragraphs, total_usage
+
+
+# ═══════════════════════════════════════════════════════════════
+# 单 chunk 处理核心逻辑（供串行/并行共用）
+# ═══════════════════════════════════════════════════════════════
+
+def _process_chunk_single(idx, chunk, context, llm_client, model, prompt_template,
+                          video_context, keywords, prompt_mode, total_chunks):
+    """
+    处理单个 chunk，返回 (chunk_idx, paragraphs, usage, quality_ok, reason)。
+    线程安全：每个调用使用自己的 client 实例，不共享可变状态。
+    """
+    raw_input = "\n".join([f"[{s['start']:.1f}] {s['text']}" for s in chunk])
+
+    if prompt_mode == "v2":
+        system_msg = (
+            "你是一位专业的语音转录校对员。"
+            "输入有多少行，输出 sentences 就必须有多少个，不得合并或跳过任何一行。"
+            "只做同音字原位替换和句末标点，禁止增删字词。必须输出 JSON。"
+        )
+    else:
+        system_msg = (
+            "你是一位专业的转录文本处理专家。"
+            "你必须为文本添加标点符号并分段，且必须输出 JSON。"
+            "分段原则：每段 3～8 句，围绕一个完整语义单元，严禁单句段和超长段。"
+        )
+
+    call_kwargs = dict(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": prompt_template.format(
+                text_with_timestamps=raw_input,
+                video_context=video_context,
+                keywords=keywords,
+                context_last_chunk=context
+            )}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        extra_body={"options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))}}
+    )
+
+    # 空响应重试（最多 5 次，指数退避）
+    content = None
+    response = None
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        response = llm_client.chat.completions.create(**call_kwargs)
+        content = response.choices[0].message.content
+        if content and content.strip():
+            break
+        wait = 2 ** attempt
+        print(f"Chunk {idx+1}: empty response (attempt {attempt+1}/{max_attempts}), retrying in {wait}s...")
+        time.sleep(wait)
+
+    print(f"--- Chunk {idx+1}/{total_chunks} LLM Response Received ---")
+
+    # JSON 解析
+    try:
+        data = json.loads(content)
+    except Exception as je:
+        print(f"JSON Decode Error in chunk {idx+1}: {je}")
+        match = re.search(r'\{.*\}', content or "", re.DOTALL)
+        if match:
+            data = json.loads(match.group(0))
+        else:
+            raise je
+
+    # Token 记录
+    usage = {
+        "prompt_tokens": response.usage.prompt_tokens,
+        "completion_tokens": response.usage.completion_tokens,
+        "total_tokens": response.usage.total_tokens,
+    }
+
+    # 解析段落（鲁棒查找）
+    chunk_paras = []
+    if isinstance(data, dict):
+        clean_data = {k.strip().replace('"', ''): v for k, v in data.items()}
+        if "paragraphs" in clean_data:
+            chunk_paras = clean_data["paragraphs"]
+        else:
+            for val in clean_data.values():
+                if isinstance(val, list):
+                    chunk_paras = val
+                    break
+    elif isinstance(data, list):
+        chunk_paras = data
+
+    if not chunk_paras:
+        print(f"Warning: No paragraphs found in chunk {idx+1} JSON. Keys: {list(data.keys()) if isinstance(data, dict) else 'list'}")
+
+    # 结构化 + 字段名归一化
+    structured_paras = []
+    for p in chunk_paras:
+        if isinstance(p, dict) and "sentences" in p:
+            for s in p["sentences"]:
+                if "text" not in s and "text_content" in s:
+                    s["text"] = s.pop("text_content")
+                elif "text" not in s and "content" in s:
+                    s["text"] = s.pop("content")
+            structured_paras.append(p)
+        elif isinstance(p, dict) and "text" in p:
+            structured_paras.append({"sentences": [{"start": p.get("start", 0), "text": p["text"]}]})
+        elif isinstance(p, str):
+            structured_paras.append({"sentences": [{"start": 0, "text": p}]})
+
+    # 质量检查
+    quality_ok, reason = _validate_chunk_quality(chunk, structured_paras, prompt_mode)
+    print(f"Chunk {idx+1}/{total_chunks} structured. quality={quality_ok} {reason}")
+
+    return idx, structured_paras, usage, quality_ok, reason
+
+
+def _validate_chunk_quality(chunk_input, chunk_paras, prompt_mode):
+    """验证单个 chunk 的 LLM 输出质量，返回 (is_ok, reason)"""
+    from hallucination_detector import detect_hallucination_patterns
+
+    # 检查 1: 空响应
+    if not chunk_paras:
+        return False, "empty_response"
+
+    # 检查 2: V2 模式句子数偏差（>20% 丢失 → 不合格）
+    if prompt_mode == "v2":
+        output_count = sum(len(p.get("sentences", [])) for p in chunk_paras)
+        input_count = len(chunk_input)
+        if input_count > 0 and output_count < input_count * 0.8:
+            return False, f"sentence_drop:{output_count}/{input_count}"
+
+    # 检查 3: 字符数异常偏差
+    input_chars = sum(len(s.get("text", "")) for s in chunk_input)
+    output_chars = sum(
+        len(s.get("text", ""))
+        for p in chunk_paras
+        for s in p.get("sentences", [])
+    )
+    if input_chars > 0:
+        ratio = output_chars / input_chars
+        if ratio < 0.5 or ratio > 2.0:
+            return False, f"char_ratio:{ratio:.2f}"
+
+    # 检查 4: 幻觉模式
+    all_text = " ".join(
+        s.get("text", "")
+        for p in chunk_paras
+        for s in p.get("sentences", [])
+    )
+    patterns = detect_hallucination_patterns(all_text)
+    if patterns:
+        return False, f"hallucination:{patterns}"
+
+    return True, "ok"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 并行处理路径
+# ═══════════════════════════════════════════════════════════════
+
+def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
+    """用 ThreadPoolExecutor 并行分派 chunks 到多台服务器"""
+    total = len(chunks)
+    results = [None] * total  # 按索引存放结果
+    retry_queue = []
+    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+    available = pool.get_available_servers()
+    print(f"--- [Parallel] 启动并行处理: {total} chunks → {len(available)} servers ---")
+
+    with ThreadPoolExecutor(max_workers=len(available)) as executor:
+        futures = {}
+        server_cycle = itertools.cycle(available)
+
+        for idx, chunk in enumerate(chunks):
+            server = next(server_cycle)
+            server.busy = True
+            future = executor.submit(
+                _process_chunk_single,
+                idx, chunk, chunk_contexts[idx],
+                server.client,
+                params["actual_model"],
+                params["current_prompt"],
+                params["video_context"],
+                params["keywords"],
+                params["prompt_mode"],
+                params["total_chunks"],
+            )
+            futures[future] = (idx, server)
+
+        for future in as_completed(futures):
+            idx, server = futures[future]
+            try:
+                chunk_idx, paras, usage, quality_ok, reason = future.result()
+                server.report_success()
+                if quality_ok:
+                    results[chunk_idx] = paras
+                    for k in total_usage:
+                        total_usage[k] += usage.get(k, 0)
+                else:
+                    print(f"--- [Parallel] Chunk {chunk_idx+1} 质量不合格 ({reason})，加入重试队列 ---")
+                    retry_queue.append(chunk_idx)
+                    # 即使质量不合格也记录 token 消耗
+                    for k in total_usage:
+                        total_usage[k] += usage.get(k, 0)
+            except Exception as e:
+                server.report_failure()
+                print(f"--- [Parallel] Chunk {idx+1} 处理异常: {e} ---")
+                retry_queue.append(idx)
+
+    # ── 重试阶段 ──
+    if retry_queue:
+        print(f"--- [Retry] {len(retry_queue)} chunks 需要重试: {[i+1 for i in retry_queue]} ---")
+        for idx in retry_queue:
+            retried = False
+
+            # 策略 1: 尝试另一台可用 Ollama 服务器
+            for server in pool.get_available_servers():
+                try:
+                    print(f"--- [Retry] Chunk {idx+1} → {server.base_url} ---")
+                    _, paras, usage, quality_ok, reason = _process_chunk_single(
+                        idx, chunks[idx], chunk_contexts[idx],
+                        server.client, params["actual_model"],
+                        params["current_prompt"], params["video_context"],
+                        params["keywords"], params["prompt_mode"], params["total_chunks"])
+                    for k in total_usage:
+                        total_usage[k] += usage.get(k, 0)
+                    if quality_ok:
+                        results[idx] = paras
+                        server.report_success()
+                        retried = True
+                        break
+                    server.report_success()
+                except Exception as e:
+                    server.report_failure()
+                    print(f"--- [Retry] Chunk {idx+1} 在 {server.base_url} 失败: {e} ---")
+
+            # 策略 2: OpenAI 兜底
+            if not retried:
+                api_key = os.getenv("OPENAI_API_KEY")
+                if api_key:
+                    try:
+                        print(f"--- [Retry] Chunk {idx+1} → OpenAI gpt-4o-mini 兜底 ---")
+                        openai_client = OpenAI(api_key=api_key)
+                        _, paras, usage, quality_ok, reason = _process_chunk_single(
+                            idx, chunks[idx], chunk_contexts[idx],
+                            openai_client, "gpt-4o-mini",
+                            params["current_prompt"], params["video_context"],
+                            params["keywords"], params["prompt_mode"], params["total_chunks"])
+                        for k in total_usage:
+                            total_usage[k] += usage.get(k, 0)
+                        if quality_ok or paras:  # OpenAI 即使质量检查不完美也接受
+                            results[idx] = paras
+                            retried = True
+                    except Exception as e:
+                        print(f"--- [Retry] Chunk {idx+1} OpenAI 兜底失败: {e} ---")
+
+            # 策略 3: group_by_time 最终兜底
+            if not retried:
+                print(f"--- [Retry] Chunk {idx+1} 所有重试失败，使用基础分组 ---")
+                results[idx] = group_by_time(chunks[idx])
+
+    # ── 按序组装 ──
+    all_paragraphs = []
+    for idx in range(total):
+        if results[idx]:
+            all_paragraphs.extend(results[idx])
+
+    return all_paragraphs, total_usage
+
+
+# ═══════════════════════════════════════════════════════════════
+# 串行处理路径（单服务器回退，保持原有行为）
+# ═══════════════════════════════════════════════════════════════
+
+def _process_chunks_sequential(chunks, chunk_contexts, llm_client, provider, params):
+    """单服务器串行处理（原有逻辑，作为回退路径）"""
+    all_paragraphs = []
+    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+    for idx, chunk in enumerate(chunks):
+        try:
+            _, paras, usage, quality_ok, reason = _process_chunk_single(
+                idx, chunk, chunk_contexts[idx],
+                llm_client, params["actual_model"],
+                params["current_prompt"], params["video_context"],
+                params["keywords"], params["prompt_mode"], params["total_chunks"])
+            for k in total_usage:
+                total_usage[k] += usage.get(k, 0)
+            if paras:
+                all_paragraphs.extend(paras)
+            else:
+                all_paragraphs.extend(group_by_time(chunk))
+        except Exception as e:
+            print(f"Error processing chunk {idx+1}: {e}")
+            all_paragraphs.extend(group_by_time(chunk))
 
     return all_paragraphs, total_usage
 
