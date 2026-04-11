@@ -186,7 +186,9 @@
         "askAiSubmit": "Submit",
         "askAiInfo": "Currently only Claude and ChatGPT support direct prompt linking",
         "askAiCharCount": "chars",
-        "askAiPromptTemplate": "Please answer my question about this YouTube video.\n\nVideo Title: {title}\n\nKey Points:\n{summary}\n\nMy Question: {question}"
+        "askAiPromptTemplate": "Please answer my question about this YouTube video.\n\nVideo Title: {title}\n\nKey Points:\n{summary}\n\nMy Question: {question}",
+        "translating": "Translating...",
+        "audioTrackTip": "Tip: Some YouTube videos support multiple audio languages. Click the settings icon (⚙) in the player to switch."
     },
     "pending": {
         "title": "Processing Queue",

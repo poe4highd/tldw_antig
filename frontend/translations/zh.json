@@ -186,7 +186,9 @@
         "askAiSubmit": "提交提问",
         "askAiInfo": "目前仅支持 Claude 和 ChatGPT 的直接跳转提问",
         "askAiCharCount": "字",
-        "askAiPromptTemplate": "请就这个YouTube视频的内容来回答问题。\n\n视频标题：{title}\n\n视频核心要点：\n{summary}\n\n我的问题：{question}"
+        "askAiPromptTemplate": "请就这个YouTube视频的内容来回答问题。\n\n视频标题：{title}\n\n视频核心要点：\n{summary}\n\n我的问题：{question}",
+        "translating": "正在翻译...",
+        "audioTrackTip": "提示：部分 YouTube 视频支持多语言音轨，点击播放器中的设置图标（⚙）可以切换音频语言。"
     },
     "pending": {
         "title": "处理队列",

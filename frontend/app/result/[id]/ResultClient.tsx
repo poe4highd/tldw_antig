@@ -68,6 +68,15 @@ interface Result {
     media_path?: string;
     summary?: string;
     keywords?: string[];
+    detected_language?: string;
+    translation_available?: boolean;
+}
+
+interface TranslatedContent {
+    title: string;
+    paragraphs: Paragraph[];
+    summary: string;
+    keywords: string[];
 }
 
 export default function ResultClient({ id }: { id: string }) {
@@ -99,6 +108,45 @@ export default function ResultClient({ id }: { id: string }) {
     const [user, setUser] = useState<any>(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    // Translation states
+    const [translatedContent, setTranslatedContent] = useState<Record<string, TranslatedContent>>({});
+    const [detectedLanguage, setDetectedLanguage] = useState<string>("");
+    const [isTranslating, setIsTranslating] = useState(false);
+
+    // Computed: display content based on current language
+    const displayTitle = (() => {
+        if (!result) return "";
+        const langKey = language === "zh" ? "zh" : "en";
+        if (langKey !== detectedLanguage && translatedContent[langKey]) {
+            return translatedContent[langKey].title;
+        }
+        return result.title;
+    })();
+    const displayParagraphs = (() => {
+        if (!result?.paragraphs) return [];
+        const langKey = language === "zh" ? "zh" : "en";
+        if (langKey !== detectedLanguage && translatedContent[langKey]) {
+            return translatedContent[langKey].paragraphs;
+        }
+        return result.paragraphs;
+    })();
+    const displaySummary = (() => {
+        if (!result?.summary) return "";
+        const langKey = language === "zh" ? "zh" : "en";
+        if (langKey !== detectedLanguage && translatedContent[langKey]) {
+            return translatedContent[langKey].summary;
+        }
+        return result.summary;
+    })();
+    const displayKeywords = (() => {
+        if (!result?.keywords) return [];
+        const langKey = language === "zh" ? "zh" : "en";
+        if (langKey !== detectedLanguage && translatedContent[langKey]) {
+            return translatedContent[langKey].keywords;
+        }
+        return result.keywords;
+    })();
+
     // Ask AI states
     const [askAiModal, setAskAiModal] = useState<'claude' | 'chatgpt' | null>(null);
     const [askAiQuestion, setAskAiQuestion] = useState('');
@@ -107,8 +155,8 @@ export default function ResultClient({ id }: { id: string }) {
     const buildAiPrompt = (question: string) => {
         if (!result) return '';
         return t('result.askAiPromptTemplate')
-            .replace('{title}', result.title)
-            .replace('{summary}', result.summary || '')
+            .replace('{title}', displayTitle)
+            .replace('{summary}', displaySummary || '')
             .replace('{question}', question);
     };
 
@@ -148,16 +196,34 @@ export default function ResultClient({ id }: { id: string }) {
                 const { data: { session } } = await supabase.auth.getSession();
                 const user_id = session?.user?.id;
 
-                // Fetch basic result
-                const response = await fetch(`${apiBase}/result/${id}${user_id ? `?user_id=${user_id}` : ''}`);
+                // Fetch basic result with language parameter
+                const langKey = language === "zh" ? "zh" : "en";
+                const params = new URLSearchParams();
+                if (user_id) params.set("user_id", user_id);
+                params.set("lang", langKey);
+                const response = await fetch(`${apiBase}/result/${id}?${params.toString()}`);
                 if (!response.ok) throw new Error(t("result.fetchError"));
                 const data = await response.json();
 
                 if (data.status === "completed") {
                     setResult(data);
+                    setDetectedLanguage(data.detected_language || "");
                     setViewCount(data.view_count || 0);
                     setLikeCount(data.interaction_count || 0);
                     setIsLiked(data.is_liked || false);
+
+                    // If server returned translated content, cache it
+                    if (data.translation_available && langKey !== (data.detected_language || "")) {
+                        setTranslatedContent(prev => ({
+                            ...prev,
+                            [langKey]: {
+                                title: data.title,
+                                paragraphs: data.paragraphs || [],
+                                summary: data.summary || "",
+                                keywords: data.keywords || [],
+                            }
+                        }));
+                    }
 
                     // Trigger view increment
                     fetch(`${apiBase}/result/${id}/view`, { method: 'POST' });
@@ -181,6 +247,45 @@ export default function ResultClient({ id }: { id: string }) {
         };
         fetchResult();
     }, [id]);
+
+    // 语言切换时自动触发翻译
+    useEffect(() => {
+        if (!result || !detectedLanguage) return;
+        const langKey = language === "zh" ? "zh" : "en";
+        // 如果当前语言就是原始语言，不需要翻译
+        if (langKey === detectedLanguage) return;
+        // 如果已有翻译缓存，不需要再请求
+        if (translatedContent[langKey]) return;
+
+        const doTranslate = async () => {
+            setIsTranslating(true);
+            try {
+                const apiBase = getApiBase();
+                const res = await fetch(`${apiBase}/api/translate/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ target_lang: langKey }),
+                });
+                if (!res.ok) throw new Error("Translation failed");
+                const data = await res.json();
+                if (data.status === "success" || data.status === "cached") {
+                    setTranslatedContent(prev => ({
+                        ...prev,
+                        [langKey]: data.data,
+                    }));
+                } else if (data.status === "translating") {
+                    // 其他请求正在翻译中，稍后重试
+                    setTimeout(doTranslate, 3000);
+                    return;
+                }
+            } catch (err) {
+                console.error("Translation error:", err);
+            } finally {
+                setIsTranslating(false);
+            }
+        };
+        doTranslate();
+    }, [language, result, detectedLanguage]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -229,14 +334,14 @@ export default function ResultClient({ id }: { id: string }) {
     };
 
     const scrollToActive = (force = false) => {
-        if (!result?.paragraphs || !subtitleContainerRef.current) return;
+        if (!displayParagraphs.length || !subtitleContainerRef.current) return;
 
         let activeId = "";
-        for (let pIdx = 0; pIdx < result.paragraphs.length; pIdx++) {
-            const p = result.paragraphs[pIdx];
+        for (let pIdx = 0; pIdx < displayParagraphs.length; pIdx++) {
+            const p = displayParagraphs[pIdx];
             for (let sIdx = 0; sIdx < p.sentences.length; sIdx++) {
                 const s = p.sentences[sIdx];
-                const nextS = p.sentences[sIdx + 1] || result.paragraphs[pIdx + 1]?.sentences?.[0];
+                const nextS = p.sentences[sIdx + 1] || displayParagraphs[pIdx + 1]?.sentences?.[0];
                 if (currentTime >= s.start && (nextS ? currentTime < nextS.start : true)) {
                     activeId = `sentence-${pIdx}-${sIdx}`;
                     break;
@@ -290,8 +395,8 @@ export default function ResultClient({ id }: { id: string }) {
     };
 
     const copyFullText = () => {
-        if (!result?.paragraphs) return;
-        const fullText = result.paragraphs
+        if (!displayParagraphs.length) return;
+        const fullText = displayParagraphs
             .map(p => p.sentences.map(s => s.text).join(""))
             .join("\n\n");
         navigator.clipboard.writeText(fullText);
@@ -315,7 +420,7 @@ export default function ResultClient({ id }: { id: string }) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${result.title || "subtitle"}.srt`;
+        a.download = `${displayTitle || "subtitle"}.srt`;
         a.click();
     };
 
@@ -443,7 +548,7 @@ export default function ResultClient({ id }: { id: string }) {
                                     width: '100%',
                                     playerVars: {
                                         autoplay: 0,
-                                        hl: 'zh-CN',
+                                        hl: language === 'zh' ? 'zh-CN' : 'en',
                                         origin: typeof window !== 'undefined' ? window.location.origin : '',
                                         modestbranding: 1,
                                         rel: 0,
@@ -455,9 +560,17 @@ export default function ResultClient({ id }: { id: string }) {
                     </div>
                 </div>
 
+                {/* Audio Track Tip - YouTube only */}
+                {!useLocalAudio && result?.youtube_id && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-500/5 border border-slate-500/10 rounded-xl text-[10px] text-slate-400">
+                        <Info className="w-3 h-3 flex-shrink-0" />
+                        <span>{t('result.audioTrackTip')}</span>
+                    </div>
+                )}
+
                 {/* Summary Timeline Bar */}
-                {result.summary && videoDuration > 0 && (() => {
-                    const items = result.summary.split('\n').filter(Boolean).map(line => {
+                {displaySummary && videoDuration > 0 && (() => {
+                    const items = displaySummary.split('\n').filter(Boolean).map(line => {
                         const m = line.match(/\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
                         let startTime = 0;
                         if (m) {
@@ -500,7 +613,10 @@ export default function ResultClient({ id }: { id: string }) {
 
                 {/* Middle Section: Title & Stats (1/6) */}
                 <div className="w-full flex-shrink-0 py-0 md:py-2 flex flex-col justify-center gap-0.5 md:gap-3">
-                    <h2 className="text-sm md:text-xl font-black tracking-tight line-clamp-2 leading-snug px-1">{result.title}</h2>
+                    <h2 className="text-sm md:text-xl font-black tracking-tight line-clamp-2 leading-snug px-1">
+                        {displayTitle}
+                        {isTranslating && <span className="ml-2 text-xs text-gray-400 animate-pulse">{t('result.translating')}</span>}
+                    </h2>
 
                     {/* Stats & Actions Row */}
                     <div className="flex items-center justify-between gap-2 md:gap-4 w-full">
@@ -535,13 +651,13 @@ export default function ResultClient({ id }: { id: string }) {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        if (!result?.paragraphs) return;
-                                        const text = result.paragraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
+                                        if (!displayParagraphs.length) return;
+                                        const text = displayParagraphs.map(p => p.sentences.map(s => s.text).join("")).join("\n\n");
                                         const blob = new Blob([text], { type: "text/plain" });
                                         const url = URL.createObjectURL(blob);
                                         const a = document.createElement("a");
                                         a.href = url;
-                                        a.download = `${result.title}.txt`;
+                                        a.download = `${displayTitle}.txt`;
                                         a.click();
                                     }}
                                     className="p-1.5 md:px-4 md:py-1.5 bg-background border border-card-border rounded-lg md:rounded-xl text-[10px] md:text-xs font-black text-foreground hover:bg-indigo-500 hover:border-indigo-500 hover:text-white transition-all flex items-center md:space-x-2 group hidden sm:flex"
@@ -579,7 +695,7 @@ export default function ResultClient({ id }: { id: string }) {
 
                         <div className="space-y-5 md:space-y-6 relative z-10">
                             {/* AI Summary Section */}
-                            {result.summary && (
+                            {displaySummary && (
                                 <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl md:rounded-3xl p-2 md:p-5 mb-1.5 md:mb-6 shadow-sm">
                                     <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4">
                                         <div className="p-1.5 md:p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
@@ -615,7 +731,7 @@ export default function ResultClient({ id }: { id: string }) {
                                         </div>
                                     </div>
                                     <div className="space-y-1 md:space-y-2 mb-3 md:mb-6">
-                                        {result.summary.split('\n').filter(Boolean).map((line, i) => {
+                                        {displaySummary.split('\n').filter(Boolean).map((line, i) => {
                                             const color = SUMMARY_COLORS[i % SUMMARY_COLORS.length];
                                             const parts = line.split(/(\[\d{2}:\d{2}(?::\d{2})?\])/g);
                                             const tm = line.match(/\[(\d{2}):(\d{2})(?::(\d{2}))?\]$/);
@@ -652,9 +768,9 @@ export default function ResultClient({ id }: { id: string }) {
                                             );
                                         })}
                                     </div>
-                                    {result.keywords && result.keywords.length > 0 && (
+                                    {displayKeywords && displayKeywords.length > 0 && (
                                         <div className="flex flex-wrap gap-2">
-                                            {result.keywords.map((tag, i) => (
+                                            {displayKeywords.map((tag, i) => (
                                                 <span key={i} className="px-3 py-1 bg-background border border-card-border rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest hover:border-indigo-500/50 hover:text-indigo-500 transition-colors shadow-sm">
                                                     #{tag}
                                                 </span>
@@ -665,8 +781,8 @@ export default function ResultClient({ id }: { id: string }) {
                             )}
 
                             {(() => {
-                                const allSentences = result.paragraphs?.flatMap(p => p.sentences) || [];
-                                return result.paragraphs?.map((p: Paragraph, pIdx: number) => (
+                                const allSentences = displayParagraphs.flatMap(p => p.sentences);
+                                return displayParagraphs.map((p: Paragraph, pIdx: number) => (
                                     <p key={pIdx} className="text-base md:text-lg leading-[1.65] text-slate-400">
                                         {p.sentences.map((s: Sentence, sIdx: number) => {
                                             const flatIdx = allSentences.indexOf(s);

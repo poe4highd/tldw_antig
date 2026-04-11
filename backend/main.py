@@ -16,7 +16,7 @@ import hashlib
 import random
 
 from downloader import download_audio
-from processor import split_into_paragraphs, get_youtube_thumbnail_url
+from processor import split_into_paragraphs, get_youtube_thumbnail_url, translate_content, detect_language_preference
 from db import get_db
 
 supabase = get_db()
@@ -285,6 +285,7 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
                         "raw_subtitles": result["raw_subtitles"],
                         "summary": result.get("summary"),
                         "keywords": result.get("keywords"),
+                        "detected_language": result.get("detected_language"),
                         "channel": result.get("channel"),
                         "channel_id": result.get("channel_id"),
                         "channel_avatar": result.get("channel_avatar")
@@ -499,7 +500,7 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
     return {"task_id": task_id}
 
 @app.get("/result/{task_id}")
-async def get_result_status(request: Request, task_id: str, user_id: str = None):
+async def get_result_status(request: Request, task_id: str, user_id: str = None, lang: str = None):
     # 0. Try Supabase first
     if supabase:
         try:
@@ -530,26 +531,55 @@ async def get_result_status(request: Request, task_id: str, user_id: str = None)
                             "detail": "Finalizing data sync..."
                         }
 
+                    # 语言处理：根据 lang 参数决定返回原始内容还是翻译内容
+                    report = video["report_data"]
+                    detected_language = report.get("detected_language") or detect_language_preference(video["title"], "")
+                    translations = report.get("translations", {})
+
+                    # 规范化 detected_language 到 en/zh
+                    det_normalized = "zh" if detected_language in ("simplified", "traditional", "zh") else "en" if detected_language in ("english", "en") else detected_language
+
+                    # 判断是否需要返回翻译版本
+                    display_title = video["title"]
+                    display_paragraphs = paragraphs
+                    display_summary = report.get("summary")
+                    display_keywords = report.get("keywords")
+                    translation_available = False
+
+                    if lang and lang != det_normalized and lang in translations:
+                        # 有缓存翻译，返回翻译版本
+                        t = translations[lang]
+                        display_title = t.get("title", display_title)
+                        display_paragraphs = t.get("paragraphs", display_paragraphs)
+                        display_summary = t.get("summary", display_summary)
+                        display_keywords = t.get("keywords", display_keywords)
+                        translation_available = True
+                    elif lang and lang != det_normalized:
+                        # 需要翻译但尚未翻译
+                        translation_available = False
+
                     return {
-                        "title": video["title"],
+                        "title": display_title,
                         "url": "N/A",
                         "youtube_id": video["id"] if len(video["id"]) == 11 else None,
                         "thumbnail": get_full_thumbnail_url(video["thumbnail"], request),
                         "media_path": video["media_path"],
-                        "paragraphs": paragraphs,
-                        "summary": video["report_data"].get("summary"),
-                        "keywords": video["report_data"].get("keywords"),
+                        "paragraphs": display_paragraphs,
+                        "summary": display_summary,
+                        "keywords": display_keywords,
                         "usage": video["usage"],
-                        "raw_subtitles": video["report_data"].get("raw_subtitles"),
-                        "channel": video["report_data"].get("channel"),
-                        "channel_id": video["report_data"].get("channel_id"),
-                        "channel_avatar": video["report_data"].get("channel_avatar"),
+                        "raw_subtitles": report.get("raw_subtitles"),
+                        "channel": report.get("channel"),
+                        "channel_id": report.get("channel_id"),
+                        "channel_avatar": report.get("channel_avatar"),
                         "view_count": video.get("view_count", 0),
                         "interaction_count": video.get("interaction_count", 0),
                         "is_liked": is_liked,
                         "mtime": video.get("created_at"),
                         "status": "completed",
-                        "progress": 100
+                        "progress": 100,
+                        "detected_language": det_normalized,
+                        "translation_available": translation_available,
                     }
                 elif video["status"] in ("queued", "processing"):
                     # 任务正在排队或处理中，从本地 _status.json 读取实时进度
@@ -1157,6 +1187,106 @@ async def get_dev_doc(filename: str):
         
     with open(file_path, "r", encoding="utf-8") as f:
         return {"content": f.read()}
+
+# ═══════════════════════════════════════════════════════════════
+# 双语翻译端点
+# ═══════════════════════════════════════════════════════════════
+
+import threading
+_translate_locks = {}  # video_id -> Lock
+
+class TranslateRequest(BaseModel):
+    target_lang: str  # "en" | "zh"
+
+@app.post("/api/translate/{video_id}")
+async def translate_video(video_id: str, req: TranslateRequest):
+    """按需翻译视频内容，结果缓存到 report_data.translations"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not available")
+
+    target_lang = req.target_lang.lower()
+    if target_lang not in ("en", "zh"):
+        raise HTTPException(status_code=400, detail="target_lang must be 'en' or 'zh'")
+
+    # 1. 读取视频数据
+    response = supabase.table("videos").select("title, report_data").eq("id", video_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    video = response.data[0]
+    title = video.get("title", "")
+    report_data = video.get("report_data", {}) or {}
+
+    # 2. 检查缓存
+    translations = report_data.get("translations", {})
+    if target_lang in translations:
+        return {"status": "cached", "data": translations[target_lang]}
+
+    # 3. 判断源语言
+    detected = report_data.get("detected_language")
+    if not detected:
+        detected = detect_language_preference(title, "")
+
+    # 规范化源语言到 en/zh
+    source_normalized = "zh" if detected in ("simplified", "traditional", "zh") else "en" if detected in ("english", "en") else detected
+    if source_normalized == target_lang:
+        # 源语言与目标语言相同，直接返回原始内容
+        return {
+            "status": "same_language",
+            "data": {
+                "title": title,
+                "paragraphs": report_data.get("paragraphs", []),
+                "summary": report_data.get("summary", ""),
+                "keywords": report_data.get("keywords", []),
+            }
+        }
+
+    # 4. 防并发锁
+    if video_id not in _translate_locks:
+        _translate_locks[video_id] = threading.Lock()
+
+    lock = _translate_locks[video_id]
+    if not lock.acquire(blocking=False):
+        return {"status": "translating", "message": "Translation in progress, please retry shortly"}
+
+    try:
+        # 再次检查缓存（可能在等锁期间已完成）
+        response2 = supabase.table("videos").select("report_data").eq("id", video_id).execute()
+        if response2.data:
+            rd2 = response2.data[0].get("report_data", {}) or {}
+            if target_lang in rd2.get("translations", {}):
+                return {"status": "cached", "data": rd2["translations"][target_lang]}
+
+        # 5. 执行翻译
+        translated, usage = translate_content(
+            title=title,
+            paragraphs=report_data.get("paragraphs", []),
+            summary=report_data.get("summary", ""),
+            keywords=report_data.get("keywords", []),
+            source_lang=detected,
+            target_lang=target_lang,
+        )
+
+        # 6. 存回 Supabase
+        translations[target_lang] = translated
+        report_data["translations"] = translations
+        # 顺便补上 detected_language（兼容旧数据）
+        if not report_data.get("detected_language"):
+            report_data["detected_language"] = detected
+
+        supabase.table("videos").update({"report_data": report_data}).eq("id", video_id).execute()
+        print(f"[Translate] 翻译结果已保存: {video_id} → {target_lang}")
+
+        return {"status": "success", "data": translated, "usage": usage}
+
+    except Exception as e:
+        print(f"[Translate] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
+    finally:
+        lock.release()
+        # 清理锁（避免内存泄漏）
+        _translate_locks.pop(video_id, None)
+
 
 @app.post("/result/{task_id}/view")
 async def add_view(task_id: str):

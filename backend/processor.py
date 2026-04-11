@@ -900,5 +900,268 @@ def group_by_time(subtitles, seconds=45):
     
     if current_sentences:
         paragraphs.append({"sentences": current_sentences})
-        
+
     return paragraphs
+
+
+# ═══════════════════════════════════════════════════════════════
+# 双语翻译模块
+# ═══════════════════════════════════════════════════════════════
+
+LANG_NAME_MAP = {
+    "en": "English",
+    "english": "English",
+    "zh": "简体中文",
+    "simplified": "简体中文",
+    "traditional": "繁體中文",
+    "korean": "한국어",
+    "japanese": "日本語",
+}
+
+def _get_target_lang_name(target_lang):
+    return LANG_NAME_MAP.get(target_lang, target_lang)
+
+
+def _translate_metadata(title, summary, keywords, source_lang, target_lang, llm_client, model):
+    """
+    翻译标题、摘要和关键词（合并为一次 LLM 调用节省 token）。
+    返回: ({"title": ..., "summary": ..., "keywords": [...]}, usage)
+    """
+    target_name = _get_target_lang_name(target_lang)
+
+    prompt = f"""你是一位专业翻译。请将以下内容翻译为{target_name}。
+
+规则：
+1. summary 中的时间戳 [MM:SS] 或 [HH:MM:SS] 必须原样保留，不翻译。
+2. summary 的每行结构保持不变（一行一个要点）。
+3. keywords 逐个翻译，保持数组长度不变。
+4. 翻译要自然流畅，符合目标语言表达习惯。
+
+输入：
+{{
+  "title": {json.dumps(title, ensure_ascii=False)},
+  "summary": {json.dumps(summary, ensure_ascii=False)},
+  "keywords": {json.dumps(keywords, ensure_ascii=False)}
+}}
+
+请输出相同结构的 JSON：
+{{"title": "...", "summary": "...", "keywords": [...]}}"""
+
+    response = llm_client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": f"你是专业翻译，将内容翻译为{target_name}。保持格式不变。"},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+    )
+
+    content = response.choices[0].message.content
+    usage = {
+        "prompt_tokens": response.usage.prompt_tokens,
+        "completion_tokens": response.usage.completion_tokens,
+        "total_tokens": response.usage.total_tokens,
+    }
+
+    try:
+        data = json.loads(content)
+    except Exception:
+        match = re.search(r'\{.*\}', content or "", re.DOTALL)
+        if match:
+            data = json.loads(match.group(0))
+        else:
+            raise ValueError(f"翻译元数据 JSON 解析失败: {content[:200]}")
+
+    return data, usage
+
+
+def _translate_paragraphs_chunk(idx, paragraphs_chunk, source_lang, target_lang, llm_client, model, total_chunks):
+    """
+    翻译一个 chunk 的段落（保持时间戳和结构不变，只翻译 text 字段）。
+    返回: (idx, translated_paragraphs, usage)
+    """
+    target_name = _get_target_lang_name(target_lang)
+
+    # 构建输入文本
+    input_lines = []
+    for p_idx, para in enumerate(paragraphs_chunk):
+        for s in para.get("sentences", []):
+            input_lines.append(f"[{s['start']:.1f}] {s['text']}")
+        input_lines.append("---")  # 段落分隔符
+
+    prompt = f"""你是一位专业翻译。请将以下字幕翻译为{target_name}。
+
+规则：
+1. 每行格式为 [时间戳] 文字，翻译后保持相同格式：[时间戳] 翻译后文字。
+2. 时间戳必须原样保留。
+3. "---" 是段落分隔符，必须原样保留。
+4. 输入多少行，输出就必须多少行（不含分隔符的行数必须一致）。
+5. 翻译要自然流畅，符合{target_name}表达习惯。
+
+输入：
+{chr(10).join(input_lines)}
+
+请输出与输入完全相同结构的 JSON：
+{{
+  "paragraphs": [
+    {{
+      "sentences": [
+        {{"start": 0.0, "text": "translated text here"}}
+      ]
+    }}
+  ]
+}}"""
+
+    response = llm_client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": f"你是专业字幕翻译，翻译为{target_name}。保持时间戳和段落结构不变，只翻译文字内容。必须输出 JSON。"},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+    )
+
+    content = response.choices[0].message.content
+    usage = {
+        "prompt_tokens": response.usage.prompt_tokens,
+        "completion_tokens": response.usage.completion_tokens,
+        "total_tokens": response.usage.total_tokens,
+    }
+
+    print(f"--- [Translate] Chunk {idx+1}/{total_chunks} 完成 ---")
+
+    try:
+        data = json.loads(content)
+    except Exception:
+        match = re.search(r'\{.*\}', content or "", re.DOTALL)
+        if match:
+            data = json.loads(match.group(0))
+        else:
+            raise ValueError(f"翻译段落 JSON 解析失败: {content[:200]}")
+
+    # 解析段落
+    translated_paras = []
+    if isinstance(data, dict) and "paragraphs" in data:
+        translated_paras = data["paragraphs"]
+    elif isinstance(data, dict):
+        for val in data.values():
+            if isinstance(val, list):
+                translated_paras = val
+                break
+
+    # 如果 LLM 输出的段落数与输入不匹配，尝试用原始时间戳修补
+    if len(translated_paras) != len(paragraphs_chunk):
+        print(f"Warning: [Translate] Chunk {idx+1} 段落数不匹配 (期望 {len(paragraphs_chunk)}, 得到 {len(translated_paras)})")
+        # 尽量保留已翻译内容，用原始时间戳补齐
+        for p_idx, para in enumerate(translated_paras):
+            if p_idx < len(paragraphs_chunk):
+                orig_sentences = paragraphs_chunk[p_idx].get("sentences", [])
+                trans_sentences = para.get("sentences", [])
+                for s_idx, s in enumerate(trans_sentences):
+                    if s_idx < len(orig_sentences):
+                        s["start"] = orig_sentences[s_idx]["start"]
+
+    return idx, translated_paras, usage
+
+
+def translate_content(title, paragraphs, summary, keywords, source_lang, target_lang):
+    """
+    将视频内容从 source_lang 翻译到 target_lang。
+
+    返回: (translated_dict, total_usage)
+        translated_dict = {"title": ..., "paragraphs": [...], "summary": ..., "keywords": [...]}
+    """
+    print(f"=== [Translate] 开始翻译: {source_lang} → {target_lang} ===")
+
+    llm_client, provider = get_llm_client()
+    if not llm_client:
+        raise ValueError("无可用的 LLM 客户端")
+
+    if provider == "ollama":
+        model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+    else:
+        model = "gpt-4o-mini"
+
+    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+    # 1. 翻译 metadata（title + summary + keywords）
+    print(f"--- [Translate] 翻译标题/摘要/关键词 ---")
+    meta_result, meta_usage = _translate_metadata(
+        title, summary or "", keywords or [], source_lang, target_lang, llm_client, model
+    )
+    for k in total_usage:
+        total_usage[k] += meta_usage.get(k, 0)
+
+    # 2. 翻译 paragraphs（分 chunk 处理）
+    if not paragraphs:
+        translated_paras = []
+    else:
+        CHUNK_SIZE = 15  # 每 chunk 约 15 个段落
+        chunks = [paragraphs[i:i+CHUNK_SIZE] for i in range(0, len(paragraphs), CHUNK_SIZE)]
+        total_chunks = len(chunks)
+        print(f"--- [Translate] 翻译字幕: {len(paragraphs)} 段落 → {total_chunks} chunks ---")
+
+        # 尝试使用 ServerPool 并行处理
+        pool = ServerPool()
+        available = pool.get_available_servers() if pool else []
+
+        if len(available) > 1 and total_chunks > 1:
+            # 并行翻译
+            print(f"--- [Translate] 并行处理: {total_chunks} chunks → {len(available)} servers ---")
+            translated_paras = [None] * total_chunks
+            with ThreadPoolExecutor(max_workers=len(available)) as executor:
+                server_cycle = itertools.cycle(available)
+                futures = {}
+                for idx, chunk in enumerate(chunks):
+                    server = next(server_cycle)
+                    future = executor.submit(
+                        _translate_paragraphs_chunk,
+                        idx, chunk, source_lang, target_lang,
+                        server.client, model, total_chunks
+                    )
+                    futures[future] = idx
+
+                for future in as_completed(futures):
+                    idx = futures[future]
+                    try:
+                        _, paras, usage = future.result()
+                        translated_paras[idx] = paras
+                        for k in total_usage:
+                            total_usage[k] += usage.get(k, 0)
+                    except Exception as e:
+                        print(f"--- [Translate] Chunk {idx+1} 并行翻译失败: {e}，使用原文 ---")
+                        translated_paras[idx] = chunks[idx]
+
+            # 展平
+            all_paras = []
+            for paras in translated_paras:
+                if paras:
+                    all_paras.extend(paras)
+            translated_paras = all_paras
+        else:
+            # 串行翻译
+            translated_paras = []
+            for idx, chunk in enumerate(chunks):
+                try:
+                    _, paras, usage = _translate_paragraphs_chunk(
+                        idx, chunk, source_lang, target_lang,
+                        llm_client, model, total_chunks
+                    )
+                    translated_paras.extend(paras)
+                    for k in total_usage:
+                        total_usage[k] += usage.get(k, 0)
+                except Exception as e:
+                    print(f"--- [Translate] Chunk {idx+1} 串行翻译失败: {e}，使用原文 ---")
+                    translated_paras.extend(chunk)
+
+    result = {
+        "title": meta_result.get("title", title),
+        "paragraphs": translated_paras,
+        "summary": meta_result.get("summary", summary),
+        "keywords": meta_result.get("keywords", keywords),
+    }
+
+    print(f"=== [Translate] 翻译完成: tokens={total_usage['total_tokens']} ===")
+    return result, total_usage
