@@ -233,15 +233,17 @@ def process_video_task(task_id):
         
         cmd = [
             sys.executable, worker_script,
-            task_id, mode,
             "--file", transcription_source_path,
             "--title", title or "Unknown",
             "--description", description,
             "--model", "large-v3-turbo"
         ]
-        
+
         if video_id:
-            cmd.extend(["--video-id", video_id])
+            cmd.append(f"--video-id={video_id}")
+
+        # "--" 防止以 "-" 开头的 task_id 被 argparse 误判为 flag
+        cmd.extend(["--", task_id, mode])
         
         print(f"--- 启动 Worker 进程: {' '.join(cmd)} ---")
         

@@ -124,28 +124,52 @@ PROMPT = """
 {text_with_timestamps}
 """
 
+def _create_gemini_client():
+    """创建 Gemini 客户端（通过 OpenAI 兼容接口）。"""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(
+        api_key=api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
+
+GEMINI_MODEL = "gemini-2.5-flash"
+
 def get_llm_client(fallback=False):
     """
-    根据环境变量 LLM_PROVIDER 返回对应的 OpenAI 或 Ollama 客户端。
-    fallback=True 时返回备用 provider 客户端（OpenAI→Ollama 或 Ollama→OpenAI）。
+    根据环境变量 LLM_PROVIDER 返回对应的 LLM 客户端。
+    fallback=True 时按优先级返回备用 provider：Gemini → OpenAI → Ollama。
     返回 (client, provider_name) 元组。
     """
     provider = os.getenv("LLM_PROVIDER", "openai").lower()
 
     if fallback:
+        # fallback 优先级：Gemini（免费）→ Ollama → OpenAI
+        if provider != "gemini":
+            gemini_client = _create_gemini_client()
+            if gemini_client:
+                print(f"--- [LLM Fallback] Switching to Gemini ({GEMINI_MODEL}) ---")
+                return gemini_client, "gemini"
+
         if provider != "ollama":
-            # 主是 OpenAI，fallback 到 Ollama
             base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-            ollama_model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
-            print(f"--- [LLM Fallback] Switching to Ollama: {base_url}, model={ollama_model} ---")
+            print(f"--- [LLM Fallback] Switching to Ollama: {base_url} ---")
             return OpenAI(base_url=base_url, api_key="ollama"), "ollama"
-        else:
-            # 主是 Ollama，fallback 到 OpenAI
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                return None, None
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
             print(f"--- [LLM Fallback] Switching to OpenAI ---")
             return OpenAI(api_key=api_key), "openai"
+
+        return None, None
+
+    if provider == "gemini":
+        gemini_client = _create_gemini_client()
+        if gemini_client:
+            print(f"--- Using Gemini Provider: {GEMINI_MODEL} ---")
+            return gemini_client, "gemini"
+        return None, None
 
     if provider == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
@@ -249,7 +273,12 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     keywords = extract_keywords(title, description)
 
     client, provider = get_llm_client()
-    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if provider == "ollama" else "gpt-4o-mini"
+    if provider == "ollama":
+        default_model = os.getenv("OLLAMA_MODEL", "qwen:8b")
+    elif provider == "gemini":
+        default_model = GEMINI_MODEL
+    else:
+        default_model = "gpt-4o-mini"
     actual_model = model if model != "gpt-4o-mini" else default_model
 
     # 选择 prompt 模板
@@ -340,8 +369,10 @@ def _process_chunk_single(idx, chunk, context, llm_client, model, prompt_templat
         ],
         response_format={"type": "json_object"},
         temperature=0.1,
-        extra_body={"options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))}}
     )
+    # Ollama 特有参数：GPU 层数控制
+    if "localhost" in str(getattr(llm_client, '_base_url', '')) or "192.168" in str(getattr(llm_client, '_base_url', '')):
+        call_kwargs["extra_body"] = {"options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))}}
 
     # 空响应重试（最多 5 次，指数退避）
     content = None
@@ -536,7 +567,26 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
                     server.report_failure()
                     print(f"--- [Retry] Chunk {idx+1} 在 {server.base_url} 失败: {e} ---")
 
-            # 策略 2: OpenAI 兜底
+            # 策略 2: Gemini 兜底（免费额度）→ OpenAI 最终兜底
+            if not retried:
+                gemini_client = _create_gemini_client()
+                if gemini_client:
+                    try:
+                        print(f"--- [Retry] Chunk {idx+1} → Gemini {GEMINI_MODEL} 兜底 ---")
+                        _, paras, usage, quality_ok, reason = _process_chunk_single(
+                            idx, chunks[idx], chunk_contexts[idx],
+                            gemini_client, GEMINI_MODEL,
+                            params["current_prompt"], params["video_context"],
+                            params["keywords"], params["prompt_mode"], params["total_chunks"])
+                        for k in total_usage:
+                            total_usage[k] += usage.get(k, 0)
+                        if quality_ok or paras:
+                            results[idx] = paras
+                            retried = True
+                    except Exception as e:
+                        print(f"--- [Retry] Chunk {idx+1} Gemini 兜底失败: {e} ---")
+
+            # 策略 2b: OpenAI 最终兜底
             if not retried:
                 api_key = os.getenv("OPENAI_API_KEY")
                 if api_key:
@@ -550,7 +600,7 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
                             params["keywords"], params["prompt_mode"], params["total_chunks"])
                         for k in total_usage:
                             total_usage[k] += usage.get(k, 0)
-                        if quality_ok or paras:  # OpenAI 即使质量检查不完美也接受
+                        if quality_ok or paras:
                             results[idx] = paras
                             retried = True
                     except Exception as e:
@@ -777,7 +827,12 @@ Output strictly in the following JSON format:
 }}
 """
 
-    default_model = os.getenv("OLLAMA_MODEL", "qwen:8b") if provider == "ollama" else "gpt-4o-mini"
+    if provider == "ollama":
+        default_model = os.getenv("OLLAMA_MODEL", "qwen:8b")
+    elif provider == "gemini":
+        default_model = GEMINI_MODEL
+    else:
+        default_model = "gpt-4o-mini"
 
     def _call_llm(llm_client, llm_model, use_json_format=True):
         """执行 LLM 调用，返回 (data, usage)。"""
@@ -866,7 +921,12 @@ Output strictly in the following JSON format:
         fb_client, fb_provider = get_llm_client(fallback=True)
         if fb_client:
             try:
-                fb_model = os.getenv("OLLAMA_MODEL", "qwen3:8b") if fb_provider == "ollama" else "gpt-4o-mini"
+                if fb_provider == "ollama":
+                    fb_model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+                elif fb_provider == "gemini":
+                    fb_model = GEMINI_MODEL
+                else:
+                    fb_model = "gpt-4o-mini"
                 print(f"[summarize_text] Retrying with fallback provider: {fb_provider}, model={fb_model}")
                 # Ollama 对 json_object 支持不稳定，先不传 response_format
                 use_json = fb_provider != "ollama"
@@ -1081,6 +1141,8 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
 
     if provider == "ollama":
         model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+    elif provider == "gemini":
+        model = GEMINI_MODEL
     else:
         model = "gpt-4o-mini"
 

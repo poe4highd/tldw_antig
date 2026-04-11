@@ -212,15 +212,17 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
         
         cmd = [
             "python3", worker_script,
-            task_id, mode,
             "--file", transcription_source_path,
             "--title", title or "Unknown",
             "--description", description,
             "--model", "large-v3-turbo"
         ]
-        
+
         if video_id:
-            cmd.extend(["--video-id", video_id])
+            cmd.append(f"--video-id={video_id}")
+
+        # "--" 防止以 "-" 开头的 task_id 被 argparse 误判为 flag
+        cmd.extend(["--", task_id, mode])
         
         print(f"--- 启动 Worker 进程: {' '.join(cmd)} ---")
         
@@ -344,8 +346,24 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
     except Exception as e:
         import traceback
         traceback.print_exc()
+        error_msg = str(e)
         with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as f:
-            json.dump({"error": str(e)}, f)
+            json.dump({"error": error_msg}, f)
+        save_status(task_id, "failed", 0)
+        # 同步错误信息到数据库
+        if supabase:
+            try:
+                existing = supabase.table("videos").select("report_data").eq("id", task_id).execute()
+                if existing.data:
+                    rd = existing.data[0].get("report_data") or {}
+                    rd["error"] = error_msg
+                    supabase.table("videos").update({
+                        "status": "failed",
+                        "report_data": rd
+                    }).eq("id", task_id).execute()
+                    print(f"[Error] 已将错误信息写入数据库: {task_id}: {error_msg[:100]}")
+            except Exception as db_e:
+                print(f"[Error] 写入数据库错误信息失败: {db_e}")
 
 @app.post("/process")
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
