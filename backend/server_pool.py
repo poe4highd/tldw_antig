@@ -73,9 +73,22 @@ class ServerPool:
         self._load_from_env()
 
     def _load_from_env(self):
+        # 优先从 llm_config.yaml 读取
+        try:
+            import llm_provider
+            yaml_servers = llm_provider.get_ollama_servers()
+            if yaml_servers:
+                for s in yaml_servers:
+                    self.servers.append(OllamaServer(s["url"], s.get("schedule", "always")))
+                print(f"--- [ServerPool] 从 YAML 加载 {len(self.servers)} 台服务器: "
+                      f"{[(s.base_url, s.schedule) for s in self.servers]} ---")
+                return
+        except Exception:
+            pass
+
+        # 回退到环境变量
         servers_str = os.getenv("OLLAMA_SERVERS", "")
         if not servers_str:
-            # 回退到单服务器配置
             base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
             self.servers = [OllamaServer(base_url, "always")]
             print(f"--- [ServerPool] 单服务器模式: {base_url} ---")
@@ -85,8 +98,6 @@ class ServerPool:
             url = url.strip()
             if not url:
                 continue
-            # 从 URL 提取最后一组 IP 段，用于查找对应的调度配置
-            # e.g., http://192.168.1.176:11434/v1 → 查找 OLLAMA_SERVER_176_SCHEDULE
             ip_match = re.search(r'\.(\d+):\d+', url)
             if ip_match:
                 last_octet = ip_match.group(1)

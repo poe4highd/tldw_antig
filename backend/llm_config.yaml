@@ -1,0 +1,23 @@
+# LLM 服务配置
+# providers 按优先级排列，第一个 enabled=true 的为主力，其余为 fallback
+
+providers:
+  - name: gemini
+    enabled: true
+    model: gemini-2.5-flash
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    api_key_env: GEMINI_API_KEY       # 从环境变量读取
+
+  - name: ollama
+    enabled: true
+    model: gemma4:e4b
+    servers:
+      - url: http://192.168.1.182:11434/v1
+        schedule: always
+      - url: http://192.168.1.176:11434/v1
+        schedule: "00:00-19:00"
+
+  - name: openai
+    enabled: false
+    model: gpt-4o-mini
+    api_key_env: OPENAI_API_KEY
