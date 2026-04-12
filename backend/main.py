@@ -367,6 +367,8 @@ def background_process(task_id, mode, url=None, local_file=None, title=None, thu
 
 @app.post("/process")
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
+    if not request.user_id:
+        print(f"[WARN] /process called without user_id! url={request.url} — 此任务将不会关联到任何用户的书架/历史")
     # 优先使用 YouTube ID 作为 task_id
     url = request.url
     task_id = None
@@ -450,6 +452,8 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
 
 @app.post("/upload")
 async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None, is_public: bool = True):
+    if not user_id:
+        print(f"[WARN] /upload called without user_id! file={file.filename} — 此上传将不会关联到任何用户的书架/历史")
     # 使用文件内容 hash 生成唯一 ID
     content = await file.read()
     file_hash = hashlib.md5(content).hexdigest()[:8]

@@ -91,6 +91,10 @@ export default function TasksPage() {
             setStatus(t("tasks.invalidUrl") || "请输入有效的 YouTube 链接或视频 ID");
             return;
         }
+
+        const userId = await ensureAuth();
+        if (!userId) return;
+
         setStatus(t("tasks.statusInit"));
         setProgress(0);
         setEta(null);
@@ -101,7 +105,7 @@ export default function TasksPage() {
             const resp = await fetch(`${apiBase}/process`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url, mode, user_id: user?.id, is_public: isPublic }),
+                body: JSON.stringify({ url, mode, user_id: userId, is_public: isPublic }),
             });
 
             if (!resp.ok) {
@@ -118,9 +122,24 @@ export default function TasksPage() {
         }
     };
 
+    const ensureAuth = async (): Promise<string | null> => {
+        if (user?.id) return user.id;
+        // Session 可能已过期，尝试重新获取
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            setUser(session.user);
+            return session.user.id;
+        }
+        setStatus(t("tasks.statusLoginRequired") || "请先登录后再提交");
+        return null;
+    };
+
     const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        const userId = await ensureAuth();
+        if (!userId) return;
 
         setStatus(t("tasks.statusUploading"));
         setProgress(0);
@@ -131,7 +150,7 @@ export default function TasksPage() {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("mode", mode);
-        if (user) formData.append("user_id", user.id);
+        formData.append("user_id", userId);
         formData.append("is_public", isPublic.toString());
 
         try {
