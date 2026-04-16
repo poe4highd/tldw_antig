@@ -238,6 +238,12 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     default_model = _get_model_for_provider(provider)
     actual_model = model if model != "gpt-4o-mini" else default_model
 
+    # 本地 Ollama 模型自动升级到 v2（句子保留模式）：
+    # v1 要求合并分段，对本地小模型太难，输出质量差会触发 group_by_time fallback（无标点）
+    if prompt_mode == "v1" and provider == "ollama":
+        prompt_mode = "v2"
+        print(f"[Processor] provider=ollama，自动切换为 prompt_mode=v2")
+
     # 选择 prompt 模板
     if prompt_mode == "v2":
         base_prompt = PROMPT_V2
