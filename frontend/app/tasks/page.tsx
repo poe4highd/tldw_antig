@@ -159,6 +159,11 @@ export default function TasksPage() {
                 method: "POST",
                 body: formData,
             });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                setStatus(err.detail || t("tasks.statusUploadFailed"));
+                return;
+            }
             const data = await resp.json();
             pollStatus(data.task_id);
         } catch (err) {

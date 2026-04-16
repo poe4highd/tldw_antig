@@ -453,7 +453,7 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
 @app.post("/upload")
 async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None, is_public: bool = True):
     if not user_id:
-        print(f"[WARN] /upload called without user_id! file={file.filename} — 此上传将不会关联到任何用户的书架/历史")
+        raise HTTPException(status_code=400, detail="需要登录后才能上传文件，请刷新页面重新登录")
     # 使用文件内容 hash 生成唯一 ID
     content = await file.read()
     file_hash = hashlib.md5(content).hexdigest()[:8]
