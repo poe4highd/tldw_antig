@@ -14,9 +14,10 @@ from openai import OpenAI
 class OllamaServer:
     """单个 Ollama 服务器实例"""
 
-    def __init__(self, base_url: str, schedule: str = "always"):
+    def __init__(self, base_url: str, schedule: str = "always", model: str = ""):
         self.base_url = base_url
         self.schedule = schedule  # "always" 或 "HH:MM-HH:MM"（可用时段）
+        self.model = model  # Ollama 模型名，由 ServerPool 从 llm_config 注入
         self.client = OpenAI(base_url=base_url, api_key="ollama")
         self.busy = False
         self.consecutive_failures = 0
@@ -78,8 +79,10 @@ class ServerPool:
             import llm_provider
             yaml_servers = llm_provider.get_ollama_servers()
             if yaml_servers:
+                ollama_cfg = llm_provider.get_provider_config("ollama") or {}
+                ollama_model = ollama_cfg.get("model", "")
                 for s in yaml_servers:
-                    self.servers.append(OllamaServer(s["url"], s.get("schedule", "always")))
+                    self.servers.append(OllamaServer(s["url"], s.get("schedule", "always"), model=ollama_model))
                 print(f"--- [ServerPool] 从 YAML 加载 {len(self.servers)} 台服务器: "
                       f"{[(s.base_url, s.schedule) for s in self.servers]} ---")
                 return

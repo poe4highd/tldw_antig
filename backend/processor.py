@@ -238,11 +238,12 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     default_model = _get_model_for_provider(provider)
     actual_model = model if model != "gpt-4o-mini" else default_model
 
-    # 本地 Ollama 模型自动升级到 v2（句子保留模式）：
-    # v1 要求合并分段，对本地小模型太难，输出质量差会触发 group_by_time fallback（无标点）
-    if prompt_mode == "v1" and provider == "ollama":
+    # 全局自动升级到 v2（句子保留 + 句末标点）：
+    # v1 要求合并重组分段，对口语音频（重复、停顿多）所有模型都容易产生 hallucination。
+    # v2 只做纠错+句末标点，质量更稳定，fallback 率更低。
+    if prompt_mode == "v1":
         prompt_mode = "v2"
-        print(f"[Processor] provider=ollama，自动切换为 prompt_mode=v2")
+        print(f"[Processor] 自动切换为 prompt_mode=v2 (provider={provider})")
 
     # 选择 prompt 模板
     if prompt_mode == "v2":
@@ -470,11 +471,13 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
         for idx, chunk in enumerate(chunks):
             server = next(server_cycle)
             server.busy = True
+            # 用 server 自己的 model（Ollama），而非主力 provider 的 model
+            server_model = server.model or params["actual_model"]
             future = executor.submit(
                 _process_chunk_single,
                 idx, chunk, chunk_contexts[idx],
                 server.client,
-                params["actual_model"],
+                server_model,
                 params["current_prompt"],
                 params["video_context"],
                 params["keywords"],
@@ -513,9 +516,10 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
             for server in pool.get_available_servers():
                 try:
                     print(f"--- [Retry] Chunk {idx+1} → {server.base_url} ---")
+                    server_model = server.model or params["actual_model"]
                     _, paras, usage, quality_ok, reason = _process_chunk_single(
                         idx, chunks[idx], chunk_contexts[idx],
-                        server.client, params["actual_model"],
+                        server.client, server_model,
                         params["current_prompt"], params["video_context"],
                         params["keywords"], params["prompt_mode"], params["total_chunks"])
                     for k in total_usage:
