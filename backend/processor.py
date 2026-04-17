@@ -286,6 +286,9 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
         # 单服务器或单 chunk：使用原有串行逻辑
         server = available[0] if available else pool.servers[0] if pool.servers else None
         fallback_client = server.client if server else client
+        # 串行路径同样需要用 server 自己的 model，防止把 Gemini model 名传给 Ollama
+        if server and server.model:
+            chunk_params = {**chunk_params, "actual_model": server.model}
         all_paragraphs, total_usage = _process_chunks_sequential(
             chunks, chunk_contexts, fallback_client, provider, chunk_params)
 
