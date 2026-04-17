@@ -437,7 +437,9 @@ def _validate_chunk_quality(chunk_input, chunk_paras, prompt_mode):
     )
     if input_chars > 0:
         ratio = output_chars / input_chars
-        if ratio < 0.5 or ratio > 2.0:
+        # v2 模式只添加句末标点，字符数会增加（中文标点为全角），放宽上限到 4.0
+        max_ratio = 4.0 if prompt_mode == "v2" else 2.0
+        if ratio < 0.5 or ratio > max_ratio:
             return False, f"char_ratio:{ratio:.2f}"
 
     # 检查 4: 幻觉模式
@@ -834,6 +836,10 @@ Output strictly in the following JSON format:
             return h * 3600 + mn * 60 + s
 
         summary = data["summary"]
+        # Gemini 有时把 summary 作为 list 返回，转换为字符串
+        if isinstance(summary, list):
+            summary = '\n'.join(str(item) for item in summary)
+            data["summary"] = summary
         lines = [l for l in summary.split('\n') if l.strip()]
         if len(lines) <= 1:
             parts = _re.split(r'(?=\d+\.\s)', summary.strip())
