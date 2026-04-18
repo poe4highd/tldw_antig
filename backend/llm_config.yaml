@@ -10,7 +10,7 @@ providers:
 
   - name: ollama
     enabled: true
-    model: gemma4:e4b
+    model: qwen3:8b
     servers:
       - url: http://192.168.1.176:11434/v1
         schedule: "00:00-19:00"

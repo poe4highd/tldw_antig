@@ -341,7 +341,10 @@ def _process_chunk_single(idx, chunk, context, llm_client, model, prompt_templat
     )
     # Ollama 特有参数：GPU 层数控制
     if "localhost" in str(getattr(llm_client, '_base_url', '')) or "192.168" in str(getattr(llm_client, '_base_url', '')):
-        call_kwargs["extra_body"] = {"options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))}}
+        call_kwargs["extra_body"] = {
+            "options": {"num_gpu": int(os.getenv("OLLAMA_NUM_GPU", "-1"))},
+            "think": False,
+        }
 
     # 空响应重试（最多 5 次，指数退避）
     content = None
