@@ -5,6 +5,8 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from db import get_db
+from app_logger import get_logger
+logger = get_logger(__name__)
 
 RESULTS_DIR = "results"
 STUCK_PROCESSING_HOURS = 3
@@ -37,9 +39,9 @@ def check_stuck_tasks():
             for v in res.data:
                 supabase.table("videos").update({"status": "failed"}).eq("id", v["id"]).execute()
                 save_status(v["id"], "failed", 100)
-                print(f"[Scheduler] Auto-failed stuck {status} task: {v['id']}")
+                logger.info(f"[Scheduler] Auto-failed stuck {status} task: {v['id']}")
     except Exception as e:
-        print(f"[Scheduler] Error in check_stuck_tasks: {e}")
+        logger.info(f"[Scheduler] Error in check_stuck_tasks: {e}")
 
 
 def get_next_task():
@@ -101,11 +103,11 @@ def get_next_task():
             _consecutive_db_errors = 0
     except Exception as e:
         _consecutive_db_errors += 1
-        print(f"[Scheduler] Error fetching from Supabase ({_consecutive_db_errors}x): {e}")
+        logger.info(f"[Scheduler] Error fetching from Supabase ({_consecutive_db_errors}x): {e}")
 
         # 连续失败多次后尝试重建连接
         if _consecutive_db_errors >= CONSECUTIVE_ERRORS_BEFORE_RECONNECT:
-            print(f"[Scheduler] 连续 {_consecutive_db_errors} 次失败，重建 Supabase 连接...")
+            logger.info(f"[Scheduler] 连续 {_consecutive_db_errors} 次失败，重建 Supabase 连接...")
             supabase = get_db(force_new=True)
             _consecutive_db_errors = 0
     
@@ -137,7 +139,7 @@ def get_next_task():
     return {"id": queued_tasks[0][0], "is_local": True}
 
 def run_scheduler():
-    print("--- [Scheduler] Started and monitoring queue... ---")
+    logger.info("--- [Scheduler] Started and monitoring queue... ---")
     last_timeout_check = 0
     while True:
         if time.time() - last_timeout_check > TIMEOUT_CHECK_INTERVAL:
@@ -147,7 +149,7 @@ def run_scheduler():
         task = get_next_task()
         if task:
             task_id = task["id"]
-            print(f"--- [Scheduler] Found queued task: {task_id} ---")
+            logger.info(f"--- [Scheduler] Found queued task: {task_id} ---")
             
             # Update status to processing
             save_status(task_id, "processing", 5)
@@ -173,17 +175,17 @@ def run_scheduler():
             if sys.platform != "win32":
                 cmd = ["nice", "-n", "15"] + cmd
             
-            print(f"--- [Scheduler] Executing: {' '.join(cmd)} ---")
+            logger.info(f"--- [Scheduler] Executing: {' '.join(cmd)} ---")
             try:
                 # Use subprocess.run to wait for completion (sequential)
                 # 捕获 stderr 以便在崩溃时保留诊断信息
                 result = subprocess.run(cmd, stderr=subprocess.PIPE, text=True)
                 if result.returncode == 0:
-                    print(f"--- [Scheduler] Task {task_id} completed successfully ---")
+                    logger.info(f"--- [Scheduler] Task {task_id} completed successfully ---")
                 else:
-                    print(f"--- [Scheduler] Task {task_id} failed with exit code {result.returncode} ---")
+                    logger.info(f"--- [Scheduler] Task {task_id} failed with exit code {result.returncode} ---")
                     if result.stderr:
-                        print(f"[Scheduler] stderr:\n{result.stderr}", file=sys.stderr)
+                        logger.info(f"[Scheduler] stderr:\n{result.stderr}", file=sys.stderr)
                     # 兜底：如果 process_task.py 崩溃前未写 _error.json，由 scheduler 补写
                     error_file = f"{RESULTS_DIR}/{task_id}_error.json"
                     if not os.path.exists(error_file):
@@ -197,9 +199,9 @@ def run_scheduler():
                         try:
                             supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
                         except Exception as up_e:
-                            print(f"[Scheduler] Failed to update Supabase status: {up_e}")
+                            logger.info(f"[Scheduler] Failed to update Supabase status: {up_e}")
             except Exception as e:
-                print(f"--- [Scheduler] Exception running task {task_id}: {e} ---")
+                logger.info(f"--- [Scheduler] Exception running task {task_id}: {e} ---")
                 # 补写 _error.json
                 error_file = f"{RESULTS_DIR}/{task_id}_error.json"
                 if not os.path.exists(error_file):
@@ -213,7 +215,7 @@ def run_scheduler():
                     try:
                         supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
                     except Exception as up_e:
-                        print(f"[Scheduler] Failed to update Supabase status: {up_e}")
+                        logger.info(f"[Scheduler] Failed to update Supabase status: {up_e}")
             
         else:
             time.sleep(10)

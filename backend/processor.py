@@ -7,8 +7,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 from dotenv import load_dotenv
 from server_pool import ServerPool, OllamaServer
+from app_logger import get_logger
 
 load_dotenv()
+logger = get_logger(__name__)
 
 PROMPT_V2 = """
 你是一位专业的语音转录校对员。我会给你一段带有时间戳的原始语音转录，每行格式为 `[时间] 文字`。
@@ -218,7 +220,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     """
     # 检查是否有可用的 LLM 提供者
     if not llm_provider.get_all_enabled():
-        print("⚠️ Warning: No LLM provider configured. Using fallback grouping.")
+        logger.info("⚠️ Warning: No LLM provider configured. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     # 检测语言偏好 (不再使用 subtitles 样本)
@@ -243,7 +245,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     # v2 只做纠错+句末标点，质量更稳定，fallback 率更低。
     if prompt_mode == "v1":
         prompt_mode = "v2"
-        print(f"[Processor] 自动切换为 prompt_mode=v2 (provider={provider})")
+        logger.info(f"[Processor] 自动切换为 prompt_mode=v2 (provider={provider})")
 
     # 选择 prompt 模板
     if prompt_mode == "v2":
@@ -276,7 +278,7 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     pool = ServerPool()
     available = pool.get_available_servers()
 
-    print(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks "
+    logger.info(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks "
           f"(servers available: {len(available)}) ---")
 
     if len(available) > 1 and len(chunks) > 1:
@@ -351,16 +353,16 @@ def _process_chunk_single(idx, chunk, context, llm_client, model, prompt_templat
         if content and content.strip():
             break
         wait = 2 ** attempt
-        print(f"Chunk {idx+1}: empty response (attempt {attempt+1}/{max_attempts}), retrying in {wait}s...")
+        logger.info(f"Chunk {idx+1}: empty response (attempt {attempt+1}/{max_attempts}), retrying in {wait}s...")
         time.sleep(wait)
 
-    print(f"--- Chunk {idx+1}/{total_chunks} LLM Response Received ---")
+    logger.info(f"--- Chunk {idx+1}/{total_chunks} LLM Response Received ---")
 
     # JSON 解析
     try:
         data = json.loads(content)
     except Exception as je:
-        print(f"JSON Decode Error in chunk {idx+1}: {je}")
+        logger.info(f"JSON Decode Error in chunk {idx+1}: {je}")
         match = re.search(r'\{.*\}', content or "", re.DOTALL)
         if match:
             data = json.loads(match.group(0))
@@ -389,7 +391,7 @@ def _process_chunk_single(idx, chunk, context, llm_client, model, prompt_templat
         chunk_paras = data
 
     if not chunk_paras:
-        print(f"Warning: No paragraphs found in chunk {idx+1} JSON. Keys: {list(data.keys()) if isinstance(data, dict) else 'list'}")
+        logger.info(f"Warning: No paragraphs found in chunk {idx+1} JSON. Keys: {list(data.keys()) if isinstance(data, dict) else 'list'}")
 
     # 结构化 + 字段名归一化
     structured_paras = []
@@ -408,7 +410,7 @@ def _process_chunk_single(idx, chunk, context, llm_client, model, prompt_templat
 
     # 质量检查
     quality_ok, reason = _validate_chunk_quality(chunk, structured_paras, prompt_mode)
-    print(f"Chunk {idx+1}/{total_chunks} structured. quality={quality_ok} {reason}")
+    logger.info(f"Chunk {idx+1}/{total_chunks} structured. quality={quality_ok} {reason}")
 
     return idx, structured_paras, usage, quality_ok, reason
 
@@ -452,6 +454,20 @@ def _validate_chunk_quality(chunk_input, chunk_paras, prompt_mode):
     if patterns:
         return False, f"hallucination:{patterns}"
 
+    # 检查 5: v2 模式标点密度（每句至少 0.5 个标点，否则视为 LLM 漏加标点）
+    if prompt_mode == "v2":
+        sentences = [s for p in chunk_paras for s in p.get("sentences", [])]
+        punct_count = sum(
+            1 for s in sentences
+            for c in s.get("text", "")
+            if c in "，。？！,."
+        )
+        sentence_count = len(sentences)
+        if sentence_count > 0:
+            density = punct_count / sentence_count
+            if density < 0.5:
+                return False, f"punct_density:{density:.2f}"
+
     return True, "ok"
 
 
@@ -467,7 +483,7 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
     total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     available = pool.get_available_servers()
-    print(f"--- [Parallel] 启动并行处理: {total} chunks → {len(available)} servers ---")
+    logger.info(f"--- [Parallel] 启动并行处理: {total} chunks → {len(available)} servers ---")
 
     with ThreadPoolExecutor(max_workers=len(available)) as executor:
         futures = {}
@@ -501,26 +517,26 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
                     for k in total_usage:
                         total_usage[k] += usage.get(k, 0)
                 else:
-                    print(f"--- [Parallel] Chunk {chunk_idx+1} 质量不合格 ({reason})，加入重试队列 ---")
+                    logger.info(f"--- [Parallel] Chunk {chunk_idx+1} 质量不合格 ({reason})，加入重试队列 ---")
                     retry_queue.append(chunk_idx)
                     # 即使质量不合格也记录 token 消耗
                     for k in total_usage:
                         total_usage[k] += usage.get(k, 0)
             except Exception as e:
                 server.report_failure()
-                print(f"--- [Parallel] Chunk {idx+1} 处理异常: {e} ---")
+                logger.info(f"--- [Parallel] Chunk {idx+1} 处理异常: {e} ---")
                 retry_queue.append(idx)
 
     # ── 重试阶段 ──
     if retry_queue:
-        print(f"--- [Retry] {len(retry_queue)} chunks 需要重试: {[i+1 for i in retry_queue]} ---")
+        logger.info(f"--- [Retry] {len(retry_queue)} chunks 需要重试: {[i+1 for i in retry_queue]} ---")
         for idx in retry_queue:
             retried = False
 
             # 策略 1: 尝试另一台可用 Ollama 服务器
             for server in pool.get_available_servers():
                 try:
-                    print(f"--- [Retry] Chunk {idx+1} → {server.base_url} ---")
+                    logger.info(f"--- [Retry] Chunk {idx+1} → {server.base_url} ---")
                     server_model = server.model or params["actual_model"]
                     _, paras, usage, quality_ok, reason = _process_chunk_single(
                         idx, chunks[idx], chunk_contexts[idx],
@@ -537,7 +553,7 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
                     server.report_success()
                 except Exception as e:
                     server.report_failure()
-                    print(f"--- [Retry] Chunk {idx+1} 在 {server.base_url} 失败: {e} ---")
+                    logger.info(f"--- [Retry] Chunk {idx+1} 在 {server.base_url} 失败: {e} ---")
 
             # 策略 2: 按 YAML 优先级逐个 fallback
             if not retried:
@@ -552,7 +568,7 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
                         continue
                     fb_model = fb_cfg.get("model", "gpt-4o-mini")
                     try:
-                        print(f"--- [Retry] Chunk {idx+1} → {fb_cfg['name']} {fb_model} 兜底 ---")
+                        logger.info(f"--- [Retry] Chunk {idx+1} → {fb_cfg['name']} {fb_model} 兜底 ---")
                         _, paras, usage, quality_ok, reason = _process_chunk_single(
                             idx, chunks[idx], chunk_contexts[idx],
                             fb_client, fb_model,
@@ -564,11 +580,11 @@ def _process_chunks_parallel(chunks, chunk_contexts, pool, params):
                             results[idx] = paras
                             retried = True
                     except Exception as e:
-                        print(f"--- [Retry] Chunk {idx+1} {fb_cfg['name']} 兜底失败: {e} ---")
+                        logger.info(f"--- [Retry] Chunk {idx+1} {fb_cfg['name']} 兜底失败: {e} ---")
 
             # 策略 3: group_by_time 最终兜底
             if not retried:
-                print(f"--- [Retry] Chunk {idx+1} 所有重试失败，使用基础分组 ---")
+                logger.info(f"--- [Retry] Chunk {idx+1} 所有重试失败，使用基础分组 ---")
                 results[idx] = group_by_time(chunks[idx])
 
     # ── 按序组装 ──
@@ -603,7 +619,7 @@ def _process_chunks_sequential(chunks, chunk_contexts, llm_client, provider, par
             else:
                 all_paragraphs.extend(group_by_time(chunk))
         except Exception as e:
-            print(f"Error processing chunk {idx+1}: {e}")
+            logger.info(f"Error processing chunk {idx+1}: {e}")
             all_paragraphs.extend(group_by_time(chunk))
 
     return all_paragraphs, total_usage
@@ -626,7 +642,7 @@ def summarize_text(full_text, title="", description="", language=None):
         lang = {"english": "en", "traditional": "zh-TW", "simplified": "zh",
                 "korean": "ko", "japanese": "ja"}.get(lang_pref, "en")
 
-    print(f"[summarize_text] 使用语言: {lang}")
+    logger.info(f"[summarize_text] 使用语言: {lang}")
 
     if lang == "en":
         system_prompt = "You are a professional video content analyst. Read the video title, description, and timestamped transcript to summarize key insights and extract 5-10 relevant tags."
@@ -875,18 +891,18 @@ Output strictly in the following JSON format:
         data, usage = _call_llm(client, default_model, use_json_format=True)
         return _postprocess(data), usage
     except Exception as e:
-        print(f"Summarization Error ({provider}): {e}")
+        logger.info(f"Summarization Error ({provider}): {e}")
         # Fallback：切换到备用 provider 重试一次
         fb_client, fb_provider = get_llm_client(fallback=True)
         if fb_client:
             try:
                 fb_model = _get_model_for_provider(fb_provider)
-                print(f"[summarize_text] Retrying with fallback provider: {fb_provider}, model={fb_model}")
+                logger.info(f"[summarize_text] Retrying with fallback provider: {fb_provider}, model={fb_model}")
                 use_json = fb_provider != "ollama"
                 data, usage = _call_llm(fb_client, fb_model, use_json_format=use_json)
                 return _postprocess(data), usage
             except Exception as e2:
-                print(f"Summarization Fallback Error ({fb_provider}): {e2}")
+                logger.info(f"Summarization Fallback Error ({fb_provider}): {e2}")
         return {"summary": "总结生成失败", "keywords": []}, {"prompt_tokens": 0, "completion_tokens": 0}
 
 def group_by_time(subtitles, seconds=45):
@@ -1043,7 +1059,7 @@ def _translate_paragraphs_chunk(idx, paragraphs_chunk, source_lang, target_lang,
         "total_tokens": response.usage.total_tokens,
     }
 
-    print(f"--- [Translate] Chunk {idx+1}/{total_chunks} 完成 ---")
+    logger.info(f"--- [Translate] Chunk {idx+1}/{total_chunks} 完成 ---")
 
     try:
         data = json.loads(content)
@@ -1066,7 +1082,7 @@ def _translate_paragraphs_chunk(idx, paragraphs_chunk, source_lang, target_lang,
 
     # 如果 LLM 输出的段落数与输入不匹配，尝试用原始时间戳修补
     if len(translated_paras) != len(paragraphs_chunk):
-        print(f"Warning: [Translate] Chunk {idx+1} 段落数不匹配 (期望 {len(paragraphs_chunk)}, 得到 {len(translated_paras)})")
+        logger.info(f"Warning: [Translate] Chunk {idx+1} 段落数不匹配 (期望 {len(paragraphs_chunk)}, 得到 {len(translated_paras)})")
         # 尽量保留已翻译内容，用原始时间戳补齐
         for p_idx, para in enumerate(translated_paras):
             if p_idx < len(paragraphs_chunk):
@@ -1086,7 +1102,7 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
     返回: (translated_dict, total_usage)
         translated_dict = {"title": ..., "paragraphs": [...], "summary": ..., "keywords": [...]}
     """
-    print(f"=== [Translate] 开始翻译: {source_lang} → {target_lang} ===")
+    logger.info(f"=== [Translate] 开始翻译: {source_lang} → {target_lang} ===")
 
     llm_client, provider = get_llm_client()
     if not llm_client:
@@ -1097,7 +1113,7 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
     total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     # 1. 翻译 metadata（title + summary + keywords）
-    print(f"--- [Translate] 翻译标题/摘要/关键词 ---")
+    logger.info(f"--- [Translate] 翻译标题/摘要/关键词 ---")
     meta_result, meta_usage = _translate_metadata(
         title, summary or "", keywords or [], source_lang, target_lang, llm_client, model
     )
@@ -1111,7 +1127,7 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
         CHUNK_SIZE = 15  # 每 chunk 约 15 个段落
         chunks = [paragraphs[i:i+CHUNK_SIZE] for i in range(0, len(paragraphs), CHUNK_SIZE)]
         total_chunks = len(chunks)
-        print(f"--- [Translate] 翻译字幕: {len(paragraphs)} 段落 → {total_chunks} chunks ---")
+        logger.info(f"--- [Translate] 翻译字幕: {len(paragraphs)} 段落 → {total_chunks} chunks ---")
 
         # 尝试使用 ServerPool 并行处理
         pool = ServerPool()
@@ -1119,7 +1135,7 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
 
         if len(available) > 1 and total_chunks > 1:
             # 并行翻译
-            print(f"--- [Translate] 并行处理: {total_chunks} chunks → {len(available)} servers ---")
+            logger.info(f"--- [Translate] 并行处理: {total_chunks} chunks → {len(available)} servers ---")
             translated_paras = [None] * total_chunks
             with ThreadPoolExecutor(max_workers=len(available)) as executor:
                 server_cycle = itertools.cycle(available)
@@ -1141,7 +1157,7 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
                         for k in total_usage:
                             total_usage[k] += usage.get(k, 0)
                     except Exception as e:
-                        print(f"--- [Translate] Chunk {idx+1} 并行翻译失败: {e}，使用原文 ---")
+                        logger.info(f"--- [Translate] Chunk {idx+1} 并行翻译失败: {e}，使用原文 ---")
                         translated_paras[idx] = chunks[idx]
 
             # 展平
@@ -1163,7 +1179,7 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
                     for k in total_usage:
                         total_usage[k] += usage.get(k, 0)
                 except Exception as e:
-                    print(f"--- [Translate] Chunk {idx+1} 串行翻译失败: {e}，使用原文 ---")
+                    logger.info(f"--- [Translate] Chunk {idx+1} 串行翻译失败: {e}，使用原文 ---")
                     translated_paras.extend(chunk)
 
     result = {
@@ -1173,5 +1189,5 @@ def translate_content(title, paragraphs, summary, keywords, source_lang, target_
         "keywords": meta_result.get("keywords", keywords),
     }
 
-    print(f"=== [Translate] 翻译完成: tokens={total_usage['total_tokens']} ===")
+    logger.info(f"=== [Translate] 翻译完成: tokens={total_usage['total_tokens']} ===")
     return result, total_usage

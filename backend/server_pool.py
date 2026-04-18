@@ -9,6 +9,8 @@ import time
 from datetime import datetime
 from typing import List, Optional
 from openai import OpenAI
+from app_logger import get_logger
+logger = get_logger(__name__)
 
 
 class OllamaServer:
@@ -83,7 +85,7 @@ class ServerPool:
                 ollama_model = ollama_cfg.get("model", "")
                 for s in yaml_servers:
                     self.servers.append(OllamaServer(s["url"], s.get("schedule", "always"), model=ollama_model))
-                print(f"--- [ServerPool] 从 YAML 加载 {len(self.servers)} 台服务器: "
+                logger.info(f"--- [ServerPool] 从 YAML 加载 {len(self.servers)} 台服务器: "
                       f"{[(s.base_url, s.schedule) for s in self.servers]} ---")
                 return
         except Exception:
@@ -94,7 +96,7 @@ class ServerPool:
         if not servers_str:
             base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
             self.servers = [OllamaServer(base_url, "always")]
-            print(f"--- [ServerPool] 单服务器模式: {base_url} ---")
+            logger.info(f"--- [ServerPool] 单服务器模式: {base_url} ---")
             return
 
         for url in servers_str.split(","):
@@ -109,7 +111,7 @@ class ServerPool:
                 schedule = "always"
             self.servers.append(OllamaServer(url, schedule))
 
-        print(f"--- [ServerPool] 已加载 {len(self.servers)} 台服务器: "
+        logger.info(f"--- [ServerPool] 已加载 {len(self.servers)} 台服务器: "
               f"{[(s.base_url, s.schedule) for s in self.servers]} ---")
 
     def get_available_servers(self) -> List[OllamaServer]:

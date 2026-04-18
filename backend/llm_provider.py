@@ -7,6 +7,8 @@ import os
 import yaml
 from typing import Optional, Tuple
 from openai import OpenAI
+from app_logger import get_logger
+logger = get_logger(__name__)
 
 _config = None
 _config_path = os.path.join(os.path.dirname(__file__), "llm_config.yaml")
@@ -71,7 +73,7 @@ def get_primary() -> Tuple[Optional[OpenAI], str, str]:
         client = _create_client(p)
         if client:
             model = p.get("model", "")
-            print(f"--- [LLM] 主力: {p['name']} ({model}) ---")
+            logger.info(f"--- [LLM] 主力: {p['name']} ({model}) ---")
             return client, p["name"], model
     return None, "", ""
 
@@ -90,7 +92,7 @@ def get_fallback(exclude: str = "") -> Tuple[Optional[OpenAI], str, str]:
         client = _create_client(p)
         if client:
             model = p.get("model", "")
-            print(f"--- [LLM Fallback] → {p['name']} ({model}) ---")
+            logger.info(f"--- [LLM Fallback] → {p['name']} ({model}) ---")
             return client, p["name"], model
     return None, "", ""
 

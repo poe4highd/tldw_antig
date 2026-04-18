@@ -6,6 +6,8 @@ import hashlib
 import time
 import subprocess
 import shutil
+from app_logger import get_logger
+logger = get_logger(__name__)
 
 # 确保 ffmpeg 可用（systemd 环境 PATH 可能不含 anaconda）
 if not shutil.which('ffmpeg'):
@@ -29,7 +31,7 @@ def save_status(task_id, status, progress, eta=None):
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
 
 def process_video_task(task_id):
-    print(f"--- [Process Task] Starting task: {task_id} ---")
+    logger.info(f"--- [Process Task] Starting task: {task_id} ---")
     
     # 1. Fetch task details from Supabase or local status
     url = None
@@ -56,7 +58,7 @@ def process_video_task(task_id):
                     local_file = os.path.join(DOWNLOADS_DIR, local_file)
                 # Verify the file actually exists (may have been cleaned up)
                 if local_file and not os.path.exists(local_file):
-                    print(f"--- [Process Task] media_path file missing: {local_file}, will re-download ---")
+                    logger.info(f"--- [Process Task] media_path file missing: {local_file}, will re-download ---")
                     local_file = None
                 
                 title = video.get("title", title)
@@ -64,7 +66,7 @@ def process_video_task(task_id):
                 user_id = video.get("user_id") or temp_data.get("user_id")
                 is_public = video.get("is_public", temp_data.get("is_public", True))
         except Exception as e:
-            print(f"[Process Task] Error fetching from Supabase: {e}")
+            logger.info(f"[Process Task] Error fetching from Supabase: {e}")
 
     # Fallback to local status if Supabase didn't have it or failed
     if not url and not local_file:
@@ -82,7 +84,7 @@ def process_video_task(task_id):
     # If the URL is from our own domain, it's likely a mis-submitted result page.
     # We should fallback to a standard YouTube URL if the task_id looks like a YouTube ID.
     if url and "read-tube.com" in url and len(task_id) == 11:
-        print(f"--- [Process Task] URL {url} is local result page. Falling back to YouTube for ID {task_id} ---")
+        logger.info(f"--- [Process Task] URL {url} is local result page. Falling back to YouTube for ID {task_id} ---")
         url = f"https://www.youtube.com/watch?v={task_id}"
 
     if not url and not local_file and len(task_id) == 11:
@@ -91,7 +93,7 @@ def process_video_task(task_id):
 
     if not url and not local_file:
         error_msg = f"无法找到任务 {task_id} 的 URL 或本地文件"
-        print(f"--- [Process Task] Error: {error_msg} ---")
+        logger.info(f"--- [Process Task] Error: {error_msg} ---")
         # 写入错误文件以便前端展示和调试
         with open(f"{RESULTS_DIR}/{task_id}_error.json", "w") as ef:
             json.dump({"error": error_msg}, ef, ensure_ascii=False)
@@ -100,7 +102,7 @@ def process_video_task(task_id):
             try:
                 supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
             except Exception as e:
-                print(f"[Process Task] Failed to update Supabase on abort: {e}")
+                logger.info(f"[Process Task] Failed to update Supabase on abort: {e}")
         return False
 
     try:
@@ -131,7 +133,7 @@ def process_video_task(task_id):
 
             # Double-check: cached path must actually exist
             if file_path and not os.path.exists(file_path):
-                print(f"--- [Process Task] Cached file not found: {file_path}, will re-download ---")
+                logger.info(f"--- [Process Task] Cached file not found: {file_path}, will re-download ---")
                 file_path = None
             
             # Metadata Retrieval
@@ -166,9 +168,9 @@ def process_video_task(task_id):
                             if chan_info and chan_info.get('thumbnails'):
                                 channel_avatar = chan_info['thumbnails'][-1]['url']
                     except Exception as ce:
-                        print(f"Failed to fetch channel avatar for {channel_url}: {ce}")
+                        logger.info(f"Failed to fetch channel avatar for {channel_url}: {ce}")
             except Exception as e:
-                print(f"Metadata extraction failed for {url}: {e}")
+                logger.info(f"Metadata extraction failed for {url}: {e}")
                 title = title or "Unknown Title"
                 thumbnail = thumbnail or get_youtube_thumbnail_url(url)
 
@@ -191,7 +193,7 @@ def process_video_task(task_id):
             # Audio extraction
             if not os.path.exists(extracted_audio_path):
                 save_status(task_id, "extracting_audio", 45, eta=10)
-                print(f"--- Extracting audio from {file_path} to {extracted_audio_path} ---")
+                logger.info(f"--- Extracting audio from {file_path} to {extracted_audio_path} ---")
                 try:
                     subprocess.run(
                         ["ffmpeg", "-i", file_path, "-q:a", "0", "-map", "a", extracted_audio_path, "-y"],
@@ -199,13 +201,13 @@ def process_video_task(task_id):
                     )
                     transcription_source_path = extracted_audio_path
                 except Exception as e:
-                    print(f"Audio extraction failed: {e}. Trying to transcribe video directly...")
+                    logger.info(f"Audio extraction failed: {e}. Trying to transcribe video directly...")
             else:
                 transcription_source_path = extracted_audio_path
             
             # Thumbnail extraction
             if not os.path.exists(extracted_thumb_path):
-                print(f"--- Extracting thumbnail from {file_path} to {extracted_thumb_path} ---")
+                logger.info(f"--- Extracting thumbnail from {file_path} to {extracted_thumb_path} ---")
                 try:
                     subprocess.run(
                         ["ffmpeg", "-i", file_path, "-ss", "00:00:01", "-vframes", "1", extracted_thumb_path, "-y"],
@@ -213,17 +215,17 @@ def process_video_task(task_id):
                     )
                     thumbnail = os.path.basename(extracted_thumb_path)
                 except Exception as e:
-                    print(f"Thumbnail extraction failed: {e}")
+                    logger.info(f"Thumbnail extraction failed: {e}")
             else:
                 thumbnail = os.path.basename(extracted_thumb_path)
 
             # Cleanup original video
             if os.path.exists(extracted_audio_path) and file_path != extracted_audio_path:
                 try:
-                    print(f"--- Automatic Cleanup: Removing original video file: {file_path} ---")
+                    logger.info(f"--- Automatic Cleanup: Removing original video file: {file_path} ---")
                     os.remove(file_path)
                 except Exception as e:
-                    print(f"Failed to remove original video: {e}")
+                    logger.info(f"Failed to remove original video: {e}")
 
         # 2. Start Worker Process - verify source file exists
         if not os.path.exists(transcription_source_path):
@@ -245,7 +247,7 @@ def process_video_task(task_id):
         # "--" 防止以 "-" 开头的 task_id 被 argparse 误判为 flag
         cmd.extend(["--", task_id, mode])
         
-        print(f"--- 启动 Worker 进程: {' '.join(cmd)} ---")
+        logger.info(f"--- 启动 Worker 进程: {' '.join(cmd)} ---")
         
         process = subprocess.Popen(
             cmd,
@@ -256,13 +258,13 @@ def process_video_task(task_id):
         )
         
         for line in process.stdout:
-            print(f"[Worker] {line.rstrip()}")
+            logger.info(f"[Worker] {line.rstrip()}")
         
         return_code = process.wait()
         
         if return_code != 0:
             stderr_output = process.stderr.read()
-            print(f"[Worker] 错误输出:\n{stderr_output}", file=sys.stderr)
+            logger.info(f"[Worker] 错误输出:\n{stderr_output}", file=sys.stderr)
             # 若 worker 崩溃前未写 _error.json（OOM/import error），用 stderr 兜底
             error_file = f"{RESULTS_DIR}/{task_id}_error.json"
             if not os.path.exists(error_file):
@@ -273,13 +275,13 @@ def process_video_task(task_id):
                     }, f, ensure_ascii=False)
             raise Exception(f"Worker 进程失败 (exit code: {return_code})")
         
-        print(f"--- Worker 进程成功完成 ---")
+        logger.info(f"--- Worker 进程成功完成 ---")
 
         # 清理残留错误文件（重试场景下可能存在上次失败的 _error.json）
         error_file = f"{RESULTS_DIR}/{task_id}_error.json"
         if os.path.exists(error_file):
             os.remove(error_file)
-            print(f"--- 清理残留错误文件: {error_file} ---")
+            logger.info(f"--- 清理残留错误文件: {error_file} ---")
 
         # 3. Finalize results
         result_file = f"{RESULTS_DIR}/{task_id}.json"
@@ -327,17 +329,17 @@ def process_video_task(task_id):
                     "is_public": is_public,
                     "status": "completed"
                 }
-                print(f"--- [Process Task] Saving results to Supabase for video {video_data['id']} ---")
+                logger.info(f"--- [Process Task] Saving results to Supabase for video {video_data['id']} ---")
                 res = supabase.table("videos").upsert(video_data).execute()
                 if not res.data:
-                    print(f"[Process Task] Warning: Upsert returned empty data for {video_data['id']}")
+                    logger.info(f"[Process Task] Warning: Upsert returned empty data for {video_data['id']}")
                 else:
-                    print(f"Successfully saved to Supabase: {video_data['id']}")
+                    logger.info(f"Successfully saved to Supabase: {video_data['id']}")
                 
                 # Keywords sync
                 keywords = result.get("keywords", [])
                 if keywords:
-                    print(f"--- [Process Task] Syncing {len(keywords)} keywords ---")
+                    logger.info(f"--- [Process Task] Syncing {len(keywords)} keywords ---")
                     for kw in keywords:
                         kw_clean = kw.strip()
                         if not kw_clean: continue
@@ -353,12 +355,12 @@ def process_video_task(task_id):
                                 else: continue
                             supabase.table("video_keywords").upsert({"video_id": video_data["id"], "keyword_id": kw_id}).execute()
                         except Exception as kw_e:
-                            print(f"[Process Task] Error syncing keyword '{kw_clean}': {kw_e}")
+                            logger.info(f"[Process Task] Error syncing keyword '{kw_clean}': {kw_e}")
 
                 if user_id:
                     # submissions table should already have a link if it was created during /process
                     # but we'll try to ensure it exists
-                    print(f"--- [Process Task] Syncing submission for user {user_id} ---")
+                    logger.info(f"--- [Process Task] Syncing submission for user {user_id} ---")
                     try:
                         supabase.table("submissions").insert({
                             "user_id": user_id,
@@ -366,17 +368,17 @@ def process_video_task(task_id):
                             "task_id": task_id
                         }).execute()
                     except Exception as sub_e:
-                        print(f"Submission sync from task failed (expected if already exists): {sub_e}")
+                        logger.info(f"Submission sync from task failed (expected if already exists): {sub_e}")
                         # Ensure the correct video_id is linked to the task_id
                         try:
                             supabase.table("submissions").update({
                                 "video_id": video_data["id"]
                             }).eq("task_id", task_id).execute()
                         except Exception as up_e:
-                             print(f"Failed to update submission: {up_e}")
+                             logger.info(f"Failed to update submission: {up_e}")
 
             except Exception as e:
-                print(f"CRITICAL: Failed to save to Supabase: {e}")
+                logger.info(f"CRITICAL: Failed to save to Supabase: {e}")
                 import traceback
                 traceback.print_exc()
                 # If Supabase sync fails, we DO NOT mark it as completed in the results file if we want to retry,
@@ -408,7 +410,7 @@ def process_video_task(task_id):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 process_task.py <task_id>")
+        logger.info("Usage: python3 process_task.py <task_id>")
         sys.exit(1)
     
     tid = sys.argv[1]

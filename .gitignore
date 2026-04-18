@@ -40,6 +40,7 @@ Thumbs.db
 
 # Dev Logs
 dev_logs/
+backend/logs/
 
 # Playwright
 frontend/playwright-report/

@@ -7,6 +7,8 @@ import re
 import hashlib
 import random
 import shutil
+import app_logger
+app_logger.setup()
 from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
