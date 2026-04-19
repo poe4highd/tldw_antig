@@ -159,24 +159,27 @@ def get_youtube_thumbnail_url(url):
         return ""
     return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
-def detect_language_preference(title, description):
+def detect_language_preference(title, description, sample_text=""):
     """
-    根据标题和描述自动识别语言偏好。
+    根据标题、描述和字幕样本自动识别语言偏好。
     返回: "english", "korean", "japanese", "traditional", "simplified"
-    策略：以字符数量最多的语言为主（高权重），英文作为无 CJK 字符时的兜底。
+    策略：以字符数量最多的语言为主，无 CJK 时用字幕样本补充判断，仍无则兜底英文。
     """
     content = (title or "") + " " + (description or "")
 
-    # 统计各语言专属字符数量
-    chinese_chars  = len(re.findall(r'[\u4e00-\u9fa5]', content))
-    korean_chars   = len(re.findall(r'[\uac00-\ud7a3]', content))       # 韩文音节
-    japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', content))  # 平假名+片假名
+    def count_cjk(text):
+        chinese  = len(re.findall(r'[\u4e00-\u9fa5]', text))
+        korean   = len(re.findall(r'[\uac00-\ud7a3]', text))
+        japanese = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))
+        return chinese, korean, japanese
 
-    lang_counts = {
-        "korean":   korean_chars,
-        "japanese": japanese_chars,
-        "chinese":  chinese_chars,
-    }
+    chinese_chars, korean_chars, japanese_chars = count_cjk(content)
+
+    # 标题/描述无 CJK 时，用字幕样本补充判断
+    if chinese_chars == 0 and korean_chars == 0 and japanese_chars == 0 and sample_text:
+        chinese_chars, korean_chars, japanese_chars = count_cjk(sample_text)
+
+    lang_counts = {"korean": korean_chars, "japanese": japanese_chars, "chinese": chinese_chars}
     dominant = max(lang_counts, key=lang_counts.get)
 
     if lang_counts[dominant] > 0:
@@ -186,9 +189,8 @@ def detect_language_preference(title, description):
             return "japanese"
         if dominant == "chinese":
             trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
-            return "traditional" if re.search(trad_patterns, content) else "simplified"
+            return "traditional" if re.search(trad_patterns, content + sample_text) else "simplified"
 
-    # 无 CJK 字符：默认英文
     return "english"
 
 def extract_keywords(title, description=""):
@@ -223,8 +225,9 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
         logger.info("⚠️ Warning: No LLM provider configured. Using fallback grouping.")
         return group_by_time(subtitles), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-    # 检测语言偏好 (不再使用 subtitles 样本)
-    lang_pref = detect_language_preference(title, description)
+    # 标题无 CJK 时用前 20 句字幕内容补充语言判断
+    sample_text = " ".join(s.get("text", "") for s in subtitles[:20])
+    lang_pref = detect_language_preference(title, description, sample_text)
     
     if lang_pref == "english":
         lang_instruction = "【目标语言】：英文。请使用英文校正，并添加半角标点。严禁翻译为中文。"
