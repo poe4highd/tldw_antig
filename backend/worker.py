@@ -115,8 +115,9 @@ def main():
                 ts = f"[{h:02d}:{m:02d}:{s_v:02d}]" if h > 0 else f"[{m:02d}:{s_v:02d}]"
                 full_text += f"{ts} {s['text']}\n"
 
-        # 加权语言检测：标题/描述为主信号，Whisper 为辅助校验
-        title_lang = detect_language_preference(args.title, args.description)
+        # 加权语言检测：标题/描述为主信号，字幕内容兜底，Whisper 辅助校验
+        subtitle_sample = " ".join(s.get("text", "") for s in raw_subtitles[:30])
+        title_lang = detect_language_preference(args.title, args.description, subtitle_sample)
         lang_map = {"english": "en", "simplified": "zh", "traditional": "zh-TW",
                     "korean": "ko", "japanese": "ja"}
         title_lang_iso = lang_map.get(title_lang, "en")
@@ -127,7 +128,7 @@ def main():
             print(f"[Worker] 语言检测: 标题={title_lang_iso}, Whisper={whisper_lang} → 采用 Whisper 结果")
         else:
             detected_language = title_lang_iso
-            print(f"[Worker] 语言检测: 标题={title_lang_iso}, Whisper={whisper_lang} → 采用标题结果")
+            print(f"[Worker] 语言检测: 标题={title_lang_iso}, Whisper={whisper_lang} → 采用标题/字幕结果")
 
         summary_data, summary_usage = summarize_text(
             full_text,
