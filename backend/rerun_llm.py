@@ -5,6 +5,7 @@
 """
 import os
 import sys
+import re
 import json
 from dotenv import load_dotenv
 load_dotenv()
@@ -14,6 +15,20 @@ from processor import split_into_paragraphs, summarize_text, detect_language_pre
 
 RESULTS_DIR = "results"
 supabase = get_db()
+MAX_SUMMARY_RETRY = 3
+
+
+def _check_summary_quality(summary: str, detected_language: str):
+    lines = [l for l in summary.split('\n') if l.strip()]
+    has_cjk = bool(re.search(r'[\u4e00-\u9fa5\uac00-\ud7a3]', summary))
+    has_timestamps = any(re.search(r'\[\d{2}:\d{2}', l) for l in lines)
+    if detected_language in ("zh", "zh-TW", "ko", "ja") and not has_cjk:
+        return False, f"lang_mismatch: detected={detected_language} but no CJK in summary"
+    if len(lines) < 5:
+        return False, f"too_few_lines: {len(lines)}"
+    if not has_timestamps:
+        return False, "no_timestamps"
+    return True, "ok"
 
 
 def rerun_task(task_id: str):
@@ -69,14 +84,23 @@ def rerun_task(task_id: str):
             ts = f"[{h:02d}:{m:02d}:{sv:02d}]" if h > 0 else f"[{m:02d}:{sv:02d}]"
             full_text += f"{ts} {s['text']}\n"
 
-    title_lang = detect_language_preference(title, description)
+    subtitle_sample = " ".join(s.get("text", "") for s in raw_subtitles[:30])
+    title_lang = detect_language_preference(title, description, subtitle_sample)
     lang_map = {"english": "en", "simplified": "zh", "traditional": "zh-TW",
                 "korean": "ko", "japanese": "ja"}
     detected_language = lang_map.get(title_lang, "zh")
+    print(f"[RerunLLM] 语言检测: title_lang={title_lang} → detected_language={detected_language}")
 
-    summary_data, summary_usage = summarize_text(
-        full_text, title=title, description=description, language=detected_language
-    )
+    summary_data, summary_usage = {}, {}
+    for attempt in range(MAX_SUMMARY_RETRY):
+        summary_data, summary_usage = summarize_text(
+            full_text, title=title, description=description, language=detected_language
+        )
+        ok, reason = _check_summary_quality(summary_data.get("summary", ""), detected_language)
+        if ok:
+            print(f"[QC] 摘要质检通过 (attempt {attempt+1})")
+            break
+        print(f"[QC] 摘要质检失败: {reason} → 重试 {attempt+1}/{MAX_SUMMARY_RETRY}")
     print(f"[RerunLLM] 摘要完成: summary_len={len(summary_data.get('summary',''))}")
 
     # 5. 更新 result JSON
@@ -116,6 +140,7 @@ def rerun_task(task_id: str):
                 "paragraphs": paragraphs,
                 "summary": result["summary"],
                 "keywords": result["keywords"],
+                "translations": {},  # 清除旧翻译缓存，避免显示过期数据
             }
             supabase.table("videos").update({
                 "report_data": report_data,

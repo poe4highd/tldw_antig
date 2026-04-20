@@ -188,8 +188,9 @@ def detect_language_preference(title, description, sample_text=""):
         if dominant == "japanese":
             return "japanese"
         if dominant == "chinese":
+            # 只用 title+description 判断繁简，字幕内容 Whisper 可能混入繁体字形导致误判
             trad_patterns = r'[這國個來們裏時後得會愛兒幾開萬鳥運龍門義專學聽實體禮觀]'
-            return "traditional" if re.search(trad_patterns, content + sample_text) else "simplified"
+            return "traditional" if re.search(trad_patterns, content) else "simplified"
 
     return "english"
 
@@ -278,24 +279,31 @@ def split_into_paragraphs(subtitles, title="", description="", model="gpt-4o-min
     )
 
     # ── 判断并行 or 串行 ──
-    pool = ServerPool()
-    available = pool.get_available_servers()
-
-    logger.info(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks "
-          f"(servers available: {len(available)}) ---")
-
-    if len(available) > 1 and len(chunks) > 1:
-        all_paragraphs, total_usage = _process_chunks_parallel(
-            chunks, chunk_contexts, pool, chunk_params)
-    else:
-        # 单服务器或单 chunk：使用原有串行逻辑
-        server = available[0] if available else pool.servers[0] if pool.servers else None
-        fallback_client = server.client if server else client
-        # 串行路径同样需要用 server 自己的 model，防止把 Gemini model 名传给 Ollama
-        if server and server.model:
-            chunk_params = {**chunk_params, "actual_model": server.model}
+    # 主力是非 Ollama provider（如 Gemini）时，直接走串行，不经过 ServerPool
+    if provider != "ollama":
+        logger.info(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks "
+              f"(provider={provider}, serial mode) ---")
         all_paragraphs, total_usage = _process_chunks_sequential(
-            chunks, chunk_contexts, fallback_client, provider, chunk_params)
+            chunks, chunk_contexts, client, provider, chunk_params)
+    else:
+        pool = ServerPool()
+        available = pool.get_available_servers()
+
+        logger.info(f"--- Processing {len(subtitles)} segments in {len(chunks)} chunks "
+              f"(servers available: {len(available)}) ---")
+
+        if len(available) > 1 and len(chunks) > 1:
+            all_paragraphs, total_usage = _process_chunks_parallel(
+                chunks, chunk_contexts, pool, chunk_params)
+        else:
+            # 单服务器或单 chunk：使用原有串行逻辑
+            server = available[0] if available else pool.servers[0] if pool.servers else None
+            fallback_client = server.client if server else client
+            # 串行路径同样需要用 server 自己的 model，防止把 Gemini model 名传给 Ollama
+            if server and server.model:
+                chunk_params = {**chunk_params, "actual_model": server.model}
+            all_paragraphs, total_usage = _process_chunks_sequential(
+                chunks, chunk_contexts, fallback_client, provider, chunk_params)
 
     if not all_paragraphs:
         return group_by_time(subtitles), total_usage
@@ -898,6 +906,8 @@ Output strictly in the following JSON format:
         return _postprocess(data), usage
     except Exception as e:
         logger.info(f"Summarization Error ({provider}): {e}")
+        if os.getenv("LLM_NO_FALLBACK") == "1":
+            raise RuntimeError(f"[LLM_NO_FALLBACK] summarize_text 主力 {provider} 失败，strict mode 下不允许 fallback: {e}") from e
         # Fallback：切换到备用 provider 重试一次
         fb_client, fb_provider = get_llm_client(fallback=True)
         if fb_client:
