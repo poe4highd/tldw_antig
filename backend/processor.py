@@ -882,6 +882,12 @@ Output strictly in the following JSON format:
                 if len(parts) > 1:
                     lines = parts
 
+        # 检测"时间戳堆在末尾"格式：文字行 + 独立时间戳行，依次配对
+        ts_only = [l for l in lines if _re.match(r'^\[\d{2}:\d{2}(?::\d{2})?\]$', l.strip())]
+        text_only = [l for l in lines if not _re.match(r'^\[\d{2}:\d{2}(?::\d{2})?\]$', l.strip())]
+        if ts_only and len(ts_only) == len(text_only):
+            lines = [f"{t.strip()}{ts}" for t, ts in zip(text_only, ts_only)]
+
         fixed_lines = []
         for line in lines:
             timestamps = _re.findall(r'\[\d{2}:\d{2}(?::\d{2})?\]', line)
