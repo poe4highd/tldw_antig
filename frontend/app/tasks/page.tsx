@@ -455,6 +455,7 @@ export default function TasksPage() {
                                     accept="audio/*,video/*"
                                     onChange={onFileUpload}
                                 />
+                                <p className="text-xs text-slate-500">{t("tasks.uploadTimeEstimate")}</p>
                                 <p className="text-xs text-slate-500">
                                     {t("tasks.fileSizeLimit")}{" "}
                                     <button
