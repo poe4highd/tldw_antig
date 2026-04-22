@@ -9,7 +9,7 @@ import random
 import shutil
 import app_logger
 app_logger.setup()
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Header, Depends, Request
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Form, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -453,7 +453,7 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
     return {"task_id": task_id}
 
 @app.post("/upload")
-async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = "local", user_id: str = None, is_public: bool = True):
+async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("local"), user_id: str = Form(None), is_public: bool = Form(True)):
     if not user_id:
         raise HTTPException(status_code=400, detail="需要登录后才能上传文件，请刷新页面重新登录")
     # 使用文件内容 hash 生成唯一 ID
