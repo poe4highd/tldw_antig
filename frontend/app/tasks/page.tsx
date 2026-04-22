@@ -62,6 +62,7 @@ export default function TasksPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isBackendOnline, setIsBackendOnline] = useState(true);
+    const [showFileSizeModal, setShowFileSizeModal] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -137,6 +138,13 @@ export default function TasksPage() {
     const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+        if (file.size > MAX_FILE_SIZE) {
+            setShowFileSizeModal(true);
+            e.target.value = "";
+            return;
+        }
 
         const userId = await ensureAuth();
         if (!userId) return;
@@ -432,7 +440,7 @@ export default function TasksPage() {
                                 <div className="h-px flex-1 bg-card-border/50"></div>
                             </div>
 
-                            <div className="flex justify-center">
+                            <div className="flex flex-col items-center gap-2">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     className="flex items-center gap-3 px-8 py-4 bg-card-bg/50 hover:bg-card-bg/80 border border-card-border rounded-2xl text-slate-500 transition-all group hover:text-foreground"
@@ -447,6 +455,15 @@ export default function TasksPage() {
                                     accept="audio/*,video/*"
                                     onChange={onFileUpload}
                                 />
+                                <p className="text-xs text-slate-500">
+                                    {t("tasks.fileSizeLimit")}{" "}
+                                    <button
+                                        onClick={() => setShowFileSizeModal(true)}
+                                        className="underline underline-offset-2 hover:text-slate-300 transition-colors"
+                                    >
+                                        {t("tasks.fileSizeLimitLink")}
+                                    </button>
+                                </p>
                             </div>
                         </div>
 
@@ -586,6 +603,24 @@ export default function TasksPage() {
                     </div>
                 </div>
             </main>
+
+            {showFileSizeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowFileSizeModal(false)}>
+                    <div className="bg-card-bg border border-card-border rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-base font-bold text-foreground mb-3">{t("tasks.fileSizeModalTitle")}</h2>
+                        <p className="text-sm text-slate-400 mb-4">{t("tasks.fileSizeModalBody")}</p>
+                        <div className="bg-card-bg/50 border border-card-border rounded-xl p-4 mb-4 space-y-2">
+                            <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">{t("tasks.fileSizeModalVideoTitle")}</p>
+                            <p className="text-sm text-slate-400">{t("tasks.fileSizeModalVideoBody")}</p>
+                            <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mt-3 mb-2">{t("tasks.fileSizeModalAudioTitle")}</p>
+                            <p className="text-sm text-slate-400">{t("tasks.fileSizeModalAudioBody")}</p>
+                        </div>
+                        <button onClick={() => setShowFileSizeModal(false)} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-colors">
+                            {t("tasks.fileSizeModalClose")}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
