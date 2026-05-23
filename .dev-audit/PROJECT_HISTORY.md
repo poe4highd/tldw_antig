@@ -1,7 +1,10 @@
-[2026-04-09] | [Perf] | 182 本机 Ollama GPU 加速 | RTX 4060 42层 offload，推理从 17.9→37.8 t/s（×2.1），与 MacStudio 持平 | DEV_LOG.md
-[2026-04-07] | [Improve] | PROMPT_V2 句子保留模式 + Ollama 重试机制 | gemma4:e4b V2 CER 11.90%，首次持平 raw Whisper，超越 gpt-4o-mini（12.26%）；加空响应重试（max 5次指数退避） | DEV_LOG.md
-[2026-04-06] | [Eval] | Gemma 4 e4b 矫正质量提升 | JSON fallback 修复（text_content→text）、temperature=0.1、raw baseline CER 11.90% 建立；e4b V1 CER 12.98% | DEV_LOG.md
-[2026-04-06] | [Eval] | Gemma 4 e4b 矫正评测 | gemma4:e4b CER 13.43%，与 gpt-4o-mini（12.26%）差距仅 1.17%，可作本地主力方案 | DEV_LOG.md
+[2026-05-22] | [Perf/OOM] | 长音频分块流式转录 | iter_audio_chunks 流式读取(~2MB/chunk)替代全量加载；mlx-whisper 静音处切块+overlap去重；faster-whisper 开 vad_filter | DEV_LOG.md
+[2026-04-24] | [Assets/Promo] | 捕获真实网站宣传素材 | 使用浏览器工具访问真实报告页面，捕获包含字幕区的 OG、Product Hunt 和小红书系列宣传图 | log_20260424.md
+[2026-04-24] | [Docs/Growth] | Read-Tube 爆款网站宣传方案 | 总结核心功能，新增官网宣传定位、图片/视频脚本、渠道文案与发布节奏 | DEV_LOG.md
+[2026-04-09] | [Perf] | 182 本机 Ollama GPU 加速 | RTX 4060 42层 offload，推理从 17.9→37.8 t/s（×2.1），与 MacStudio 持平 | log_20260409.md
+[2026-04-07] | [Improve] | PROMPT_V2 句子保留模式 + Ollama 重试机制 | gemma4:e4b V2 CER 11.90%，首次持平 raw Whisper，超越 gpt-4o-mini（12.26%）；加空响应重试（max 5次指数退避） | log_20260409.md
+[2026-04-06] | [Eval] | Gemma 4 e4b 矫正质量提升 | JSON fallback 修复（text_content→text）、temperature=0.1、raw baseline CER 11.90% 建立；e4b V1 CER 12.98% | log_20260409.md
+[2026-04-06] | [Eval] | Gemma 4 e4b 矫正评测 | gemma4:e4b CER 13.43%，与 gpt-4o-mini（12.26%）差距仅 1.17%，可作本地主力方案 | log_20260409.md
 [2026-04-04] | [Eval] | Gemma 4 本地矫正评测 | gemma4:e2b CER 37%，不如 qwen3:8b（28%），gpt-4o-mini 最优（12%）；Ollama 升级至 0.20.2，补 zhconv 依赖 | log_20260404.md
 [2026-03-30] | [Perf] | Supabase Egress 超量优化 | 进度轮询 2s→30s、历史改事件驱动、队列条件轮询、videos(*) 改精确字段，预计 egress 降 ~4.5GB/月 | log_20260330.md
 [2026-03-22] | [Docs] | 创作者故事与产品介绍文章 | 在 dev_docs 新增周末/夜晚构建 Read-Tube 的英文文章，附产品截图占位与 ASCII 架构/流程图 | log_20260322.md

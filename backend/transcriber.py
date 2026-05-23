@@ -111,39 +111,26 @@ def get_silero_vad_config():
 def transcribe_sensevoice_onnx(file_path: str):
     """
     Transcribe audio using SenseVoice ONNX via sherpa-onnx + Silero VAD.
-    Robust for long files and provides incremental progress.
+    Uses streaming chunks to avoid OOM on long files.
     """
     import sherpa_onnx
     import time
-    from sherpa_utils import load_audio_for_sherpa
+    from sherpa_utils import iter_audio_chunks
     recognizer = get_sensevoice_onnx_model()
-    # Create a fresh VAD instance for each file to ensure clean state
     vad_config = get_silero_vad_config()
     vad = sherpa_onnx.VoiceActivityDetector(vad_config, buffer_size_in_seconds=30)
-    
-    print(f"--- [Sherpa-VAD] Processing {file_path} ---")
-    samples = load_audio_for_sherpa(file_path)
     sample_rate = 16000
-    
-    results = []
-    chunk_size = int(0.1 * sample_rate) # 100ms
+    chunk_size = int(0.1 * sample_rate)  # 100ms mini-chunks for VAD
 
-    start_time = time.time()
-    for i in range(0, len(samples), chunk_size):
-        chunk = samples[i : i + chunk_size]
-        vad.accept_waveform(chunk)
-
+    def _drain_vad():
         while not vad.empty():
             segment = vad.front
-            # Transcribe segment
             stream = recognizer.create_stream()
             stream.accept_waveform(sample_rate, segment.samples)
             recognizer.decode_stream(stream)
-
             start_s = segment.start / sample_rate
             duration_s = len(segment.samples) / sample_rate
             text = stream.result.text.strip()
-
             if text:
                 results.append({
                     "start": start_s,
@@ -151,14 +138,131 @@ def transcribe_sensevoice_onnx(file_path: str):
                     "text": text,
                     "words": []
                 })
-                # Progress logging for long files
                 if len(results) % 10 == 0:
-                     print(f"--- [Progress] Transcribed {start_s:.1f}s... ---")
-
+                    print(f"--- [Progress] Transcribed {start_s:.1f}s... ---")
             vad.pop()
+
+    print(f"--- [Sherpa-VAD] Processing {file_path} (streaming chunks) ---")
+    results = []
+    start_time = time.time()
+
+    # 外层：流式 30s 大块；内层：100ms 小块喂 VAD，峰值内存 ~2MB/chunk
+    for big_chunk in iter_audio_chunks(file_path, chunk_seconds=30):
+        for i in range(0, len(big_chunk), chunk_size):
+            vad.accept_waveform(big_chunk[i: i + chunk_size])
+            _drain_vad()
+
+    # flush 尾部残留
+    vad.flush()
+    _drain_vad()
 
     print(f"--- SenseVoice ONNX (VAD) finished in {time.time() - start_time:.2f}s ---")
     return results, None  # SenseVoice ONNX 无单一语言码输出
+
+def _get_silence_cut_points(file_path: str, target_points: list) -> list:
+    """
+    用 ffmpeg silencedetect 找最靠近 target_points 的静音结束点作为实际切割点。
+    在静音处切割可避免 Whisper 在边界截断句子。
+    """
+    import re, subprocess
+    result = subprocess.run([
+        "ffmpeg", "-i", file_path,
+        "-af", "silencedetect=noise=-40dB:d=0.3",
+        "-f", "null", "-"
+    ], capture_output=True, text=True)
+
+    silence_ends = []
+    for line in result.stderr.split('\n'):
+        m = re.search(r'silence_end: ([\d.]+)', line)
+        if m:
+            silence_ends.append(float(m.group(1)))
+
+    if not silence_ends:
+        return target_points  # 没有静音点，回退到按时间切割
+
+    adjusted = []
+    for t in target_points:
+        # 在目标点前后 60s 范围内寻找最近的静音结束点
+        candidates = [s for s in silence_ends if abs(s - t) < 60]
+        if candidates:
+            adjusted.append(min(candidates, key=lambda s: abs(s - t)))
+        else:
+            adjusted.append(t)
+    return adjusted
+
+
+def _transcribe_mlx_chunked(file_path: str, hf_repo: str, initial_prompt: str,
+                             chunk_minutes: int = 20, overlap_seconds: int = 30) -> dict:
+    """
+    对超长文件分块调用 mlx_whisper：
+    - 在静音处切割，避免截断句子
+    - 加 overlap 防止边界词丢失，合并时丢弃 overlap 区段避免重复
+    - 每个 segment 加绝对时间戳 offset
+    """
+    import mlx_whisper, json, subprocess, tempfile
+
+    # 探测总时长
+    probe = subprocess.run([
+        "ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", file_path
+    ], capture_output=True, text=True)
+    streams = json.loads(probe.stdout).get("streams", [{}])
+    duration = max((float(s.get("duration", 0)) for s in streams), default=0.0)
+
+    chunk_sec = chunk_minutes * 60
+    if duration <= chunk_sec:
+        # 短文件直接处理，不分块
+        return mlx_whisper.transcribe(
+            file_path, path_or_hf_repo=hf_repo,
+            word_timestamps=True, initial_prompt=initial_prompt
+        )
+
+    # 计算目标切割点并调整到静音处
+    target_cuts = list(range(chunk_sec, int(duration), chunk_sec))
+    actual_cuts = _get_silence_cut_points(file_path, target_cuts)
+    boundaries = [0.0] + actual_cuts + [duration]
+
+    results_all = {"segments": [], "language": None}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for idx in range(len(boundaries) - 1):
+            seg_start = boundaries[idx]
+            seg_end = boundaries[idx + 1]
+            extract_duration = min(seg_end + overlap_seconds, duration) - seg_start
+
+            seg_path = os.path.join(tmpdir, f"seg_{idx:03d}.mp3")
+            subprocess.run([
+                "ffmpeg", "-ss", str(seg_start), "-i", file_path,
+                "-t", str(extract_duration),
+                "-q:a", "2", "-y", seg_path
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            print(f"--- [Chunked] 转录分段 {idx + 1}/{len(boundaries) - 1}: "
+                  f"{seg_start:.1f}s - {seg_end:.1f}s ---")
+            out = mlx_whisper.transcribe(
+                seg_path, path_or_hf_repo=hf_repo,
+                word_timestamps=True, initial_prompt=initial_prompt
+            )
+
+            if results_all["language"] is None:
+                results_all["language"] = out.get("language")
+
+            for seg in out.get("segments", []):
+                abs_start = seg["start"] + seg_start
+                abs_end = seg["end"] + seg_start
+
+                # 跳过超出本段有效范围的 segment（overlap 区域的重复内容）
+                if abs_start >= seg_end:
+                    continue
+                abs_end = min(abs_end, seg_end + 1.0)  # clamp，防止越界
+
+                seg["start"] = abs_start
+                seg["end"] = abs_end
+                for w in seg.get("words", []):
+                    w["start"] += seg_start
+                    w["end"] += seg_start
+                results_all["segments"].append(seg)
+
+    return results_all
+
 
 def transcribe_funasr(file_path: str, model_name="iic/SenseVoiceSmall"):
     model = get_funasr_model(model_name)
@@ -244,12 +348,7 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
                 hf_repo = f"mlx-community/whisper-{actual_model}-mlx"
 
             print(f"--- [GPU 加速] 使用 mlx-whisper ({actual_model}) 为 {file_path} 进行转录 ---")
-            output = mlx_whisper.transcribe(
-                file_path,
-                path_or_hf_repo=hf_repo,
-                word_timestamps=True,
-                initial_prompt=initial_prompt
-            )
+            output = _transcribe_mlx_chunked(file_path, hf_repo, initial_prompt)
 
             results = []
             for segment in output.get("segments", []):
@@ -271,7 +370,12 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
     # Note: large-v3 on CPU might be very slow
     model = get_faster_whisper_model(model_size)
     print(f"--- [CPU 模式] 使用 faster-whisper 为 {file_path} 进行转录 ---")
-    segments, info = model.transcribe(file_path, beam_size=5, word_timestamps=True, initial_prompt=initial_prompt)
+    segments, info = model.transcribe(
+        file_path, beam_size=5, word_timestamps=True,
+        initial_prompt=initial_prompt,
+        vad_filter=True,
+        vad_parameters={"min_silence_duration_ms": 500}
+    )
 
     results = []
     for segment in segments:

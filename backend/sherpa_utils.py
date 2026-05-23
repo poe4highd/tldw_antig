@@ -30,6 +30,34 @@ def load_audio_for_sherpa(file_path: str, sample_rate: int = 16000) -> np.ndarra
         if os.path.exists(temp_wav):
             os.remove(temp_wav)
 
+def iter_audio_chunks(file_path: str, chunk_seconds: int = 30, sample_rate: int = 16000) -> Iterator[np.ndarray]:
+    """
+    流式逐块读取音频，每块 chunk_seconds 秒，峰值内存约 2MB/chunk。
+    避免全量加载长音频导致 OOM。
+    """
+    temp_wav = f"{file_path}.temp.wav"
+    try:
+        subprocess.run([
+            "ffmpeg", "-i", file_path,
+            "-ar", str(sample_rate),
+            "-ac", "1",
+            "-f", "wav",
+            "-y", temp_wav
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        frames_per_chunk = chunk_seconds * sample_rate
+        with wave.open(temp_wav, "rb") as f:
+            while True:
+                data = f.readframes(frames_per_chunk)
+                if not data:
+                    break
+                chunk = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+                yield chunk
+    finally:
+        if os.path.exists(temp_wav):
+            os.remove(temp_wav)
+
+
 def format_sherpa_result(result_text: str):
     """
     Normalize sherpa-onnx result text if needed.
