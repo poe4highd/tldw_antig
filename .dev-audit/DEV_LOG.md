@@ -1,3 +1,24 @@
+# 2026-06-05 开发日志
+
+### [Perf/OOM] faster-whisper 分块转录路径落地
+
+- **需求**：5-22 日仅对 faster-whisper 加了 `vad_filter` 防御，CPU 模式下超长音频仍会全量加载导致 OOM；同时清理 `dev_docs/assets/` 中的临时 mockup 图片。
+
+- **受影响文件**：
+  - `backend/transcriber.py`
+  - `dev_docs/assets/`（删除 4 张临时 mockup 图片）
+
+- **回顾**：
+  1. 新增 `_transcribe_faster_whisper_chunked(file_path, model, initial_prompt, chunk_minutes=20, overlap_seconds=30)`：用 ffprobe 探测总时长，≤ chunk_minutes 直接整文件；超过则复用已有 `_get_silence_cut_points` 在静音处切割，ffmpeg 逐段提取 + 30s overlap，合并时 `abs_start >= seg_end` 过滤重复，`gc.collect()` 主动释放内存
+  2. `transcribe_local` 的 faster-whisper 回退路径从直接 `model.transcribe` 改为调用上述分块函数
+  3. 删除 4 张 `dev_docs/assets/` 临时 mockup 图片（`admin_insight_*`、`enhanced_report_discussion_*`、`login_page_*`、`unified_dashboard_*`），不影响任何代码引用
+
+- **经验**：
+  - faster-whisper 分块策略与 mlx-whisper 完全对称，复用同一套 `_get_silence_cut_points` + overlap 合并逻辑，代码复杂度增量极小
+  - `gc.collect()` 在每块转录后调用，对 CPU 长音频场景内存压力有明显缓解
+
+---
+
 # 2026-05-22 开发日志
 
 ### [Perf/OOM] 长音频分块流式转录 — 突破 Whisper 时长 OOM 限制

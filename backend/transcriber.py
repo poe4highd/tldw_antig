@@ -314,6 +314,86 @@ def transcribe_funasr(file_path: str, model_name="iic/SenseVoiceSmall"):
 
     return results, None  # FunASR 无可靠单一语言码输出
 
+def _transcribe_faster_whisper_chunked(file_path: str, model, initial_prompt: str,
+                                        chunk_minutes: int = 20, overlap_seconds: int = 30):
+    """
+    对超长文件分块调用 faster-whisper，避免全量加载 OOM。
+    ≤ chunk_minutes 的短文件直接整文件处理。
+    """
+    import json, subprocess, tempfile, gc
+
+    probe = subprocess.run([
+        "ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", file_path
+    ], capture_output=True, text=True)
+    streams = json.loads(probe.stdout).get("streams", [{}])
+    duration = max((float(s.get("duration", 0)) for s in streams), default=0.0)
+
+    chunk_sec = chunk_minutes * 60
+
+    def _run_transcribe(path, prompt):
+        segs, info = model.transcribe(
+            path, beam_size=5, word_timestamps=True,
+            initial_prompt=prompt,
+            vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 500}
+        )
+        results = []
+        for seg in segs:
+            results.append({
+                "start": seg.start,
+                "end": seg.end,
+                "text": seg.text.strip(),
+                "words": [{"start": w.start, "end": w.end, "text": w.word} for w in seg.words] if seg.words else []
+            })
+        lang = getattr(info, "language", None)
+        return results, lang
+
+    if duration <= chunk_sec:
+        return _run_transcribe(file_path, initial_prompt)
+
+    target_cuts = list(range(chunk_sec, int(duration), chunk_sec))
+    actual_cuts = _get_silence_cut_points(file_path, target_cuts)
+    boundaries = [0.0] + actual_cuts + [duration]
+
+    all_segments = []
+    detected_lang = None
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for idx in range(len(boundaries) - 1):
+            seg_start = boundaries[idx]
+            seg_end = boundaries[idx + 1]
+            extract_duration = min(seg_end + overlap_seconds, duration) - seg_start
+
+            seg_path = os.path.join(tmpdir, f"seg_{idx:03d}.mp3")
+            subprocess.run([
+                "ffmpeg", "-ss", str(seg_start), "-i", file_path,
+                "-t", str(extract_duration),
+                "-q:a", "2", "-y", seg_path
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            print(f"--- [FW-Chunked] 转录分段 {idx + 1}/{len(boundaries) - 1}: "
+                  f"{seg_start:.1f}s - {seg_end:.1f}s ---")
+            chunk_segs, lang = _run_transcribe(seg_path, initial_prompt)
+            if detected_lang is None:
+                detected_lang = lang
+
+            for seg in chunk_segs:
+                abs_start = seg["start"] + seg_start
+                abs_end = seg["end"] + seg_start
+                if abs_start >= seg_end:
+                    continue
+                seg["start"] = abs_start
+                seg["end"] = min(abs_end, seg_end + 1.0)
+                for w in seg.get("words", []):
+                    w["start"] += seg_start
+                    w["end"] += seg_start
+                all_segments.append(seg)
+
+            gc.collect()
+
+    print(f"--- [FW-Chunked] 完成: {len(all_segments)} segments, language={detected_lang} ---")
+    return all_segments, detected_lang
+
+
 def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str = "large-v3-turbo"):
     # Map friendly names to actual model paths
     model_mapping = {
@@ -366,28 +446,10 @@ def transcribe_local(file_path: str, initial_prompt: str = None, model_size: str
         except Exception as e:
             print(f"--- mlx-whisper 运行失败: {e}，正在尝试回退至 CPU 模式 ---")
 
-    # 2. 回退到 faster-whisper (CPU 模式)
-    # Note: large-v3 on CPU might be very slow
+    # 2. 回退到 faster-whisper，分块处理防止超长音频 OOM
     model = get_faster_whisper_model(model_size)
-    print(f"--- [CPU 模式] 使用 faster-whisper 为 {file_path} 进行转录 ---")
-    segments, info = model.transcribe(
-        file_path, beam_size=5, word_timestamps=True,
-        initial_prompt=initial_prompt,
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500}
-    )
-
-    results = []
-    for segment in segments:
-        results.append({
-            "start": segment.start,
-            "end": segment.end,
-            "text": segment.text.strip(),
-            "words": [{"start": w.start, "end": w.end, "text": w.word} for w in segment.words] if segment.words else []
-        })
-    detected_lang = getattr(info, "language", None)
-    print(f"--- CPU 转录完成: {len(results)} segments, language={detected_lang} ---")
-    return results, detected_lang
+    print(f"--- [FW 分块模式] 使用 faster-whisper 为 {file_path} 进行转录 ---")
+    return _transcribe_faster_whisper_chunked(file_path, model, initial_prompt)
 
 def transcribe_cloud(file_path: str, initial_prompt: str = None):
     # 灰度锁定：强制路由到本地处理，锁定 OpenAI 云端调用
