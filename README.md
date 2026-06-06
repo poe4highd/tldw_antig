@@ -59,19 +59,40 @@ YouTube / Audio / Video Quick Reader
 
 ---
 
-### 快速启动 (推荐)
-一键启动前后端并合并日志：
-```bash
-./dev.sh
-```
-
 ### 1. 配置环境
 在 `backend/.env` 中填入您的 API Key（如果使用云端模式）：
 ```bash
 OPENAI_API_KEY=sk-xxxx
 ```
 
-### 2. 启动分布式服务 (分步手动方式)
+在 `frontend/.env.local` 中配置后端地址：
+```bash
+NEXT_PUBLIC_API_URL=http://<后端IP>:8000
+```
+
+### 2. 开发模式启动（终端关闭即停）
+一键启动前后端并合并日志：
+```bash
+./dev.sh
+```
+访问 `http://localhost:3000` 即可。按 `Ctrl+C` 停止全部服务。
+
+### 3. 后台持久化运行（推荐生产环境）
+使用 systemd user services，关闭终端/VSCode 后服务依然运行，崩溃自动重启，开机自启。
+
+```bash
+rt              # 查看所有服务状态
+rt start        # 启动所有服务
+rt stop         # 停止所有服务
+rt restart      # 重启所有服务
+rt restart tldw-frontend   # 只重启某个服务
+rt logs         # 实时查看后端日志
+rt logs tldw-frontend      # 实时查看前端日志
+```
+
+详见 [开发启动与日志监控指南](docs/development_guide.md)。
+
+### 4. 分步手动启动
 1. **启动后端 (API)**:
    ```bash
    cd backend
@@ -83,7 +104,6 @@ OPENAI_API_KEY=sk-xxxx
    cd frontend
    npm run dev
    ```
-访问 `http://localhost:3000` 即可。
 
 ## AI 处理逻辑
 系统不仅进行语音转录，还会将结果提交给 LLM (GPT-4o-mini 或 Ollama 本地模型) 进行二次加工。
