@@ -1,49 +1,36 @@
-# 2026-06-05 开发日志
+# 2026-06-06 开发日志
 
-### [Perf/OOM] faster-whisper 分块转录路径落地
+### [Feature] YouTube Playlist 批量提交任务
 
-- **需求**：5-22 日仅对 faster-whisper 加了 `vad_filter` 防御，CPU 模式下超长音频仍会全量加载导致 OOM；同时清理 `dev_docs/assets/` 中的临时 mockup 图片。
+- **需求**：用户希望提供 YouTube playlist URL 后，系统能提取列表中的所有视频 URL，并逐个提交到现有视频分析队列；测试链接为 `https://www.youtube.com/watch?v=0WEGa2iaDm8&list=PLmAJn2vsW0CCm6bx3y1aIEBI-qTaWRwLf`。该功能仅允许 `poe4high.dimension@gmail.com` 使用。
 
-- **受影响文件**：
-  - `backend/transcriber.py`
-  - `dev_docs/assets/`（删除 4 张临时 mockup 图片）
-
-- **回顾**：
-  1. 新增 `_transcribe_faster_whisper_chunked(file_path, model, initial_prompt, chunk_minutes=20, overlap_seconds=30)`：用 ffprobe 探测总时长，≤ chunk_minutes 直接整文件；超过则复用已有 `_get_silence_cut_points` 在静音处切割，ffmpeg 逐段提取 + 30s overlap，合并时 `abs_start >= seg_end` 过滤重复，`gc.collect()` 主动释放内存
-  2. `transcribe_local` 的 faster-whisper 回退路径从直接 `model.transcribe` 改为调用上述分块函数
-  3. 删除 4 张 `dev_docs/assets/` 临时 mockup 图片（`admin_insight_*`、`enhanced_report_discussion_*`、`login_page_*`、`unified_dashboard_*`），不影响任何代码引用
-
-- **经验**：
-  - faster-whisper 分块策略与 mlx-whisper 完全对称，复用同一套 `_get_silence_cut_points` + overlap 合并逻辑，代码复杂度增量极小
-  - `gc.collect()` 在每块转录后调用，对 CPU 长音频场景内存压力有明显缓解
-
----
-
-# 2026-05-22 开发日志
-
-### [Perf/OOM] 长音频分块流式转录 — 突破 Whisper 时长 OOM 限制
-
-- **需求**：处理 70+ 分钟长音频时（如 `up_9f2ea319.m4a`），`transcribe_sensevoice_onnx` 因 `load_audio_for_sherpa` 全量加载 WAV 导致 OOM 崩溃；mlx-whisper 路径同样整文件喂入无分块。
-
-- **受影响文件**：
-  - `backend/sherpa_utils.py`
-  - `backend/transcriber.py`
+- **受影响文件（计划）**：
+  - `backend/main.py`
+  - `frontend/app/tasks/page.tsx`
+  - `frontend/translations/zh.json`
+  - `frontend/translations/en.json`
+  - `.dev-audit/DEV_LOG.md`
+  - `.dev-audit/PROJECT_HISTORY.md`
 
 - **计划**：
-  1. `sherpa_utils.py`：新增 `iter_audio_chunks` 流式生成器（每块 30s，~2MB/chunk）
-  2. `transcriber.py`：重写 `transcribe_sensevoice_onnx` 为双层流式（外层 30s 块 + 内层 100ms VAD 块），加 `vad.flush()` 处理尾部
-  3. `transcriber.py`：新增 `_get_silence_cut_points`（用 ffmpeg silencedetect 找静音切割点）和 `_transcribe_mlx_chunked`（超 20min 才分块，overlap+去重合并），替换 mlx 路径的直接 `transcribe` 调用
-  4. `transcriber.py`：faster-whisper 加 `vad_filter=True` 作为防御性措施
+  1. 后端新增 playlist 请求模型、白名单邮箱常量、用户 email 校验 helper、playlist URL 校验与 `yt-dlp` 扁平提取 helper。
+  2. 后端新增受限批量入队端点：只允许 `poe4high.dimension@gmail.com` 对 playlist URL 调用；提取视频 ID 后逐条写入 `videos` 的 `queued` 记录与 `submissions` 关联，复用现有 scheduler 处理链路。
+  3. 前端任务页识别当前登录用户 email：仅目标账号显示 playlist 批量提交入口；提交后展示已入队数量并刷新活动任务。
+  4. 补齐中英文文案，并用给定 playlist URL 验证提取逻辑；在无网络或缺少 yt-dlp 环境时记录验证限制。
 
 - **回顾**：
-  1. `sherpa_utils.py` 新增 `iter_audio_chunks` 生成器，保留旧函数 `load_audio_for_sherpa` 不破坏其他引用
-  2. `transcribe_sensevoice_onnx` 全函数重写：`load_audio_for_sherpa` 改为 `iter_audio_chunks`，内嵌 `_drain_vad` 辅助函数，结尾 `vad.flush()` 处理尾部残留
-  3. `_get_silence_cut_points`：用 ffmpeg `silencedetect=noise=-40dB:d=0.3` 解析静音结束点，在目标切割点前后 60s 内找最近静音点，无静音点时回退到按时间切割
-  4. `_transcribe_mlx_chunked`：≤ chunk_minutes(20min) 直接整文件，否则在静音处切割 + 30s overlap；合并时 `abs_start >= seg_end` 过滤 overlap 重复，`abs_end` clamp 防越界
-  5. faster-whisper `model.transcribe` 加 `vad_filter=True, vad_parameters={"min_silence_duration_ms": 500}`
+  1. `backend/main.py` 新增 `PlaylistProcessRequest`、`PLAYLIST_ALLOWED_EMAIL`、Bearer token 解析和 `_ensure_playlist_access()`，后端通过 Supabase `auth.get_user(access_token)` 校验真实登录用户 email，只允许 `poe4high.dimension@gmail.com` 调用。
+  2. 新增 `_extract_playlist_videos()`：使用 `yt-dlp` flat playlist 模式读取 playlist 条目，去重生成标准 `https://www.youtube.com/watch?v={id}` URL，并过滤 `[Private video]` / `[Deleted video]` 这类不可分析条目。
+  3. 新增 `/process-playlist`：将 playlist 内可分析视频逐个写入 `videos.status=queued` 与 `submissions`，保留 `report_data.source=manual` 以复用 scheduler 优先级，同时增加 `batch_source=playlist`、`playlist_url`、`playlist_index` 方便追踪。
+  4. `frontend/app/tasks/page.tsx` 仅在当前登录 email 为 `poe4high.dimension@gmail.com` 时显示“批量处理列表”按钮；提交时附带 Supabase access token 给后端做真实鉴权，成功后展示入队数量并刷新活动任务。
+  5. `frontend/translations/zh.json`、`frontend/translations/en.json` 补齐 playlist 入口、校验、提取中、入队成功文案。
+  6. 验证：`backend ./venv/bin/python -m py_compile main.py` 通过；翻译 JSON 解析通过；`frontend npx tsc --noEmit` 通过；`frontend npx eslint app/tasks/page.tsx` 0 error / 7 warning（均为既有 unused/img warning）；全仓 `npm run lint` 仍失败于既有 admin/result/settings/context lint error。
+  7. 使用测试链接实测 `yt-dlp --flat-playlist` 可提取 16 条，其中 1 条为 `[Private video]`，后端过滤后会入队 15 条可分析视频。
+  8. 按 README 指引使用 `rt restart tldw-backend` 与 `rt restart tldw-frontend` 重启服务；后端启动时间刷新至 2026-06-06 20:15:20 CDT，前端刷新至 2026-06-06 20:15:28 CDT。`rt restart` target 本身不会刷新子服务，调度器正在处理任务所以未重启，避免中断分析。
 
 - **经验**：
-  - SenseVoice ONNX 的 OOM 根因是 `sherpa_utils.load_audio_for_sherpa` 一次性 `readframes(num_frames)` —— 2h 音频全量 float32 numpy 数组约 460MB，不是 VAD buffer 本身的问题
-  - mlx-whisper 分块合并的准确性关键：(1) 在静音处切割而非硬切时间点，(2) overlap 区域合并时必须用 `abs_start >= seg_end` 而非 `abs_start > prev_end` 做去重
-  - faster-whisper 的 `vad_filter` 是免费的防御，跳过静音段同时降内存压力
-  - 测试文件：`downloads/up_9f2ea319.m4a`（70.8min 长），`downloads/r_2BLtms3Jw.mp3`（15.2min 短，不应触发分块）
+  - 仅前端隐藏入口不够安全；批量任务这种高成本操作必须以后端 token 校验作为准入边界。
+  - playlist URL 带 `watch?v=...&list=...` 时，提取阶段应生成不带 `list` 参数的单视频 URL，避免后续下载流程误走 playlist。
+  - YouTube playlist 可能包含私有/删除视频；flat playlist 仍可能返回占位 ID，入队前过滤能避免制造必失败任务。
+
+---

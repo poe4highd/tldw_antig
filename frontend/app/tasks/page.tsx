@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
-import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu, Sun, Moon, User, Share2, Lock } from "lucide-react";
+import { Youtube, FileUp, ArrowRight, LayoutGrid, Clock, CheckCircle2, Menu, Sun, Moon, User, Share2, Lock, ListPlus } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { getApiBase } from "@/utils/api";
 import { useTranslation } from "@/contexts/LanguageContext";
@@ -37,6 +37,8 @@ interface ActiveTask {
     progress: number;
 }
 
+const PLAYLIST_ALLOWED_EMAIL = "poe4high.dimension@gmail.com";
+
 export default function TasksPage() {
     const { t, language } = useTranslation();
     const { theme, toggleTheme } = useTheme();
@@ -48,6 +50,7 @@ export default function TasksPage() {
     const [isPublic, setIsPublic] = useState(true);
     const [isFinished, setIsFinished] = useState(false);
     const [finishedTaskId, setFinishedTaskId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [activeTasks, setActiveTasks] = useState<ActiveTask[]>([]);
     const [summary, setSummary] = useState<Summary | null>(null);
@@ -66,6 +69,7 @@ export default function TasksPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+    const canUsePlaylist = user?.email?.toLowerCase() === PLAYLIST_ALLOWED_EMAIL;
 
     const fetchHistory = async () => {
         if (!user) return;
@@ -101,6 +105,7 @@ export default function TasksPage() {
         setEta(null);
         setIsFinished(false);
         setFinishedTaskId(null);
+        setIsSubmitting(true);
         try {
             const apiBase = getApiBase();
             const resp = await fetch(`${apiBase}/process`, {
@@ -120,6 +125,65 @@ export default function TasksPage() {
             console.error("Start process failed:", e);
             const message = e instanceof Error ? e.message : t("tasks.statusNetworkError");
             setStatus(`${t("tasks.statusStartFailed")}: ${message}`);
+            setIsSubmitting(false);
+        }
+    };
+
+    const startPlaylistProcess = async () => {
+        if (!url) return;
+        const trimmed = url.trim();
+        if (!/^https?:\/\//.test(trimmed) || (!trimmed.includes("list=") && !trimmed.includes("/playlist"))) {
+            setStatus(t("tasks.playlistInvalid"));
+            return;
+        }
+
+        const userId = await ensureAuth();
+        if (!userId) return;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            setStatus(t("tasks.statusLoginRequired") || "请先登录后再提交");
+            return;
+        }
+
+        setStatus(t("tasks.playlistExtracting"));
+        setProgress(0);
+        setEta(null);
+        setIsFinished(false);
+        setFinishedTaskId(null);
+        setIsSubmitting(true);
+
+        try {
+            const apiBase = getApiBase();
+            const resp = await fetch(`${apiBase}/process-playlist`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ url: trimmed, mode, user_id: userId, is_public: isPublic }),
+            });
+
+            if (!resp.ok) {
+                const errorData = await resp.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Server error: ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            setProgress(100);
+            setStatus(
+                t("tasks.playlistQueued")
+                    .replace("{count}", String(data.queued_count || 0))
+                    .replace("{total}", String(data.count || 0))
+            );
+            fetchHistory();
+        } catch (e: unknown) {
+            console.error("Start playlist process failed:", e);
+            const message = e instanceof Error ? e.message : t("tasks.statusNetworkError");
+            setProgress(0);
+            setStatus(`${t("tasks.statusStartFailed")}: ${message}`);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -154,6 +218,7 @@ export default function TasksPage() {
         setEta(null);
         setIsFinished(false);
         setFinishedTaskId(null);
+        setIsSubmitting(true);
 
         const formData = new FormData();
         formData.append("file", file);
@@ -170,12 +235,14 @@ export default function TasksPage() {
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
                 setStatus(err.detail || t("tasks.statusUploadFailed"));
+                setIsSubmitting(false);
                 return;
             }
             const data = await resp.json();
             pollStatus(data.task_id);
         } catch (err) {
             setStatus(t("tasks.statusUploadFailed"));
+            setIsSubmitting(false);
         }
     };
 
@@ -194,10 +261,12 @@ export default function TasksPage() {
                     setStatus(t("tasks.statusCompleted"));
                     setIsFinished(true);
                     setFinishedTaskId(taskId);
+                    setIsSubmitting(false);
                     fetchHistory();
                 } else if (data.status === "failed") {
                     setProgress(0);
                     setStatus("Failed: " + (data.detail || "Unknown error"));
+                    setIsSubmitting(false);
                     clearInterval(interval);
                 } else {
                     const statusMap: Record<string, string> = {
@@ -394,12 +463,27 @@ export default function TasksPage() {
                                     </select>
                                     <button
                                         onClick={startProcess}
-                                        disabled={!url || !isBackendOnline || (!!status && !status.includes("Failed"))}
+                                        disabled={!url || !isBackendOnline || isSubmitting}
                                         className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-8 py-3.5 rounded-2xl font-black text-white shadow-xl shadow-indigo-500/20 active:scale-[0.98] whitespace-nowrap text-sm"
                                     >
                                         {t("tasks.processNow")}
                                     </button>
+                                    {canUsePlaylist && (
+                                        <button
+                                            onClick={startPlaylistProcess}
+                                            disabled={!url || !isBackendOnline || isSubmitting}
+                                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all px-6 py-3.5 rounded-2xl font-black text-white shadow-xl shadow-emerald-500/20 active:scale-[0.98] whitespace-nowrap text-sm"
+                                        >
+                                            <ListPlus className="w-4 h-4" />
+                                            {t("tasks.processPlaylist")}
+                                        </button>
+                                    )}
                                 </div>
+                                {canUsePlaylist && (
+                                    <p className="text-[11px] text-slate-500 font-bold px-2">
+                                        {t("tasks.playlistOnly")}
+                                    </p>
+                                )}
                                 <div className="flex items-center gap-3 px-0 sm:px-2">
                                     <button
                                         onClick={() => setIsPublic(true)}
@@ -443,7 +527,8 @@ export default function TasksPage() {
                             <div className="flex flex-col items-center gap-2">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="flex items-center gap-3 px-8 py-4 bg-card-bg/50 hover:bg-card-bg/80 border border-card-border rounded-2xl text-slate-500 transition-all group hover:text-foreground"
+                                    disabled={isSubmitting}
+                                    className="flex items-center gap-3 px-8 py-4 bg-card-bg/50 hover:bg-card-bg/80 border border-card-border rounded-2xl text-slate-500 transition-all group hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <FileUp className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                     <span className="font-bold">{t("tasks.uploadButton")}</span>

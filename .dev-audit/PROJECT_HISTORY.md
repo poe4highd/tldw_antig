@@ -1,4 +1,5 @@
-[2026-06-05] | [Perf/OOM] | faster-whisper 分块转录路径落地 | _transcribe_faster_whisper_chunked：复用 _get_silence_cut_points+overlap 合并，替换 CPU 回退的全量 transcribe；删除 dev_docs/assets 临时 mockup 图片 | DEV_LOG.md
+[2026-06-06] | [Feature] | YouTube Playlist 批量提交任务 | 新增仅 poe4high.dimension@gmail.com 可用的 playlist 批量入队端点与前端入口，yt-dlp flat 提取并过滤私有/删除视频，复用现有 scheduler 分析链路 | DEV_LOG.md
+[2026-06-05] | [Perf/OOM] | faster-whisper 分块转录路径落地 | _transcribe_faster_whisper_chunked：复用 _get_silence_cut_points+overlap 合并，替换 CPU 回退的全量 transcribe；删除 dev_docs/assets 临时 mockup 图片 | log_20260605.md
 [2026-05-22] | [Perf/OOM] | 长音频分块流式转录 | iter_audio_chunks 流式读取(~2MB/chunk)替代全量加载；mlx-whisper 静音处切块+overlap去重；faster-whisper 开 vad_filter | DEV_LOG.md
 [2026-04-24] | [Assets/Promo] | 捕获真实网站宣传素材 | 使用浏览器工具访问真实报告页面，捕获包含字幕区的 OG、Product Hunt 和小红书系列宣传图 | log_20260424.md
 [2026-04-24] | [Docs/Growth] | Read-Tube 爆款网站宣传方案 | 总结核心功能，新增官网宣传定位、图片/视频脚本、渠道文案与发布节奏 | DEV_LOG.md

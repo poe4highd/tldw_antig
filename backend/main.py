@@ -7,6 +7,7 @@ import re
 import hashlib
 import random
 import shutil
+from typing import Optional
 import app_logger
 app_logger.setup()
 from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Form, Header, Depends, Request
@@ -53,6 +54,9 @@ DOWNLOADS_DIR = "downloads"
 RESULTS_DIR = "results"
 CACHE_DIR = "cache"
 DEV_DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "dev_docs")
+PLAYLIST_ALLOWED_EMAIL = "poe4high.dimension@gmail.com"
+YOUTUBE_ID_PATTERN = re.compile(r"^[0-9A-Za-z_-]{11}$")
+YOUTUBE_URL_ID_PATTERN = re.compile(r"(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})(?:[?&]|$)")
 
 for d in [DOWNLOADS_DIR, RESULTS_DIR, CACHE_DIR]:
     if not os.path.exists(d):
@@ -62,6 +66,12 @@ class ProcessRequest(BaseModel):
     url: str
     mode: str = "local"
     user_id: str = None
+    is_public: bool = True
+
+class PlaylistProcessRequest(BaseModel):
+    url: str
+    mode: str = "local"
+    user_id: str
     is_public: bool = True
 
 class CommentRequest(BaseModel):
@@ -77,6 +87,171 @@ class LikeRequest(BaseModel):
 def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
+
+def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+def _get_auth_user_attr(user, key):
+    if isinstance(user, dict):
+        return user.get(key)
+    return getattr(user, key, None)
+
+def _ensure_playlist_access(user_id: str, authorization: Optional[str]) -> str:
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase 未配置，无法校验 playlist 权限")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="需要登录后才能提交 playlist")
+
+    token = _extract_bearer_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="需要有效登录凭证")
+
+    try:
+        user_response = supabase.auth.get_user(token)
+        auth_user = getattr(user_response, "user", None)
+    except Exception as e:
+        print(f"[Playlist] Auth token validation failed: {e}")
+        raise HTTPException(status_code=401, detail="登录凭证无效或已过期")
+
+    auth_user_id = _get_auth_user_attr(auth_user, "id")
+    auth_email = (_get_auth_user_attr(auth_user, "email") or "").lower()
+    if not auth_user_id or auth_user_id != user_id:
+        raise HTTPException(status_code=403, detail="登录用户与提交用户不一致")
+    if auth_email != PLAYLIST_ALLOWED_EMAIL:
+        raise HTTPException(status_code=403, detail="该功能暂未对当前账号开放")
+
+    return auth_email
+
+def _extract_youtube_video_id(value: str) -> Optional[str]:
+    if not value:
+        return None
+    value = value.strip()
+    if YOUTUBE_ID_PATTERN.match(value):
+        return value
+    id_match = YOUTUBE_URL_ID_PATTERN.search(value)
+    if id_match:
+        return id_match.group(1)
+    return None
+
+def _is_youtube_playlist_url(url: str) -> bool:
+    if not url:
+        return False
+    return (
+        ("youtube.com" in url or "youtu.be" in url)
+        and ("list=" in url or "/playlist" in url)
+    )
+
+def _extract_playlist_videos(url: str):
+    import yt_dlp
+
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "skip_download": True,
+        "ignoreerrors": True,
+        "nocheckcertificate": True,
+        "noplaylist": False,
+    }
+
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")
+    if cookies_path and os.path.exists(cookies_path):
+        ydl_opts["cookiefile"] = cookies_path
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+
+    entries = info.get("entries") if isinstance(info, dict) else None
+    if not entries:
+        return []
+
+    videos = []
+    seen_ids = set()
+    for entry in entries:
+        if not entry:
+            continue
+        title = entry.get("title") or ""
+        if title.strip().lower() in ("[private video]", "[deleted video]"):
+            continue
+        raw_id = entry.get("id") or entry.get("url") or ""
+        video_id = _extract_youtube_video_id(raw_id)
+        if not video_id:
+            video_id = _extract_youtube_video_id(entry.get("webpage_url") or "")
+        if not video_id or video_id in seen_ids:
+            continue
+        seen_ids.add(video_id)
+        videos.append({
+            "id": video_id,
+            "title": title or f"YouTube: {video_id}",
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+        })
+
+    return videos
+
+def _clear_task_artifacts(task_id: str):
+    for suffix in [".json", "_error.json"]:
+        old_file = f"{RESULTS_DIR}/{task_id}{suffix}"
+        if os.path.exists(old_file):
+            os.remove(old_file)
+
+def _upsert_queued_youtube_task(
+    task_id: str,
+    url: str,
+    mode: str,
+    user_id: Optional[str],
+    is_public: bool,
+    title: Optional[str] = None,
+    batch_source: Optional[str] = None,
+    playlist_url: Optional[str] = None,
+    playlist_index: Optional[int] = None,
+):
+    save_status(task_id, "queued", 0)
+    _clear_task_artifacts(task_id)
+
+    if not supabase:
+        return
+
+    report_data = {
+        "url": url,
+        "mode": mode,
+        "user_id": user_id,
+        "is_public": is_public,
+        "source": "manual",
+    }
+    if batch_source:
+        report_data["batch_source"] = batch_source
+    if playlist_url:
+        report_data["playlist_url"] = playlist_url
+    if playlist_index is not None:
+        report_data["playlist_index"] = playlist_index
+
+    video_data = {
+        "id": task_id,
+        "title": title or f"YouTube: {task_id}",
+        "status": "queued",
+        "user_id": user_id,
+        "is_public": is_public,
+        "report_data": report_data,
+    }
+    supabase.table("videos").upsert(video_data).execute()
+
+    if user_id:
+        try:
+            supabase.table("submissions").insert({
+                "user_id": user_id,
+                "video_id": task_id,
+                "task_id": task_id
+            }).execute()
+        except Exception as sub_e:
+            print(f"Submission insert failed in queued helper (expected if exists): {sub_e}")
+            supabase.table("submissions").update({
+                "video_id": task_id
+            }).eq("task_id", task_id).execute()
 
 def background_process(task_id, mode, url=None, local_file=None, title=None, thumbnail=None, user_id=None, is_public=True):
     try:
@@ -451,6 +626,68 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
     # 不再直接启动 BackgroundTasks，由外部 scheduler.py 轮关注
     # background_tasks.add_task(background_process, task_id, request.mode, url=request.url, user_id=request.user_id)
     return {"task_id": task_id}
+
+@app.post("/process-playlist")
+async def process_playlist(request: PlaylistProcessRequest, authorization: str = Header(None)):
+    _ensure_playlist_access(request.user_id, authorization)
+
+    playlist_url = (request.url or "").strip()
+    if not playlist_url.startswith(("http://", "https://")) or not _is_youtube_playlist_url(playlist_url):
+        raise HTTPException(status_code=400, detail="请输入有效的 YouTube playlist 链接")
+
+    try:
+        videos = _extract_playlist_videos(playlist_url)
+    except Exception as e:
+        print(f"[Playlist] Failed to extract playlist videos: {e}")
+        raise HTTPException(status_code=502, detail=f"无法读取 playlist：{e}")
+
+    if not videos:
+        raise HTTPException(status_code=400, detail="未能从 playlist 中提取到公开视频")
+
+    queued = []
+    failed = []
+    for index, item in enumerate(videos, start=1):
+        video_id = item["id"]
+        try:
+            _upsert_queued_youtube_task(
+                task_id=video_id,
+                url=item["url"],
+                mode=request.mode,
+                user_id=request.user_id,
+                is_public=request.is_public,
+                title=item.get("title"),
+                batch_source="playlist",
+                playlist_url=playlist_url,
+                playlist_index=index,
+            )
+            queued.append({
+                "task_id": video_id,
+                "url": item["url"],
+                "title": item.get("title"),
+                "index": index,
+            })
+        except Exception as e:
+            print(f"[Playlist] Failed to queue {video_id}: {e}")
+            failed.append({
+                "task_id": video_id,
+                "url": item.get("url"),
+                "title": item.get("title"),
+                "index": index,
+                "error": str(e),
+            })
+
+    if not queued:
+        raise HTTPException(status_code=500, detail="playlist 视频提取成功，但任务入队失败")
+
+    return {
+        "playlist_url": playlist_url,
+        "count": len(videos),
+        "queued_count": len(queued),
+        "failed_count": len(failed),
+        "task_ids": [item["task_id"] for item in queued],
+        "queued": queued,
+        "failed": failed[:10],
+    }
 
 @app.post("/upload")
 async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("local"), user_id: str = Form(None), is_public: bool = Form(True)):
