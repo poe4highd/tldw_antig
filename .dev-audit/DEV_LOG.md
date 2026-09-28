@@ -17,6 +17,7 @@
   6. 新增 `alerting.py` 与连续失败告警（阈值 5，恢复通知）；mock 测试：6 次失败只告警 1 次、成功后发 1 次恢复；SMTP 未配置时返回 False 不抛异常。
   7. 新增 `tldw-ytdlp-upgrade.{service,timer}` 与 `upgrade-ytdlp.sh`；`install.sh` 自动 enable `*.timer`。
   8. 新增 `scripts/requeue_failed.py`，dry-run 确认最近 40 个为 9/11~9/28。
+  9. 自愈：`alerting.py` 命令行测试未加载 `.env` 导致用户测试无输出，`__main__` 中补 `load_dotenv`；清理用户 `.env` 中误粘贴的占位行（已备份）；测试邮件发送成功，systemd `EnvironmentFile` 解析校验通过（pw_len=16）。
 
 - **经验**：
   - "追踪停止"是表象，真实故障在下游；先按环节（追踪→入队→下载→处理）逐段找证据。

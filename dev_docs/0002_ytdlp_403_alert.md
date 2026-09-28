@@ -30,5 +30,6 @@
 合并 main → **先重启 scheduler 载入新卡住判定** → `install.sh` 启用 timer → 再执行 requeue（否则旧逻辑 30 分钟内把它们打回 failed）→ push。
 
 ## 4. 待用户操作
-- 在 `backend/.env` 填 `ALERT_SMTP_USER`、`ALERT_SMTP_PASSWORD`（Gmail 应用专用密码），`rt restart tldw-scheduler`，
+- ✅ 已完成（2026-09-27）：`backend/.env` 已配置 `ALERT_SMTP_USER`、`ALERT_SMTP_PASSWORD`（16 位应用密码，去空格、不加引号），测试邮件发送成功。
+- 原步骤：填写凭据后 `rt restart tldw-scheduler`，
   然后 `cd backend && venv/bin/python alerting.py` 发测试邮件。

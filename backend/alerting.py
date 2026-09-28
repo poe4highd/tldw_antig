@@ -49,6 +49,8 @@ def send_email_alert(subject: str, body: str) -> bool:
 
 
 if __name__ == "__main__":
-    # 手动测试：venv/bin/python alerting.py
+    # 手动测试：venv/bin/python alerting.py（服务中由 systemd EnvironmentFile 注入，命令行需自行加载 .env）
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
     ok = send_email_alert("测试邮件", "这是一封 SMTP 配置测试邮件，收到说明告警通道正常。")
     print("sent" if ok else "not sent (see log)")
