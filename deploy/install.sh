@@ -38,4 +38,9 @@ done
 link "$DEPLOY_DIR/bin/rt" "$BIN_DIR/rt"
 
 systemctl --user daemon-reload
+for timer in "$DEPLOY_DIR"/systemd/*.timer; do
+    [ -e "$timer" ] || continue
+    systemctl --user enable --now "$(basename "$timer")"
+    echo "启用定时器 $(basename "$timer")"
+done
 echo "完成。单元内容变更需重启对应服务生效，例如：rt restart tldw-backend"

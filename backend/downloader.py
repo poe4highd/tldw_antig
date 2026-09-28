@@ -1,3 +1,4 @@
+import glob
 import os
 import shutil
 
@@ -11,6 +12,15 @@ def _find_ffmpeg():
         if os.path.isfile(os.path.join(candidate, 'ffmpeg')):
             return candidate
     return None
+
+def _find_js_runtimes():
+    """yt-dlp 解 YouTube 签名/n 参数需要 JS 运行时（默认只启用 deno）。
+    systemd 环境 PATH 不含 nvm，按 PATH → ~/.nvm 最新版顺序查找 node。"""
+    node = shutil.which('node')
+    if not node:
+        candidates = sorted(glob.glob(os.path.expanduser('~/.nvm/versions/node/*/bin/node')))
+        node = candidates[-1] if candidates else None
+    return {'node': {'path': node}} if node else None
 
 def download_audio(url: str, output_path: str = "downloads", progress_callback=None):
     import yt_dlp
@@ -52,6 +62,10 @@ def download_audio(url: str, output_path: str = "downloads", progress_callback=N
     ffmpeg_dir = _find_ffmpeg()
     if ffmpeg_dir:
         ydl_opts['ffmpeg_location'] = ffmpeg_dir
+
+    js_runtimes = _find_js_runtimes()
+    if js_runtimes:
+        ydl_opts['js_runtimes'] = js_runtimes
 
     # YouTube Cookies Support
     cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH")

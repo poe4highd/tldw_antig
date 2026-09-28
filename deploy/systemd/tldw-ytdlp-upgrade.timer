@@ -1,0 +1,10 @@
+[Unit]
+Description=每周升级 yt-dlp
+
+[Timer]
+OnCalendar=Mon *-*-* 04:00:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

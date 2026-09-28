@@ -86,6 +86,7 @@ npm run dev
 | `deploy/systemd/tldw-scheduler.service` | 任务调度器 (scheduler.py) |
 | `deploy/systemd/cloudflared-tldw.service` | Cloudflare 隧道 (ubuntu-read-tube，api.read-tube.com → 8000) |
 | `deploy/systemd/tldw.target` | 统一控制以上所有服务的 target |
+| `deploy/systemd/tldw-ytdlp-upgrade.{service,timer}` | 每周一 04:00 自动升级 yt-dlp（失败发邮件告警） |
 | `deploy/bin/run-*.sh` | 各服务的启动逻辑（按脚本位置解析仓库路径） |
 | `deploy/bin/rt` | 快捷管理命令 |
 | `deploy/install.sh` | 把单元与 `rt` 软链接到 `~/.config/systemd/user/`、`~/bin/` |
@@ -110,6 +111,12 @@ systemctl --user enable tldw.target tldw-backend tldw-frontend tldw-scheduler cl
 | `deploy/bin/run-*.sh` | `rt restart <服务>` |
 | `deploy/systemd/*` | `systemctl --user daemon-reload` 后 `rt restart <服务>` |
 | 新增单元文件 | 重新执行 `./deploy/install.sh` |
+
+**运维告警**：scheduler 连续 5 个任务失败时发邮件（恢复后再发一封），yt-dlp 自动升级失败也会发邮件。
+需在 `backend/.env` 配置 `ALERT_SMTP_USER` / `ALERT_SMTP_PASSWORD`（Gmail 应用专用密码），见 `backend/.env.example`；
+配置后可用 `cd backend && venv/bin/python alerting.py` 发送测试邮件。未配置时只写日志。
+
+**批量重新入队失败任务**：`cd backend && venv/bin/python scripts/requeue_failed.py --limit 40 [--dry-run]`
 
 ### 5.2 快捷命令 `rt`
 

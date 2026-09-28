@@ -1,0 +1,7 @@
+[Unit]
+Description=TLDW 升级 yt-dlp
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/projects/tldw_antig/backend/.env
+ExecStart=%h/projects/tldw_antig/deploy/bin/upgrade-ytdlp.sh

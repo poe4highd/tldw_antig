@@ -1,5 +1,31 @@
 # 2026-09-27 开发日志
 
+### [Bugfix/Ops] yt-dlp 403 导致下载停摆 6 周 + 失败告警
+
+- **需求**：用户发现首页最新视频停在 Aug 17，怀疑频道自动追踪停止。关键错误：`ERROR: unable to download video data: HTTP Error 403: Forbidden`（自 08-18 起 104 次）。详见 `dev_docs/0002_ytdlp_403_alert.md`。
+
+- **受影响文件（计划）**：`backend/downloader.py`、`backend/scheduler.py`、`backend/alerting.py`（新）、`backend/scripts/requeue_failed.py`（新）、`backend/requirements.txt`、`backend/.env.example`、`deploy/**`、`docs/development_guide.md`
+
+- **计划**：升级 yt-dlp → downloader 配置 node JS 运行时 → scheduler 卡住判定改为最后活动时间 + 连续失败邮件告警 → 每周自动升级 yt-dlp 的 timer → 补跑最近 40 个失败任务（用户决定不补 8 月的）。
+
+- **回顾**：
+  1. 诊断：追踪正常（每天约 24 轮），8/17 后 108 个入队视频 106 个 failed，retry_count 全部耗尽（=3）。
+  2. 隔离 venv 复现：旧版 2026.02.21 完整下载 403，新版 2026.08.19 成功；`--test`（仅 10KiB）两者都成功，是个误导点。
+  3. 生产 venv 已升级 yt-dlp 2026.08.19 + yt-dlp-ejs 0.8.0（非 git 管理的环境变更）。
+  4. `downloader.py` 新增 `_find_js_runtimes()`；以 systemd 同等精简 PATH 端到端测试 `download_audio('FUxw9s2VAxk')` 成功（音频 15MB + 字幕 + 缩略图）。
+  5. 发现并修复 `check_stuck_tasks` 以 `created_at` 判卡住的 bug（旧任务重新入队 30 分钟内即被打回 failed），改为 max(created_at, _status.json mtime)，queued 阈值 24h→72h；修复 `logger.info(file=sys.stderr)` TypeError。
+  6. 新增 `alerting.py` 与连续失败告警（阈值 5，恢复通知）；mock 测试：6 次失败只告警 1 次、成功后发 1 次恢复；SMTP 未配置时返回 False 不抛异常。
+  7. 新增 `tldw-ytdlp-upgrade.{service,timer}` 与 `upgrade-ytdlp.sh`；`install.sh` 自动 enable `*.timer`。
+  8. 新增 `scripts/requeue_failed.py`，dry-run 确认最近 40 个为 9/11~9/28。
+
+- **经验**：
+  - "追踪停止"是表象，真实故障在下游；先按环节（追踪→入队→下载→处理）逐段找证据。
+  - yt-dlp 这类对抗性依赖，不升级比升级危险得多：不锁版本 + 定期自动升级 + 失败告警。
+  - 超时/卡住判定不能基于创建时间，必须基于最后活动时间，否则重试机制形同虚设。
+  - 静默失败 6 周比 403 本身更严重：任何后台流水线都要有失败告警。
+
+---
+
 ### [Perf/Deploy] Sitemap 超时修复 + systemd 部署配置入库
 
 - **需求**：

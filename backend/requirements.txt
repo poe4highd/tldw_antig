@@ -9,7 +9,7 @@ pydub
 python-multipart
 httpx
 sherpa-onnx
-yt-dlp
+yt-dlp[default]  # 含 yt-dlp-ejs（YouTube JS 挑战求解）；勿锁版本，由 tldw-ytdlp-upgrade.timer 每周升级
 ffmpeg-python
 python-magic
 pytest

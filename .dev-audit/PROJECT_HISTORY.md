@@ -1,3 +1,4 @@
+[2026-09-27] | [Bugfix/Ops] | yt-dlp 403 下载停摆修复 + 失败告警 | 升级 yt-dlp 2026.08.19 并配置 node JS 运行时；修复卡住判定基于 created_at 导致重试失效；连续失败邮件告警；每周自动升级 timer；补跑最近 40 个失败任务 | DEV_LOG.md
 [2026-09-27] | [Perf/Deploy] | Sitemap 超时修复 + systemd 配置入库 | 新增 /sitemap-ids 轻量接口(7.95s→0.3s)消除 statement timeout，修复 sitemap 从未收录 /result 页的 bug，/explore limit≤100；systemd 单元/rt 迁入 deploy/ 由 install.sh 软链接 | DEV_LOG.md
 [2026-08-22] | [UX] | 首页强化 YouTube 提交入口 | 右上角常驻按钮图标 User→Youtube，登录态文案改「提交新的任务」直跳 /tasks（原为空洞的 Profile→/dashboard），未登录态维持登录引导；确认 read-tube.com 为项目生产域名 | log_20260822.md
 [2026-06-06] | [Feature] | YouTube Playlist 批量提交任务 | 新增仅 poe4high.dimension@gmail.com 可用的 playlist 批量入队端点与前端入口，yt-dlp flat 提取并过滤私有/删除视频，复用现有 scheduler 分析链路 | DEV_LOG.md

@@ -6,15 +6,18 @@ import sys
 from datetime import datetime, timedelta, timezone
 from db import get_db
 from app_logger import get_logger
+from alerting import send_email_alert
 logger = get_logger(__name__)
 
 RESULTS_DIR = "results"
 STUCK_PROCESSING_HOURS = 3
-STUCK_QUEUED_HOURS = 24
+STUCK_QUEUED_HOURS = 72  # 顺序队列积压时排队可能超过一天
 TIMEOUT_CHECK_INTERVAL = 30 * 60  # 秒
 CONSECUTIVE_ERRORS_BEFORE_RECONNECT = 3  # 连续失败次数触发重连
+TASK_FAILURE_ALERT_THRESHOLD = 5  # 连续任务失败次数触发邮件告警
 supabase = get_db()
 _consecutive_db_errors = 0
+_recent_failures = []  # 当前连续失败的 (task_id, error)，成功后清空
 
 def save_status(task_id, status, progress, eta=None):
     if not os.path.exists(RESULTS_DIR):
@@ -22,21 +25,36 @@ def save_status(task_id, status, progress, eta=None):
     with open(f"{RESULTS_DIR}/{task_id}_status.json", "w") as f:
         json.dump({"status": status, "progress": progress, "eta": eta}, f)
 
+def _last_activity(video) -> datetime:
+    """任务最后活动时间：created_at 与本地 _status.json 修改时间取较新者。
+    重新入队（tracker 重试 / 手工 requeue）与处理进度都会刷新 _status.json，
+    仅看 created_at 会把刚重新入队或正在处理的旧任务误判为卡住。"""
+    created = datetime.fromisoformat(video["created_at"])
+    status_file = f"{RESULTS_DIR}/{video['id']}_status.json"
+    if os.path.exists(status_file):
+        mtime = datetime.fromtimestamp(os.path.getmtime(status_file), timezone.utc)
+        return max(created, mtime)
+    return created
+
+
 def check_stuck_tasks():
-    """将超时卡住的任务自动标记为 failed"""
+    """将超时卡住（长时间无活动）的任务自动标记为 failed"""
     if not supabase:
         return
     try:
-        processing_cutoff = (datetime.now(timezone.utc) - timedelta(hours=STUCK_PROCESSING_HOURS)).isoformat()
-        queued_cutoff = (datetime.now(timezone.utc) - timedelta(hours=STUCK_QUEUED_HOURS)).isoformat()
+        now = datetime.now(timezone.utc)
+        processing_cutoff = now - timedelta(hours=STUCK_PROCESSING_HOURS)
+        queued_cutoff = now - timedelta(hours=STUCK_QUEUED_HOURS)
 
         for status, cutoff in [("processing", processing_cutoff), ("queued", queued_cutoff)]:
             res = supabase.table("videos") \
-                .select("id") \
+                .select("id, created_at") \
                 .eq("status", status) \
-                .lt("created_at", cutoff) \
+                .lt("created_at", cutoff.isoformat()) \
                 .execute()
             for v in res.data:
+                if _last_activity(v) >= cutoff:
+                    continue
                 supabase.table("videos").update({"status": "failed"}).eq("id", v["id"]).execute()
                 save_status(v["id"], "failed", 100)
                 logger.info(f"[Scheduler] Auto-failed stuck {status} task: {v['id']}")
@@ -138,6 +156,39 @@ def get_next_task():
     queued_tasks.sort(key=lambda x: x[1])
     return {"id": queued_tasks[0][0], "is_local": True}
 
+def _read_task_error(task_id) -> str:
+    try:
+        with open(f"{RESULTS_DIR}/{task_id}_error.json") as f:
+            return str(json.load(f).get("error", ""))[:300]
+    except Exception:
+        return "（无 _error.json）"
+
+
+def _record_task_result(task_id, success: bool):
+    """跟踪连续失败，达到阈值发一次告警，恢复后发一次恢复通知"""
+    global _recent_failures
+    if success:
+        if len(_recent_failures) >= TASK_FAILURE_ALERT_THRESHOLD:
+            send_email_alert(
+                "任务处理已恢复",
+                f"任务 {task_id} 处理成功，此前连续失败 {len(_recent_failures)} 次已结束。",
+            )
+        _recent_failures = []
+        return
+
+    _recent_failures.append((task_id, _read_task_error(task_id)))
+    if len(_recent_failures) == TASK_FAILURE_ALERT_THRESHOLD:
+        lines = "\n".join(f"- {tid}: {err}" for tid, err in _recent_failures)
+        send_email_alert(
+            f"连续 {TASK_FAILURE_ALERT_THRESHOLD} 个任务处理失败",
+            "调度器连续处理失败，最近的错误：\n\n"
+            f"{lines}\n\n"
+            "常见原因：yt-dlp 过旧（HTTP 403）→ backend/venv/bin/pip install -U \"yt-dlp[default]\"；"
+            "cookies 过期；LLM/转录服务异常。\n"
+            "日志：journalctl --user -u tldw-scheduler -n 200；错误详情：backend/results/<id>_error.json",
+        )
+
+
 def run_scheduler():
     logger.info("--- [Scheduler] Started and monitoring queue... ---")
     last_timeout_check = 0
@@ -182,10 +233,11 @@ def run_scheduler():
                 result = subprocess.run(cmd, stderr=subprocess.PIPE, text=True)
                 if result.returncode == 0:
                     logger.info(f"--- [Scheduler] Task {task_id} completed successfully ---")
+                    _record_task_result(task_id, success=True)
                 else:
                     logger.info(f"--- [Scheduler] Task {task_id} failed with exit code {result.returncode} ---")
                     if result.stderr:
-                        logger.info(f"[Scheduler] stderr:\n{result.stderr}", file=sys.stderr)
+                        logger.info(f"[Scheduler] stderr:\n{result.stderr}")
                     # 兜底：如果 process_task.py 崩溃前未写 _error.json，由 scheduler 补写
                     error_file = f"{RESULTS_DIR}/{task_id}_error.json"
                     if not os.path.exists(error_file):
@@ -200,6 +252,7 @@ def run_scheduler():
                             supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
                         except Exception as up_e:
                             logger.info(f"[Scheduler] Failed to update Supabase status: {up_e}")
+                    _record_task_result(task_id, success=False)
             except Exception as e:
                 logger.info(f"--- [Scheduler] Exception running task {task_id}: {e} ---")
                 # 补写 _error.json
@@ -216,6 +269,7 @@ def run_scheduler():
                         supabase.table("videos").update({"status": "failed"}).eq("id", task_id).execute()
                     except Exception as up_e:
                         logger.info(f"[Scheduler] Failed to update Supabase status: {up_e}")
+                _record_task_result(task_id, success=False)
             
         else:
             time.sleep(10)
