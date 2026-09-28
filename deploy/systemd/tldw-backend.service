@@ -1,0 +1,17 @@
+[Unit]
+Description=TLDW Backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+Environment=KMP_DUPLICATE_LIB_OK=TRUE
+Environment=OMP_NUM_THREADS=1
+Environment=MKL_NUM_THREADS=1
+# .env 交给 systemd 解析（勿在 bash 中 source：引号/$ 解析规则不同）
+EnvironmentFile=%h/projects/tldw_antig/backend/.env
+ExecStart=%h/projects/tldw_antig/deploy/bin/run-backend.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

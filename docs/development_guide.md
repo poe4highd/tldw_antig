@@ -77,19 +77,43 @@ npm run dev
 
 ### 5.1 服务列表
 
-| 服务文件 | 内容 |
-|---------|------|
-| `~/.config/systemd/user/tldw-backend.service` | FastAPI 后端 (uvicorn, port 8000) |
-| `~/.config/systemd/user/tldw-frontend.service` | Next.js 前端 (npm run dev, port 3000) |
-| `~/.config/systemd/user/tldw-scheduler.service` | 任务调度器 (scheduler.py) |
-| `~/.config/systemd/user/cloudflared-tldw.service` | Cloudflare 隧道 (ubuntu-read-tube) |
-| `~/.config/systemd/user/tldw.target` | 统一控制以上所有服务的 target |
+所有部署配置都纳入仓库 `deploy/` 目录，这是唯一的源头：
 
+| 仓库文件 | 内容 |
+|---------|------|
+| `deploy/systemd/tldw-backend.service` | FastAPI 后端 (uvicorn --reload, port 8000) |
+| `deploy/systemd/tldw-frontend.service` | 本地 Next.js 开发服务器 (port 3000，生产前端在 Vercel) |
+| `deploy/systemd/tldw-scheduler.service` | 任务调度器 (scheduler.py) |
+| `deploy/systemd/cloudflared-tldw.service` | Cloudflare 隧道 (ubuntu-read-tube，api.read-tube.com → 8000) |
+| `deploy/systemd/tldw.target` | 统一控制以上所有服务的 target |
+| `deploy/bin/run-*.sh` | 各服务的启动逻辑（按脚本位置解析仓库路径） |
+| `deploy/bin/rt` | 快捷管理命令 |
+| `deploy/install.sh` | 把单元与 `rt` 软链接到 `~/.config/systemd/user/`、`~/bin/` |
+
+> systemd 只从固定目录加载单元，因此 `~/.config/systemd/user/` 下保留的是由 `install.sh` 生成的软链接，**不要手工编辑**。
+> 单元文件中的唯一绝对锚点是 `%h/projects/tldw_antig`，软链接必须指向这个生产主仓库，而不是 worktree（`install.sh` 会校验）。
+>
 > **注意**：`loginctl enable-linger xs` 已启用，确保无登录会话时服务也持续运行。
+
+**新机器 / 首次安装**：
+```bash
+git clone git@github.com:poe4highd/tldw_antig.git ~/projects/tldw_antig
+cd ~/projects/tldw_antig && ./deploy/install.sh
+systemctl --user enable tldw.target tldw-backend tldw-frontend tldw-scheduler cloudflared-tldw
+```
+
+**改动生效规则**（合并到 main 即上线）：
+
+| 改动 | 生效方式 |
+|------|---------|
+| `backend/**/*.py` | uvicorn `--reload` 自动重载；scheduler 需 `rt restart tldw-scheduler` |
+| `deploy/bin/run-*.sh` | `rt restart <服务>` |
+| `deploy/systemd/*` | `systemctl --user daemon-reload` 后 `rt restart <服务>` |
+| 新增单元文件 | 重新执行 `./deploy/install.sh` |
 
 ### 5.2 快捷命令 `rt`
 
-项目提供了 `~/bin/rt` 脚本，封装了常用的 systemd 操作：
+`deploy/bin/rt`（经 `install.sh` 链接为 `~/bin/rt`）封装了常用的 systemd 操作：
 
 ```bash
 rt                         # 查看所有服务状态

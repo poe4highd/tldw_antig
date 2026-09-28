@@ -1135,9 +1135,57 @@ async def get_history(user_id: str = None):
         "summary": {"total_duration": 0, "total_cost": 0, "video_count": 0}
     }
 
+def _get_hidden_channel_ids() -> set:
+    try:
+        hidden_channels = supabase.table("channel_settings") \
+            .select("channel_id") \
+            .eq("hidden_from_home", True) \
+            .execute()
+        return {c["channel_id"] for c in (hidden_channels.data or [])}
+    except Exception as e:
+        # 表可能不存在，忽略错误
+        print(f"[Explore] channel_settings 查询失败（表可能不存在）: {e}")
+        return set()
+
+
+@app.get("/sitemap-ids")
+async def get_sitemap_ids():
+    """供 sitemap 使用的轻量列表：不读 report_data 大字段，避免 statement timeout。
+    注意：不按频道隐藏过滤（channel_id 只存在于 report_data JSONB 中，过滤需解整表 JSONB，实测 ~6s）；
+    频道隐藏只影响首页展示，结果页本身仍为公开页面。"""
+    if not supabase:
+        return []
+    try:
+        # Supabase 单次最多返回 1000 行，分页拉全
+        rows, page_size = [], 1000
+        while True:
+            batch = supabase.table("videos") \
+                .select("id, created_at, hidden_from_home") \
+                .eq("status", "completed") \
+                .eq("is_public", True) \
+                .order("created_at", desc=True) \
+                .range(len(rows), len(rows) + page_size - 1) \
+                .execute().data or []
+            rows.extend(batch)
+            if len(batch) < page_size:
+                break
+        items = []
+        for v in rows:
+            vid = str(v.get("id", ""))
+            if len(vid) != 11 or vid.startswith("up_") or v.get("hidden_from_home"):
+                continue
+            items.append({"id": vid, "date": v.get("created_at")})
+        return items
+    except Exception as e:
+        print(f"[Sitemap] Fetch failed: {e}")
+        raise HTTPException(status_code=503, detail="sitemap ids unavailable")
+
+
 @app.get("/explore")
 async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str = None, user_id: str = None):
     req_user_id = user_id # Rename locally for clarity
+    page = max(page, 1)
+    limit = min(max(limit, 1), 100)
     if not supabase:
         # Fallback to local history but only YouTube ones
         try:
@@ -1163,18 +1211,8 @@ async def get_explore(request: Request, page: int = 1, limit: int = 24, q: str =
     
     try:
         # 获取隐藏频道列表
-        hidden_channel_ids = set()
-        try:
-            hidden_channels = supabase.table("channel_settings") \
-                .select("channel_id") \
-                .eq("hidden_from_home", True) \
-                .execute()
-            if hidden_channels.data:
-                hidden_channel_ids = {c["channel_id"] for c in hidden_channels.data}
-        except Exception as e:
-            # 表可能不存在，忽略错误
-            print(f"[Explore] channel_settings 查询失败（表可能不存在）: {e}")
-        
+        hidden_channel_ids = _get_hidden_channel_ids()
+
         # Start building the query
         # 确保 req_user_id 在查询中可用（如果需要隐私过滤）
         query = supabase.table("videos") \

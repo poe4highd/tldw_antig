@@ -1,0 +1,14 @@
+[Unit]
+Description=TLDW Task Scheduler
+After=tldw-backend.service
+
+[Service]
+Type=simple
+Environment=KMP_DUPLICATE_LIB_OK=TRUE
+EnvironmentFile=%h/projects/tldw_antig/backend/.env
+ExecStart=%h/projects/tldw_antig/deploy/bin/run-scheduler.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

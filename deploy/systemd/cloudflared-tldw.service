@@ -1,0 +1,12 @@
+[Unit]
+Description=Cloudflare Tunnel (ubuntu-read-tube)
+After=network.target tldw-backend.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloudflared tunnel run ubuntu-read-tube
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

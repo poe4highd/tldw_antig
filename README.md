@@ -90,7 +90,7 @@ rt logs         # 实时查看后端日志
 rt logs tldw-frontend      # 实时查看前端日志
 ```
 
-详见 [开发启动与日志监控指南](docs/development_guide.md)。
+服务配置位于仓库 `deploy/`，首次安装执行 `./deploy/install.sh`。详见 [开发启动与日志监控指南](docs/development_guide.md)。
 
 ### 4. 分步手动启动
 1. **启动后端 (API)**:

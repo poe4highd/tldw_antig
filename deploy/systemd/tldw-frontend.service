@@ -1,0 +1,13 @@
+[Unit]
+Description=TLDW Frontend (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+Environment=PATH=%h/.nvm/versions/node/v20.20.0/bin:/usr/bin:/usr/local/bin
+ExecStart=%h/projects/tldw_antig/deploy/bin/run-frontend.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

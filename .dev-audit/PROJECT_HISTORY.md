@@ -1,4 +1,5 @@
-[2026-08-22] | [UX] | 首页强化 YouTube 提交入口 | 右上角常驻按钮图标 User→Youtube，登录态文案改「提交新的任务」直跳 /tasks（原为空洞的 Profile→/dashboard），未登录态维持登录引导；确认 read-tube.com 为项目生产域名 | DEV_LOG.md
+[2026-09-27] | [Perf/Deploy] | Sitemap 超时修复 + systemd 配置入库 | 新增 /sitemap-ids 轻量接口(7.95s→0.3s)消除 statement timeout，修复 sitemap 从未收录 /result 页的 bug，/explore limit≤100；systemd 单元/rt 迁入 deploy/ 由 install.sh 软链接 | DEV_LOG.md
+[2026-08-22] | [UX] | 首页强化 YouTube 提交入口 | 右上角常驻按钮图标 User→Youtube，登录态文案改「提交新的任务」直跳 /tasks（原为空洞的 Profile→/dashboard），未登录态维持登录引导；确认 read-tube.com 为项目生产域名 | log_20260822.md
 [2026-06-06] | [Feature] | YouTube Playlist 批量提交任务 | 新增仅 poe4high.dimension@gmail.com 可用的 playlist 批量入队端点与前端入口，yt-dlp flat 提取并过滤私有/删除视频，复用现有 scheduler 分析链路 | DEV_LOG.md
 [2026-06-05] | [Perf/OOM] | faster-whisper 分块转录路径落地 | _transcribe_faster_whisper_chunked：复用 _get_silence_cut_points+overlap 合并，替换 CPU 回退的全量 transcribe；删除 dev_docs/assets 临时 mockup 图片 | log_20260605.md
 [2026-05-22] | [Perf/OOM] | 长音频分块流式转录 | iter_audio_chunks 流式读取(~2MB/chunk)替代全量加载；mlx-whisper 静音处切块+overlap去重；faster-whisper 开 vad_filter | DEV_LOG.md

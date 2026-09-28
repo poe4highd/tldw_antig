@@ -1,0 +1,7 @@
+[Unit]
+Description=TLDW All Services
+Wants=tldw-backend.service tldw-frontend.service tldw-scheduler.service cloudflared-tldw.service
+After=tldw-backend.service tldw-frontend.service tldw-scheduler.service cloudflared-tldw.service
+
+[Install]
+WantedBy=default.target
